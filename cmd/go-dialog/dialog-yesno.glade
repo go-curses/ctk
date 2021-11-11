@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.1 -->
+<interface>
+    <requires lib="gtk+" version="3.20"/>
+    <object class="GtkWindow" id="main-window">
+        <property name="can_focus">False</property>
+        <child>
+            <placeholder/>
+        </child>
+        <child>
+            <placeholder/>
+        </child>
+    </object>
+    <object class="GtkDialog" id="main-dialog">
+        <property name="can_focus">False</property>
+        <property name="type">popup</property>
+        <property name="modal">True</property>
+        <property name="destroy_with_parent">True</property>
+        <property name="type_hint">dialog</property>
+        <property name="skip_taskbar_hint">True</property>
+        <property name="skip_pager_hint">True</property>
+        <property name="urgency_hint">True</property>
+        <property name="transient_for">main-window</property>
+        <property name="has_resize_grip">True</property>
+        <child>
+            <placeholder/>
+        </child>
+        <child internal-child="vbox">
+            <object class="GtkBox">
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">2</property>
+                <child internal-child="action_area">
+                    <object class="GtkButtonBox">
+                        <property name="can_focus">False</property>
+                        <property name="layout_style">end</property>
+                        <child>
+                            <object class="GtkButton" id="main-yesno-yes">
+                                <property name="name">yesno-yes</property>
+                                <property name="label">gtk-yes</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="use_stock">True</property>
+                                <signal name="activate" handler="yesno-yes" swapped="no"/>
+                            </object>
+                            <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                            </packing>
+                        </child>
+                        <child>
+                            <object class="GtkButton" id="main-yesno-no">
+                                <property name="name">yesno-no</property>
+                                <property name="label">gtk-no</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="use_stock">True</property>
+                                <signal name="activate" handler="yesno-no" swapped="no"/>
+                            </object>
+                            <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">1</property>
+                            </packing>
+                        </child>
+                    </object>
+                    <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">0</property>
+                    </packing>
+                </child>
+                <child>
+                    <object class="GtkBox">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="orientation">vertical</property>
+                        <property name="homogeneous">True</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="label" translatable="yes">{{ .Message }}</property>
+                            </object>
+                            <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                            </packing>
+                        </child>
+                    </object>
+                    <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                    </packing>
+                </child>
+            </object>
+        </child>
+    </object>
+</interface>

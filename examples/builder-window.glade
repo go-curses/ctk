@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.22.1 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkWindow" id="main-window">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Main Window Title</property>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="hscrollbar_policy">always</property>
+        <property name="vscrollbar_policy">always</property>
+        <property name="shadow_type">in</property>
+        <child>
+          <object class="GtkViewport">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="width_request">50</property>
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Id ornare arcu odio ut sem. In vitae turpis massa sed elementum tempus. Tempor orci dapibus ultrices in. Elementum facilisis leo vel fringilla est ullamcorper eget nulla facilisi. Enim nunc faucibus a pellentesque. Varius sit amet mattis vulputate. Donec enim diam vulputate ut pharetra sit amet aliquam. Est sit amet facilisis magna etiam tempor orci eu lobortis. Eros donec ac odio tempor. Aliquet nibh praesent tristique magna. Egestas egestas fringilla phasellus faucibus.</property>
+                <property name="wrap">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
