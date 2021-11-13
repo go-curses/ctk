@@ -136,6 +136,8 @@ examples: clean-examples
 	done
 
 local:
+	@echo "# adding go.mod local CTK package replacements..."
+	@go mod edit -replace=github.com/go-curses/ctk=../ctk
 	@if [ ! -d ../cdk ]; then \
 			echo "missing ../cdk checkout, please get a CDK checkout in place, ie:"; \
 			echo " cd ..; git clone https://github.com/go-curses/cdk.git; cd -" 1>&2; \
@@ -155,6 +157,8 @@ local:
 	done
 
 unlocal:
+	@echo "# removing go.mod local CTK package replacements..."
+	@go mod edit -dropreplace=github.com/go-curses/ctk
 	@if [ ! -d ../cdk ]; then \
 			echo "missing ../cdk checkout, please get a CDK checkout in place, ie:"; \
 			echo " cd ..; git clone https://github.com/go-curses/cdk.git; cd -" 1>&2; \
