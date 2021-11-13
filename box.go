@@ -704,6 +704,8 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		overflow   int
 	}, numChildren)
 
+	// TODO: PackEnd children need resizeDynamicAlloc to go RtL, right aligned
+
 	for idx, child := range children {
 		req := ptypes.NewRectangle(child.widget.GetSizeRequest())
 		if child.expand { // expand
