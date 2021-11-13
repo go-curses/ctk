@@ -8,7 +8,7 @@ const (
 	SignalAllocation        cdk.Signal = "allocation"
 	SignalCancelEvent       cdk.Signal = "cancel-event"
 	SignalCdkEvent          cdk.Signal = "cdk-event"
-	SignalDraw              cdk.Signal = "draw"
+	SignalDraw              cdk.Signal = cdk.SignalDraw
 	SignalError             cdk.Signal = "error"
 	SignalEventKey          cdk.Signal = "key-event"
 	SignalEventMouse        cdk.Signal = "mouse-event"
@@ -30,6 +30,7 @@ const (
 	SignalSetEventFocus     cdk.Signal = "set-event-focus"
 	SignalSetFlags          cdk.Signal = "set-flags"
 	SignalSetParent         cdk.Signal = "set-parent"
+	SignalSetProperty       cdk.Signal = cdk.SignalSetProperty
 	SignalSetSensitive      cdk.Signal = "set-sensitive"
 	SignalSetSizeRequest    cdk.Signal = "set-size-request"
 	SignalSetState          cdk.Signal = "set-state"
