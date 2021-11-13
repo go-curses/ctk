@@ -1,7 +1,6 @@
 package ctk
 
-// TODO: new from stock id
-// TODO: mnemonics support, GtkAccel?
+// TODO: mnemonics support, Accel
 
 import (
 	"strings"
@@ -15,31 +14,11 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Button objects
 const TypeButton cdk.CTypeTag = "ctk-button"
 
 var (
-	DefaultMonoButtonTheme = paint.Theme{
-		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultMonoStyle,
-			Focused:     paint.DefaultMonoStyle.Dim(false),
-			Active:      paint.DefaultMonoStyle.Dim(false).Bold(true),
-			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
-			Overlay:     false,
-		},
-		Border: paint.ThemeAspect{
-			Normal:      paint.DefaultMonoStyle,
-			Focused:     paint.DefaultMonoStyle.Dim(false),
-			Active:      paint.DefaultMonoStyle.Dim(false).Bold(true),
-			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
-			Overlay:     false,
-		},
-	}
-	DefaultColorButtonTheme = paint.Theme{
+	// DefaultButtonTheme enables customized theming of default stock buttons.
+	DefaultButtonTheme = paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick).Dim(true).Bold(false),
 			Focused:     paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
@@ -77,6 +56,9 @@ func init() {
 //	          +- LinkButton
 //	          +- OptionMenu
 //	          +- ScaleButton
+//
+// The Button Widget is a Bin Container that represents a focusable Drawable
+// Widget that is Sensitive to event interactions.
 type Button interface {
 	Bin
 	Activatable
@@ -87,8 +69,8 @@ type Button interface {
 	Build(builder Builder, element *CBuilderElement) error
 	Activate() (value bool)
 	Clicked() enums.EventFlag
-	SetRelief(newStyle ReliefStyle)
 	GetRelief() (value ReliefStyle)
+	SetRelief(newStyle ReliefStyle)
 	GetLabel() (value string)
 	SetLabel(label string)
 	GetUseStock() (value bool)
@@ -97,59 +79,60 @@ type Button interface {
 	SetUseUnderline(enabled bool)
 	GetUseMarkup() (enabled bool)
 	SetUseMarkup(enabled bool)
-	SetFocusOnClick(focusOnClick bool)
 	GetFocusOnClick() (value bool)
-	SetAlignment(xAlign float64, yAlign float64)
+	SetFocusOnClick(focusOnClick bool)
 	GetAlignment() (xAlign float64, yAlign float64)
-	SetImage(image Widget)
+	SetAlignment(xAlign float64, yAlign float64)
 	GetImage() (value Widget, ok bool)
-	SetImagePosition(position PositionType)
+	SetImage(image Widget)
 	GetImagePosition() (value PositionType)
-	Add(w Widget)
-	Remove(w Widget)
-	SetPressed(pressed bool)
+	SetImagePosition(position PositionType)
 	GetPressed() bool
-	GrabFocus()
+	SetPressed(pressed bool)
 	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
-	GetDefaultChildren() []Widget
-	GetWidgetAt(p *ptypes.Point2I) Widget
-	CancelEvent()
+	GrabFocus()
 	GrabEventFocus()
-	ProcessEvent(evt cdk.Event) enums.EventFlag
-	Invalidate() enums.EventFlag
+	CancelEvent()
+	GetWidgetAt(p *ptypes.Point2I) Widget
 	GetThemeRequest() (theme paint.Theme)
 	GetSizeRequest() (width, height int)
-	Resize() enums.EventFlag
 }
 
-// The CButton structure implements the Button interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Button objects
+// The CButton structure implements the Button interface and is exported to
+// facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Button objects.
 type CButton struct {
 	CBin
 
 	pressed bool
 }
 
-// Default constructor for Button objects
+// MakeButton is used by the Buildable system to construct a new Button with
+// a default label that is empty.
 func MakeButton() *CButton {
 	b := NewButtonWithLabel("")
 	return b
 }
 
-// Constructor for Button objects
+// NewButton is a constructor for new Box instances without any pre-set label.
 func NewButton() *CButton {
 	b := new(CButton)
 	b.Init()
 	return b
 }
 
+// NewButtonWithLabel will construct a NewButton with a NewLabel, pre-configured
+// for a centered placement within the new Button instance, taking care to avoid
+// focus complications and default event handling.
+//
+// Parameters:
+// 	label	the text of the button
 func NewButtonWithLabel(text string) (b *CButton) {
 	b = NewButton()
 	label := NewLabel(text)
 	b.Add(label)
-	label.SetTheme(DefaultColorButtonTheme)
+	label.SetTheme(DefaultButtonTheme)
 	label.UnsetFlags(CAN_FOCUS)
 	label.UnsetFlags(CAN_DEFAULT)
 	label.UnsetFlags(RECEIVES_DEFAULT)
@@ -162,28 +145,26 @@ func NewButtonWithLabel(text string) (b *CButton) {
 	return b
 }
 
-// Creates a new Button containing a label. If characters in label are
-// preceded by an underscore, they are underlined. If you need a literal
-// underscore character in a label, use '__' (two underscores). The first
-// underlined character represents a keyboard accelerator called a mnemonic.
-// Pressing Alt and that key activates the button.
+// NewButtonWithMnemonic creates a NewButtonWithLabel. If the characters in the
+// label are preceded by an underscore, they are underlined. If you need a
+// literal underscore character in a label, use '__' (two underscores). The
+// first underlined character represents a keyboard accelerator called a
+// mnemonic. Pressing Alt and that key activates the button.
+//
 // Parameters:
-// 	label	The text of the button, with an underscore in front of the
-// mnemonic character
+// 	label	the text of the button
 func NewButtonWithMnemonic(text string) (b *CButton) {
 	b = NewButtonWithLabel(text)
 	b.SetUseUnderline(true)
 	return b
 }
 
-// Creates a new Button containing the image and text from a stock item.
-// Some stock ids have preprocessor macros like GTK_STOCK_OK and
-// GTK_STOCK_APPLY. If stock_id is unknown, then it will be treated as a
-// mnemonic label (as for NewWithMnemonic).
+// NewButtonFromStock creates a NewButtonWithLabel containing the text from a
+// stock item. If stock_id is unknown, it will be treated as a mnemonic label
+// (as for NewWithMnemonic).
+//
 // Parameters:
 // 	stockId	the name of the stock item
-// Returns:
-// 	a new Button
 func NewButtonFromStock(stockId StockID) (value *CButton) {
 	b := NewButtonWithLabel("")
 	b.Init()
@@ -197,19 +178,20 @@ func NewButtonFromStock(stockId StockID) (value *CButton) {
 	return b
 }
 
-// Constructor with Widget for Button objects, uncertain this works as expected
-// due to struct type information loss on interface filter
+// NewbuttonWithWidget creates a NewButton with the given Widget as the Button's
+// child.
 func NewButtonWithWidget(w Widget) *CButton {
-	b := new(CButton)
-	b.Init()
+	b := NewButton()
 	b.Add(w)
 	return b
 }
 
-// Button object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Button instance
+// Init initializes a Button object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Button instance. Init is used in the
+// NewButton constructor and only necessary when implementing a derivative
+// Button type.
 func (b *CButton) Init() (already bool) {
 	if b.InitTypeItem(TypeButton, b) {
 		return true
@@ -217,7 +199,7 @@ func (b *CButton) Init() (already bool) {
 	b.CBin.Init()
 	b.flags = NULL_WIDGET_FLAG
 	b.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_DEFAULT | RECEIVES_DEFAULT | CAN_FOCUS | APP_PAINTABLE)
-	b.SetTheme(DefaultColorButtonTheme)
+	b.SetTheme(DefaultButtonTheme)
 	b.pressed = false
 	_ = b.InstallBuildableProperty(PropertyFocusOnClick, cdk.BoolProperty, true, true)
 	_ = b.InstallBuildableProperty(PropertyButtonLabel, cdk.StringProperty, true, nil)
@@ -226,29 +208,18 @@ func (b *CButton) Init() (already bool) {
 	_ = b.InstallBuildableProperty(PropertyUseUnderline, cdk.BoolProperty, true, false)
 	_ = b.InstallBuildableProperty(PropertyXAlign, cdk.FloatProperty, true, 0.5)
 	_ = b.InstallBuildableProperty(PropertyYAlign, cdk.FloatProperty, true, 0.5)
+	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)
 	b.Connect(SignalLostFocus, ButtonLostFocusHandle, b.lostFocus)
 	b.Connect(SignalGainedFocus, ButtonGainedFocusHandle, b.gainedFocus)
+	b.Connect(SignalCdkEvent, ButtonCdkEventHandle, b.event)
+	b.Connect(SignalInvalidate, ButtonInvalidateHandle, b.invalidate)
+	b.Connect(SignalResize, ButtonResizeHandle, b.resize)
 	b.Connect(SignalDraw, ButtonDrawHandle, b.draw)
-	b.Connect(cdk.SignalSetProperty, ButtonSetPropertyHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
-		if len(argv) == 3 {
-			if key, ok := argv[1].(cdk.Property); ok {
-				switch key {
-				case PropertyButtonLabel:
-					if val, ok := argv[2].(string); ok {
-						b.SetLabel(val)
-					} else {
-						b.LogError("property label value is not string: %T", argv[2])
-					}
-				}
-			}
-		}
-		// allow property to be set
-		return enums.EVENT_PASS
-	})
 	b.Invalidate()
 	return false
 }
 
+// Build provides customizations to the Buildable system for Button Widgets.
 func (b *CButton) Build(builder Builder, element *CBuilderElement) error {
 	b.Freeze()
 	defer b.Thaw()
@@ -274,22 +245,19 @@ func (b *CButton) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
+// Activate emits a SignalActivate, returning TRUE if the event was handled
 func (b *CButton) Activate() (value bool) {
 	return b.Emit(SignalActivate, b) == enums.EVENT_STOP
 }
 
-// TODO: button Clicked() is not defined well
-
+// Clicked emits a SignalClicked
 func (b *CButton) Clicked() enums.EventFlag {
+	// TODO: button Clicked() is not defined well
 	return b.Emit(SignalClicked, b)
 }
 
-func (b *CButton) SetRelief(newStyle ReliefStyle) {
-	if err := b.SetStructProperty(PropertyRelief, newStyle); err != nil {
-		b.LogErr(err)
-	}
-}
-
+// GetRelief is a convenience method for returning the relief property value
+// See: SetRelief()
 func (b *CButton) GetRelief() (value ReliefStyle) {
 	if v, err := b.GetStructProperty(PropertyRelief); err != nil {
 		b.LogErr(err)
@@ -302,13 +270,19 @@ func (b *CButton) GetRelief() (value ReliefStyle) {
 	return
 }
 
-// Fetches the text from the label of the button, as set by
-// SetLabel. If the label text has not been set the return
-// value will be NULL. This will be the case if you create an empty button
-// with New to use as a container.
-// Returns:
-// 	The text of the label widget. This string is owned by the
-// 	widget and must not be modified or freed.
+// SetRelief is a convenience method for updating the relief property value
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (b *CButton) SetRelief(newStyle ReliefStyle) {
+	if err := b.SetStructProperty(PropertyRelief, newStyle); err != nil {
+		b.LogErr(err)
+	}
+}
+
+// GetLabel returns the text from the label of the button, as set by SetLabel.
+// If the child Widget is not a Label, the value of the button label property
+// will be returned instead.
+// See: SetLabel()
 func (b *CButton) GetLabel() (value string) {
 	if v, ok := b.GetChild().(Label); ok {
 		return v.GetText()
@@ -320,11 +294,12 @@ func (b *CButton) GetLabel() (value string) {
 	return
 }
 
-// Sets the text of the label of the button to str . This text is also used
-// to select the stock item if SetUseStock is used. This will
-// also clear any previously set labels.
+// SetLabel will update the text of the child Label of the button to the given
+// text. This text is also used to select the stock item if SetUseStock is used.
+// This will also clear any previously set labels.
+//
 // Parameters:
-// 	label	a string
+// 	label	the Label text to apply
 func (b *CButton) SetLabel(label string) {
 	if b.GetUseStock() && label != "" {
 		label = strings.ReplaceAll(label, "gtk", "ctk")
@@ -343,10 +318,8 @@ func (b *CButton) SetLabel(label string) {
 	}
 }
 
-// Returns whether the button label is a stock item.
-// Returns:
-// 	TRUE if the button label is used to select a stock item instead
-// 	of being used directly as the label text.
+// GetUseStock is a convenience method to return the use-stock property value.
+// See: SetUseStock()
 func (b *CButton) GetUseStock() (value bool) {
 	var err error
 	if value, err = b.GetBoolProperty(PropertyUseStock); err != nil {
@@ -355,8 +328,10 @@ func (b *CButton) GetUseStock() (value bool) {
 	return
 }
 
+// SetUseStock is a convenience method to update the use-stock property value.
 // If TRUE, the label set on the button is used as a stock id to select the
 // stock item for the button.
+//
 // Parameters:
 // 	useStock	TRUE if the button should use a stock item
 func (b *CButton) SetUseStock(useStock bool) {
@@ -368,11 +343,10 @@ func (b *CButton) SetUseStock(useStock bool) {
 	}
 }
 
-// Returns whether an embedded underline in the button label indicates a
-// mnemonic. See SetUseUnderline.
-// Returns:
-// 	TRUE if an embedded underline in the button label indicates the
-// 	mnemonic accelerator keys.
+// GetUseUnderline is a convenience method to return the use-underline property
+// value. This is whether an embedded underline in the button label indicates a
+// mnemonic.
+// See: SetUseUnderline()
 func (b *CButton) GetUseUnderline() (enabled bool) {
 	var err error
 	if enabled, err = b.GetBoolProperty(PropertyUseUnderline); err != nil {
@@ -381,19 +355,11 @@ func (b *CButton) GetUseUnderline() (enabled bool) {
 	return
 }
 
-// Returns whether markup in the label text is rendered. See SetUseMarkup.
-// Returns:
-// 	TRUE if markup is rendered
-func (b *CButton) GetUseMarkup() (enabled bool) {
-	var err error
-	if enabled, err = b.GetBoolProperty(PropertyUseMarkup); err != nil {
-		b.LogErr(err)
-	}
-	return
-}
-
-// If true, an underline in the text of the button label indicates the next
-// character should be used for the mnemonic accelerator key.
+// SetUseUnderline is a convenience method to update the use-underline property
+// value and update the child Label settings. If true, an underline in the text
+// of the button label indicates the next character should be used for the
+// mnemonic accelerator key.
+//
 // Parameters:
 // 	useUnderline	TRUE if underlines in the text indicate mnemonics
 func (b *CButton) SetUseUnderline(enabled bool) {
@@ -407,7 +373,20 @@ func (b *CButton) SetUseUnderline(enabled bool) {
 	}
 }
 
-// If true, any tango markup in the text of the button label will be rendered.
+// GetUseMarkup is a convenience method to return the use-markup property value.
+// This is whether markup in the label text is rendered.
+// See: SetUseMarkup()
+func (b *CButton) GetUseMarkup() (enabled bool) {
+	var err error
+	if enabled, err = b.GetBoolProperty(PropertyUseMarkup); err != nil {
+		b.LogErr(err)
+	}
+	return
+}
+
+// SetUseMarkup is a convenience method to update the use-markup property value.
+// If true, any Tango markup in the text of the button label will be rendered.
+//
 // Parameters:
 // 	enabled	TRUE if markup is rendered
 func (b *CButton) SetUseMarkup(enabled bool) {
@@ -421,23 +400,10 @@ func (b *CButton) SetUseMarkup(enabled bool) {
 	}
 }
 
-// Sets whether the button will grab focus when it is clicked with the mouse.
-// Making mouse clicks not grab focus is useful in places like toolbars where
-// you don't want the keyboard focus removed from the main area of the
-// application.
-// Parameters:
-// 	focusOnClick	whether the button grabs focus when clicked with the mouse
-func (b *CButton) SetFocusOnClick(focusOnClick bool) {
-	if err := b.SetBoolProperty(PropertyFocusOnClick, focusOnClick); err != nil {
-		b.LogErr(err)
-	}
-}
-
-// Returns whether the button grabs focus when it is clicked with the mouse.
-// See SetFocusOnClick.
-// Returns:
-// 	TRUE if the button grabs focus when it is clicked with the
-// 	mouse.
+// GetFocusOnClick is a convenience method to return the focus-on-click property
+// value. This is whether the button grabs focus when it is clicked with the
+// mouse.
+// See: SetFocusOnClick()
 func (b *CButton) GetFocusOnClick() (value bool) {
 	var err error
 	if value, err = b.GetBoolProperty(PropertyFocusOnClick); err != nil {
@@ -446,28 +412,26 @@ func (b *CButton) GetFocusOnClick() (value bool) {
 	return
 }
 
-// Sets the alignment of the child. This property has no effect unless the
-// child is a Misc or a Alignment.
+// SetFocusOnClick is a convenience method for updating the focus-on-click
+// property value. This is whether the button will grab focus when it is clicked
+// with the mouse. Making mouse clicks not grab focus is useful in places like
+// toolbars where you don't want the keyboard focus removed from the main area
+// of the application.
+//
 // Parameters:
-// 	xAlign	the horizontal position of the child, 0.0 is left aligned,
-// 1.0 is right aligned
-// 	yAlign	the vertical position of the child, 0.0 is top aligned,
-// 1.0 is bottom aligned
-func (b *CButton) SetAlignment(xAlign float64, yAlign float64) {
-	xAlign = cmath.ClampF(xAlign, 0.0, 1.0)
-	yAlign = cmath.ClampF(yAlign, 0.0, 1.0)
-	if err := b.SetProperty(PropertyXAlign, xAlign); err != nil {
-		b.LogErr(err)
-	}
-	if err := b.SetProperty(PropertyYAlign, yAlign); err != nil {
+// 	focusOnClick	whether the button grabs focus when clicked with the mouse
+func (b *CButton) SetFocusOnClick(focusOnClick bool) {
+	if err := b.SetBoolProperty(PropertyFocusOnClick, focusOnClick); err != nil {
 		b.LogErr(err)
 	}
 }
 
-// Gets the alignment of the child in the button.
+// GetAlignment is a convenience method for returning both the x and y alignment
+// property values.
+//
 // Parameters:
-// 	xAlign	return location for horizontal alignment.
-// 	yAlign	return location for vertical alignment.
+// 	xAlign	horizontal alignment
+// 	yAlign	vertical alignment
 func (b *CButton) GetAlignment() (xAlign float64, yAlign float64) {
 	var err error
 	if xAlign, err = b.GetFloatProperty(PropertyXAlign); err != nil {
@@ -480,23 +444,31 @@ func (b *CButton) GetAlignment() (xAlign float64, yAlign float64) {
 	return
 }
 
-// Set the image of button to the given widget. Note that it depends on the
-// gtk-button-images setting whether the image will be displayed or
-// not, you don't have to call WidgetShow on image yourself.
+// SetAlignment is a convenience method for updating both the x and y alignment
+// values. This property has no effect unless the child Widget implements the
+// Alignable interface (ie: Misc based or Alignment Widget types).
+//
 // Parameters:
-// 	image	a widget to set as the image for the button
-func (b *CButton) SetImage(image Widget) {
-	if err := b.SetStructProperty(PropertyImage, image); err != nil {
+// 	xAlign	the horizontal position of the child, 0.0 is left aligned, 1.0 is right aligned
+// 	yAlign	the vertical position of the child, 0.0 is top aligned, 1.0 is bottom aligned
+func (b *CButton) SetAlignment(xAlign float64, yAlign float64) {
+	xAlign = cmath.ClampF(xAlign, 0.0, 1.0)
+	yAlign = cmath.ClampF(yAlign, 0.0, 1.0)
+	if err := b.SetProperty(PropertyXAlign, xAlign); err != nil {
 		b.LogErr(err)
+	}
+	if err := b.SetProperty(PropertyYAlign, yAlign); err != nil {
+		b.LogErr(err)
+	}
+	if child := b.GetChild(); child != nil {
+		if ca, ok := child.(Alignable); ok {
+			ca.SetAlignment(xAlign, yAlign)
+		}
 	}
 }
 
-// Gets the widget that is currently set as the image of button . This may
-// have been explicitly set by SetImage or constructed by
-// NewFromStock.
-// Returns:
-// 	a Widget or NULL in case there is no image.
-// 	[transfer none]
+// GetImage is a convenience method to return the image property value.
+// See: SetImage()
 func (b *CButton) GetImage() (value Widget, ok bool) {
 	if w, err := b.GetStructProperty(PropertyImage); err != nil {
 		b.LogErr(err)
@@ -509,18 +481,23 @@ func (b *CButton) GetImage() (value Widget, ok bool) {
 	return
 }
 
-// Sets the position of the image relative to the text inside the button.
+// SetImage is a convenience method to update the image property value.
+//
 // Parameters:
-// 	position	the position
-func (b *CButton) SetImagePosition(position PositionType) {
-	if err := b.SetStructProperty(PropertyImagePosition, position); err != nil {
+// 	image	a widget to set as the image for the button
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (b *CButton) SetImage(image Widget) {
+	if err := b.SetStructProperty(PropertyImage, image); err != nil {
 		b.LogErr(err)
 	}
 }
 
-// Gets the position of the image relative to the text inside the button.
-// Returns:
-// 	the position
+// GetImagePosition is a convenience method to return the image-position
+// property value.
+// See: SetImagePosition()
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (b *CButton) GetImagePosition() (value PositionType) {
 	if v, err := b.GetStructProperty(PropertyImagePosition); err != nil {
 		b.LogErr(err)
@@ -533,24 +510,28 @@ func (b *CButton) GetImagePosition() (value PositionType) {
 	return
 }
 
-func (b *CButton) Add(w Widget) {
-	if len(b.children) == 0 {
-		b.CBin.Add(w)
-		b.Invalidate()
-	} else {
-		b.LogError("button bin is full, failed to add: %v", w.ObjectName())
+// SetImagePosition is a convenience method to update the image-position
+// property value. This sets the position of the image relative to the text
+// inside the button.
+//
+// Parameters:
+// 	position	the position
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (b *CButton) SetImagePosition(position PositionType) {
+	if err := b.SetStructProperty(PropertyImagePosition, position); err != nil {
+		b.LogErr(err)
 	}
 }
 
-func (b *CButton) Remove(w Widget) {
-	if len(b.children) > 0 {
-		b.CBin.Remove(w)
-		b.Invalidate()
-	} else {
-		b.LogError("button bin is empty, failed to remove: %v", w.ObjectName())
-	}
+// GetPressed returns TRUE if the Button is currently pressed, FALSE otherwise.
+func (b *CButton) GetPressed() bool {
+	return b.pressed
 }
 
+// SetPressed is used to change the pressed state of the Button. If TRUE, the
+// Button is flagged as pressed and a SignalPressed is emitted. If FALSE, the
+// Button is flagged as not being pressed and a SignalReleased is emitted.
 func (b *CButton) SetPressed(pressed bool) {
 	b.pressed = pressed
 	b.Invalidate()
@@ -561,19 +542,18 @@ func (b *CButton) SetPressed(pressed bool) {
 	}
 }
 
-func (b *CButton) GetPressed() bool {
-	return b.pressed
+// GetFocusChain overloads the Container.GetFocusChain to always return the
+// Button instance as the only item in the focus chain.
+func (b *CButton) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
+	focusableWidgets = []interface{}{b}
+	return
 }
 
-// If the Widget instance CanFocus() then take the focus of the associated
-// Window. Any previously focused Widget will emit a lost-focus signal and the
-// newly focused Widget will emit a gained-focus signal. This method emits a
+// GrabFocus will take the focus of the associated Window if the Widget instance
+// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
+// the newly focused Widget will emit a gained-focus signal. This method emits a
 // grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied
-//
-// Emits: SignalGrabFocus, Argv=[Widget instance]
-// Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
-// Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
+// changes are applied.
 func (b *CButton) GrabFocus() {
 	if b.CanFocus() {
 		if r := b.Emit(SignalGrabFocus, b); r == enums.EVENT_PASS {
@@ -601,29 +581,9 @@ func (b *CButton) GrabFocus() {
 	}
 }
 
-func (b *CButton) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
-	focusableWidgets = []interface{}{b}
-	return
-}
-
-func (b *CButton) GetDefaultChildren() []Widget {
-	return []Widget{b}
-}
-
-func (b *CButton) GetWidgetAt(p *ptypes.Point2I) Widget {
-	if b.HasPoint(p) && b.IsVisible() {
-		return b
-	}
-	return nil
-}
-
-func (b *CButton) CancelEvent() {
-	if f := b.Emit(SignalCancelEvent, b); f == enums.EVENT_PASS {
-		b.SetPressed(false)
-		b.ReleaseEventFocus()
-	}
-}
-
+// GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
+// return enums.EVENT_PASS will set the Button instance as the Window event
+// focus handler.
 func (b *CButton) GrabEventFocus() {
 	if window := b.GetWindow(); window != nil {
 		if f := b.Emit(SignalGrabEventFocus, b, window); f == enums.EVENT_PASS {
@@ -632,75 +592,29 @@ func (b *CButton) GrabEventFocus() {
 	}
 }
 
-func (b *CButton) ProcessEvent(evt cdk.Event) enums.EventFlag {
-	switch e := evt.(type) {
-	case *cdk.EventMouse:
-		pos := ptypes.NewPoint2I(e.Position())
-		switch e.State() {
-		case cdk.BUTTON_PRESS, cdk.DRAG_START:
-			if b.HasPoint(pos) {
-				if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
-					b.GrabFocus()
-				}
-				b.GrabEventFocus()
-				b.SetPressed(true)
-				b.LogDebug("pressed")
-				return enums.EVENT_STOP
-			}
-		case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
-			if b.HasEventFocus() {
-				if !b.HasPoint(pos) {
-					b.LogDebug("out of bounds")
-					b.CancelEvent()
-					return enums.EVENT_STOP
-				}
-			}
-			return enums.EVENT_PASS
-		case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
-			if b.HasEventFocus() {
-				if !b.HasPoint(pos) {
-					b.LogDebug("out of bounds")
-					b.CancelEvent()
-					return enums.EVENT_STOP
-				}
-				b.ReleaseEventFocus()
-				if f := b.Clicked(); f == enums.EVENT_PASS {
-					b.Activate()
-				}
-				b.SetPressed(false)
-				b.LogDebug("released")
-				return enums.EVENT_STOP
-			}
-		}
-	case *cdk.EventKey:
-		if b.HasEventFocus() {
-			b.LogDebug("keypress cancelling mouse event handling")
-			b.CancelEvent()
-			return enums.EVENT_STOP
-		}
-		switch e.Key() {
-		case cdk.KeyRune:
-			if e.Rune() != ' ' {
-				break
-			}
-			fallthrough
-		case cdk.KeyEnter:
-			if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
-				b.GrabFocus()
-			}
-			b.LogTrace("pressed")
-			b.SetPressed(true)
-			if f := b.Clicked(); f == enums.EVENT_PASS {
-				b.Activate()
-			}
-			b.SetPressed(false)
-			b.LogTrace("released")
-			return enums.EVENT_STOP
-		}
+// CancelEvent emits a cancel-event signal and if the signal handlers all return
+// enums.EVENT_PASS, then set the button as not pressed and release any event
+// focus.
+func (b *CButton) CancelEvent() {
+	if f := b.Emit(SignalCancelEvent, b); f == enums.EVENT_PASS {
+		b.SetPressed(false)
+		b.ReleaseEventFocus()
 	}
-	return enums.EVENT_PASS
 }
 
+// GetWidgetAt returns the Button instance if the position given is within the
+// allocated size at the origin point of the Button. If the position given is
+// not contained within the Button space, `nil` is returned.
+func (b *CButton) GetWidgetAt(p *ptypes.Point2I) Widget {
+	if b.HasPoint(p) && b.IsVisible() {
+		return b
+	}
+	return nil
+}
+
+// GetThemeRequest returns the current theme for the Button, reflecting the
+// pressed state of the Button. This method is only to be used within draw
+// signal handlers to render the current state of the Button.
 func (b *CButton) GetThemeRequest() (theme paint.Theme) {
 	theme = b.CWidget.GetThemeRequest()
 	if b.GetPressed() {
@@ -715,15 +629,9 @@ func (b *CButton) GetThemeRequest() (theme paint.Theme) {
 	return
 }
 
-func (b *CButton) getBorderRequest() (border bool) {
-	border = true
-	alloc := b.GetAllocation()
-	if alloc.W <= 2 || alloc.H <= 2 {
-		border = false
-	}
-	return
-}
-
+// GetSizeRequest returns the requested size of the Drawable Widget. This method
+// is used by Container Widgets to resolve the surface space allocated for their
+// child Widget instances.
 func (b *CButton) GetSizeRequest() (width, height int) {
 	size := ptypes.NewRectangle(b.CWidget.GetSizeRequest())
 	if child := b.GetChild(); child != nil {
@@ -738,8 +646,123 @@ func (b *CButton) GetSizeRequest() (width, height int) {
 	return size.W, size.H
 }
 
-func (b *CButton) Resize() enums.EventFlag {
-	// our allocation has been set prior to Resize() being called
+func (b *CButton) getBorderRequest() (border bool) {
+	border = true
+	alloc := b.GetAllocation()
+	if alloc.W <= 2 || alloc.H <= 2 {
+		border = false
+	}
+	return
+}
+
+func (b *CButton) setProperty(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if len(argv) == 3 {
+		if key, ok := argv[1].(cdk.Property); ok {
+			switch key {
+			case PropertyButtonLabel:
+				if val, ok := argv[2].(string); ok {
+					b.SetLabel(val)
+				} else {
+					b.LogError("property label value is not string: %T", argv[2])
+				}
+			}
+		}
+	}
+	// allow property to be set by other signal handlers
+	return enums.EVENT_PASS
+}
+
+func (b *CButton) lostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
+	_ = b.Invalidate()
+	return enums.EVENT_PASS
+}
+
+func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
+	_ = b.Invalidate()
+	return enums.EVENT_PASS
+}
+
+func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if evt, ok := argv[1].(cdk.Event); ok {
+		switch e := evt.(type) {
+		case *cdk.EventMouse:
+			pos := ptypes.NewPoint2I(e.Position())
+			switch e.State() {
+			case cdk.BUTTON_PRESS, cdk.DRAG_START:
+				if b.HasPoint(pos) {
+					if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
+						b.GrabFocus()
+					}
+					b.GrabEventFocus()
+					b.SetPressed(true)
+					b.LogDebug("pressed")
+					return enums.EVENT_STOP
+				}
+			case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
+				if b.HasEventFocus() {
+					if !b.HasPoint(pos) {
+						b.LogDebug("out of bounds")
+						b.CancelEvent()
+						return enums.EVENT_STOP
+					}
+				}
+				return enums.EVENT_PASS
+			case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
+				if b.HasEventFocus() {
+					if !b.HasPoint(pos) {
+						b.LogDebug("out of bounds")
+						b.CancelEvent()
+						return enums.EVENT_STOP
+					}
+					b.ReleaseEventFocus()
+					if f := b.Clicked(); f == enums.EVENT_PASS {
+						b.Activate()
+					}
+					b.SetPressed(false)
+					b.LogDebug("released")
+					return enums.EVENT_STOP
+				}
+			}
+		case *cdk.EventKey:
+			if b.HasEventFocus() {
+				b.LogDebug("keypress cancelling mouse event handling")
+				b.CancelEvent()
+				return enums.EVENT_STOP
+			}
+			switch e.Key() {
+			case cdk.KeyRune:
+				if e.Rune() != ' ' {
+					break
+				}
+				fallthrough
+			case cdk.KeyEnter:
+				if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
+					b.GrabFocus()
+				}
+				b.LogTrace("pressed")
+				b.SetPressed(true)
+				if f := b.Clicked(); f == enums.EVENT_PASS {
+					b.Activate()
+				}
+				b.SetPressed(false)
+				b.LogTrace("released")
+				return enums.EVENT_STOP
+			}
+		}
+	}
+	return enums.EVENT_PASS
+}
+
+func (b *CButton) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if child := b.GetChild(); child != nil {
+		theme := b.GetThemeRequest()
+		child.SetTheme(theme)
+		child.Invalidate()
+	}
+	return enums.EVENT_STOP
+}
+
+func (b *CButton) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	theme := b.GetThemeRequest()
 	alloc := b.GetAllocation()
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
@@ -781,15 +804,6 @@ func (b *CButton) Resize() enums.EventFlag {
 	}
 	b.Invalidate()
 	return enums.EVENT_PASS
-}
-
-func (b *CButton) Invalidate() enums.EventFlag {
-	if child := b.GetChild(); child != nil {
-		theme := b.GetThemeRequest()
-		child.SetTheme(theme)
-		child.Invalidate()
-	}
-	return enums.EVENT_STOP
 }
 
 func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
@@ -845,16 +859,6 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		}
 		return enums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
-}
-
-func (b *CButton) lostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
-	_ = b.Invalidate()
-	return enums.EVENT_PASS
-}
-
-func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
-	_ = b.Invalidate()
 	return enums.EVENT_PASS
 }
 
@@ -930,7 +934,16 @@ const SignalPressed cdk.Signal = "pressed"
 // Emitted when the button is released.
 const SignalReleased cdk.Signal = "released"
 
-const ButtonLostFocusHandle = "button-lost-focus-handler"
-const ButtonGainedFocusHandle = "button-gained-focus-handler"
-const ButtonDrawHandle = "button-draw-handler"
 const ButtonSetPropertyHandle = "button-set-property-handler"
+
+const ButtonLostFocusHandle = "button-lost-focus-handler"
+
+const ButtonGainedFocusHandle = "button-gained-focus-handler"
+
+const ButtonCdkEventHandle = "button-cdk-event-handler"
+
+const ButtonInvalidateHandle = "button-invalidate-handler"
+
+const ButtonResizeHandle = "button-resize-handler"
+
+const ButtonDrawHandle = "button-draw-handler"
