@@ -157,6 +157,9 @@ func setupUi(manager cdk.Display) error {
 			ctk.StockOk, ctk.ResponseOk,
 			ctk.StockCancel, ctk.ResponseCancel,
 		)
+		help := ctk.NewButtonFromStock(ctk.StockHelp)
+		help.Show()
+		dialog.AddSecondaryActionWidget(help, ctk.ResponseHelp)
 		dialog.SetSizeRequest(40, 10)
 		label := ctk.NewLabel("testing the content area")
 		label.Show()
