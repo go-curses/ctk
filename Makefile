@@ -2,6 +2,7 @@
 
 BUILD_CMD := go-ctk
 DEV_EXAMPLE := demo-app
+CDK_PATH := ../cdk
 
 .PHONY: all build build-all clean clean-logs dev examples fmt help profile.cpu profile.mem run tidy
 
@@ -135,43 +136,46 @@ examples: clean-examples
 		fi; \
 	done
 
-local:
-	@echo "# adding go.mod local CTK package replacements..."
-	@go mod edit -replace=github.com/go-curses/ctk=../ctk
-	@if [ ! -d ../cdk ]; then \
-			echo "missing ../cdk checkout, please get a CDK checkout in place, ie:"; \
-			echo " cd ..; git clone https://github.com/go-curses/cdk.git; cd -" 1>&2; \
+depends-on-cdk-path:
+	@if [ ! -d ${CDK_PATH} ]; then \
+			echo "Error: $(MAKECMDGOALS) depends upon a valid CDK_PATH."; \
+			echo "Default: ../cdk"; \
+			echo ""; \
+			echo "Specify the path to an existing CDK checkout with the"; \
+			echo "CDK_PATH variable as follows:"; \
+			echo ""; \
+			echo " make CDK_PATH=../path/to/cdk $(MAKECMDGOALS)"; \
+			echo ""; \
 			false; \
 		fi
+
+local: depends-on-cdk-path
+	@echo "# adding go.mod local CTK package replacements..."
+	@go mod edit -replace=github.com/go-curses/ctk=../ctk
 	@echo "# adding go.mod local CDK package replacements..."
-	@go mod edit -replace=github.com/go-curses/cdk=../cdk
+	@go mod edit -replace=github.com/go-curses/cdk=${CDK_PATH}
 	@for tgt in charset encoding env log memphis; do \
 			echo "#\t$$tgt"; \
-			go mod edit -replace=github.com/go-curses/cdk/$$tgt=../cdk/$$tgt ; \
+			go mod edit -replace=github.com/go-curses/cdk/$$tgt=${CDK_PATH}/$$tgt ; \
 	done
-	@for tgt in `ls ../cdk/lib`; do \
-		if [ -d ../cdk/lib/$$tgt ]; then \
+	@for tgt in `ls ${CDK_PATH}/lib`; do \
+		if [ -d ${CDK_PATH}/lib/$$tgt ]; then \
 			echo "#\tlib/$$tgt"; \
-			go mod edit -replace=github.com/go-curses/cdk/lib/$$tgt=../cdk/lib/$$tgt ; \
+			go mod edit -replace=github.com/go-curses/cdk/lib/$$tgt=${CDK_PATH}/lib/$$tgt ; \
 		fi; \
 	done
 
-unlocal:
+unlocal: depends-on-cdk-path
 	@echo "# removing go.mod local CTK package replacements..."
 	@go mod edit -dropreplace=github.com/go-curses/ctk
-	@if [ ! -d ../cdk ]; then \
-			echo "missing ../cdk checkout, please get a CDK checkout in place, ie:"; \
-			echo " cd ..; git clone https://github.com/go-curses/cdk.git; cd -" 1>&2; \
-			false; \
-		fi
 	@echo "# removing go.mod local CDK package replacements..."
 	@go mod edit -dropreplace=github.com/go-curses/cdk
 	@for tgt in charset encoding env log memphis; do \
 			echo "#\t$$tgt"; \
 			go mod edit -dropreplace=github.com/go-curses/cdk/$$tgt ; \
 	done
-	@for tgt in `ls ../cdk/lib`; do \
-		if [ -d ../cdk/lib/$$tgt ]; then \
+	@for tgt in `ls ${CDK_PATH}/lib`; do \
+		if [ -d ${CDK_PATH}/lib/$$tgt ]; then \
 			echo "#\tlib/$$tgt"; \
 			go mod edit -dropreplace=github.com/go-curses/cdk/lib/$$tgt ; \
 		fi; \
