@@ -10,7 +10,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Arrow objects
 const TypeArrow cdk.CTypeTag = "ctk-arrow"
 
 func init() {
@@ -22,40 +21,42 @@ func init() {
 //	  +- Widget
 //	    +- Misc
 //	      +- Arrow
-// Arrow should be used to draw simple arrows that need to point in one of
-// the four cardinal directions (up, down, left, or right). The style of the
-// arrow can be one of shadow in, shadow out, etched in, or etched out. Note
+//
+// The Arrow Widget should be used to draw simple arrows that need to point in
+// one of the four cardinal directions (up, down, left, or right). The style of
+// the arrow can be one of shadow in, shadow out, etched in, or etched out. Note
 // that these directions and style types may be amended in versions of CTK
 // to come. Arrow will fill any space allotted to it, but since it is
 // inherited from Misc, it can be padded and/or aligned, to fill exactly the
 // space the programmer desires. Arrows are created with a call to
-// New. The direction or style of an arrow can be changed after
+// NewArrow. The direction or style of an arrow can be changed after
 // creation by using Set.
 type Arrow interface {
 	Misc
 	Buildable
 
 	Init() bool
-	SetArrowType(arrow ArrowType)
 	GetArrowType() (arrow ArrowType)
+	SetArrowType(arrow ArrowType)
 	GetArrowRune() (r rune, width int)
 	GetSizeRequest() (width, height int)
 }
 
-// The CArrow structure implements the Arrow interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Arrow objects
+// The CArrow structure implements the Arrow interface and is exported to
+// facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Arrow objects.
 type CArrow struct {
 	CMisc
 }
 
-// Default constructor for Arrow objects
+// MakeArrow is used by the Buildable system to construct a new Arrow with a
+// default ArrowType setting of ArrowRight.
 func MakeArrow() *CArrow {
 	return NewArrow(ArrowRight)
 }
 
-// Constructor for Arrow objects
+// NewArrow is the constructor for new Arrow instances.
 func NewArrow(arrow ArrowType) *CArrow {
 	a := new(CArrow)
 	a.Init()
@@ -63,10 +64,12 @@ func NewArrow(arrow ArrowType) *CArrow {
 	return a
 }
 
-// Arrow object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Arrow instance
+// Init initializes an Arrow object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Arrow instance. Init is used in the
+// NewArrow constructor and only necessary when implementing a derivative
+// Arrow type.
 func (a *CArrow) Init() bool {
 	if a.InitTypeItem(TypeArrow, a) {
 		return true
@@ -81,17 +84,7 @@ func (a *CArrow) Init() bool {
 	return false
 }
 
-// Sets the direction of the Arrow.
-// Parameters:
-// 	arrowType	a valid ArrowType.
-func (a *CArrow) SetArrowType(arrow ArrowType) {
-	if err := a.SetStructProperty(PropertyArrowType, arrow); err != nil {
-		a.LogErr(err)
-	} else {
-		a.Invalidate()
-	}
-}
-
+// GetArrowType is a convenience method for returning the ArrowType property
 func (a *CArrow) GetArrowType() (arrow ArrowType) {
 	arrow = ArrowRight // default
 	var ok bool
@@ -103,6 +96,20 @@ func (a *CArrow) GetArrowType() (arrow ArrowType) {
 	return
 }
 
+// SetArrowType is a convenience method for updating the ArrowType property
+//
+// Parameters:
+// 	arrowType	a valid ArrowType.
+func (a *CArrow) SetArrowType(arrow ArrowType) {
+	if err := a.SetStructProperty(PropertyArrowType, arrow); err != nil {
+		a.LogErr(err)
+	} else {
+		a.Invalidate()
+	}
+}
+
+// GetArrowRune is a Curses-specific method for returning the go `rune`
+// character and its byte width.
 func (a *CArrow) GetArrowRune() (r rune, width int) {
 	theme := a.GetTheme()
 	arrowRunes := theme.Border.ArrowRunes
@@ -120,6 +127,9 @@ func (a *CArrow) GetArrowRune() (r rune, width int) {
 	return
 }
 
+// GetSizeRequest returns the requested size of the Drawable Widget. This method
+// is used by Container Widgets to resolve the surface space allocated for their
+// child Widget instances.
 func (a *CArrow) GetSizeRequest() (width, height int) {
 	size := ptypes.NewRectangle(a.CWidget.GetSizeRequest())
 	_, runeWidth := a.GetArrowRune()
