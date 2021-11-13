@@ -73,8 +73,8 @@ clean-examples: clean-build-logs
 	done
 
 clean: clean-logs clean-examples clean-cmd
-	@echo "# cleaning go caches"
-	@go clean -cache -modcache ./...   || true
+#	@echo "# cleaning go caches"
+#	@go clean -cache -modcache ./...   || true
 	@echo "# cleaning goland builds"
 	@rm -rfv go_* || true
 
