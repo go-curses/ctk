@@ -1,8 +1,6 @@
 package ctk
 
 import (
-	"fmt"
-
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
@@ -10,7 +8,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Alignment objects
 const TypeAlignment cdk.CTypeTag = "ctk-alignment"
 
 func init() {
@@ -23,15 +20,17 @@ func init() {
 //	    +- Container
 //	      +- Bin
 //	        +- Alignment
+//
 // The Alignment widget controls the alignment and size of its child widget.
 // It has four settings: xScale, yScale, xAlign, and yAlign. The scale
 // settings are used to specify how much the child widget should expand to
 // fill the space allocated to the Alignment. The values can range from 0
 // (meaning the child doesn't expand at all) to 1 (meaning the child expands
-// to fill all of the available space). The align settings are used to place
+// to fill all of the available space). The alignment settings are used to place
 // the child widget within the available area. The values range from 0 (top
 // or left) to 1 (bottom or right). Of course, if the scale settings are both
-// set to 1, the alignment settings have no effect.
+// set to 1, the alignment settings have no effect. New Alignment instances can
+// be created using NewAlignment.
 type Alignment interface {
 	Bin
 	Buildable
@@ -43,26 +42,23 @@ type Alignment interface {
 	SetPadding(paddingTop, paddingBottom, paddingLeft, paddingRight int)
 	Add(w Widget)
 	Remove(w Widget)
-	Invalidate() enums.EventFlag
-	Resize() enums.EventFlag
 }
 
 // The CAlignment structure implements the Alignment interface and is
 // exported to facilitate type embedding with custom implementations. No member
 // variables are exported as the interface methods are the only intended means
-// of interacting with Alignment objects
+// of interacting with Alignment objects.
 type CAlignment struct {
 	CBin
-
-	aFCHandle string
 }
 
-// Default constructor for Alignment objects
+// MakeAlignment is used by the Buildable system to construct a new Alignment
+// with default settings of: xAlign=0.5, yAlign=1.0, xScale=0.5, yScale=1.0
 func MakeAlignment() *CAlignment {
 	return NewAlignment(0.5, 1, 0.5, 1)
 }
 
-// Constructor for Alignment objects
+// NewAlignment is the constructor for new Alignment instances.
 func NewAlignment(xAlign float64, yAlign float64, xScale float64, yScale float64) *CAlignment {
 	a := new(CAlignment)
 	a.Init()
@@ -70,22 +66,19 @@ func NewAlignment(xAlign float64, yAlign float64, xScale float64, yScale float64
 	return a
 }
 
-// Alignment object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Alignment instance
+// Init initializes an Alignment object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Alignment instance. Init is used in the
+// NewAlignment constructor and only necessary when implementing a derivative
+// Alignment type.
 func (a *CAlignment) Init() (already bool) {
 	if a.InitTypeItem(TypeAlignment, a) {
 		return true
 	}
 	a.CBin.Init()
 	a.flags = NULL_WIDGET_FLAG
-	a.SetFlags(PARENT_SENSITIVE)
-	a.SetFlags(APP_PAINTABLE)
-	a.aFCHandle = fmt.Sprintf("%v-alignment.focus-changed", a.ObjectName())
-	handle := fmt.Sprintf("%v.focus-changed", a.ObjectName())
-	a.Connect(SignalLostFocus, handle, a.handleLostFocus)
-	a.Connect(SignalGainedFocus, handle, a.handleGainedFocus)
+	a.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
 	_ = a.InstallBuildableProperty(PropertyBottomPadding, cdk.IntProperty, true, 0)
 	_ = a.InstallBuildableProperty(PropertyLeftPadding, cdk.IntProperty, true, 0)
 	_ = a.InstallBuildableProperty(PropertyRightPadding, cdk.IntProperty, true, 0)
@@ -94,10 +87,16 @@ func (a *CAlignment) Init() (already bool) {
 	_ = a.InstallBuildableProperty(PropertyXScale, cdk.FloatProperty, true, 1)
 	_ = a.InstallBuildableProperty(PropertyYAlign, cdk.FloatProperty, true, 0.5)
 	_ = a.InstallBuildableProperty(PropertyYScale, cdk.FloatProperty, true, 1)
-	a.Connect(cdk.SignalDraw, "alignment-draw-handler", a.draw)
+	a.Connect(SignalLostFocus, AlignmentLostFocusHandle, a.childLostFocus)
+	a.Connect(SignalGainedFocus, AlignmentGainedFocusHandle, a.childGainedFocus)
+	a.Connect(SignalResize, AlignmentEventResizeHandle, a.resize)
+	a.Connect(SignalInvalidate, AlignmentInvalidateHandler, a.invalidate)
+	a.Connect(SignalDraw, AlignmentDrawHandle, a.draw)
 	return false
 }
 
+// Get is a convenience method to return the four main Alignment property values
+// See: Set()
 func (a *CAlignment) Get() (xAlign, yAlign, xScale, yScale float64) {
 	xAlign, _ = a.GetFloatProperty(PropertyXAlign)
 	yAlign, _ = a.GetFloatProperty(PropertyYAlign)
@@ -106,12 +105,13 @@ func (a *CAlignment) Get() (xAlign, yAlign, xScale, yScale float64) {
 	return
 }
 
-// Sets the Alignment values.
+// Set is a convenience method to update the four main Alignment property values
+//
 // Parameters:
-// 	xAlign	the horizontal alignment of the child widget, from 0 (left) to 1 (right).
-// 	yAlign	the vertical alignment of the child widget, from 0 (top) to 1 (bottom).
-// 	xScale	the amount that the child widget expands horizontally to fill up unused space, from 0 to 1. A value of 0 indicates that the child widget should never expand. A value of 1 indicates that the child widget will expand to fill all of the space allocated for the Alignment.
-// 	yScale	the amount that the child widget expands vertically to fill up unused space, from 0 to 1. The values are similar to xScale .
+// 	xAlign	the horizontal alignment of the child widget, from 0 (left) to 1 (right)
+// 	yAlign	the vertical alignment of the child widget, from 0 (top) to 1 (bottom)
+// 	xScale	the amount that the child widget expands horizontally to fill up unused space, from 0 to 1. A value of 0 indicates that the child widget should never expand. A value of 1 indicates that the child widget will expand to fill all of the space allocated for the Alignment
+// 	yScale	the amount that the child widget expands vertically to fill up unused space, from 0 to 1. The values are similar to xScale
 func (a *CAlignment) Set(xAlign, yAlign, xScale, yScale float64) {
 	xa, ya, xs, ys := a.Get()
 	if xa != xAlign || ya != yAlign || xs != xScale || ys != yScale {
@@ -133,13 +133,8 @@ func (a *CAlignment) Set(xAlign, yAlign, xScale, yScale float64) {
 	}
 }
 
-// Gets the padding on the different sides of the widget. See
-// SetPadding.
-// Parameters:
-// 	paddingTop	location to store the padding for the top of the widget, or NULL.
-// 	paddingBottom	location to store the padding for the bottom of the widget, or NULL.
-// 	paddingLeft	location to store the padding for the left of the widget, or NULL.
-// 	paddingRight	location to store the padding for the right of the widget, or NULL.
+// GetPadding is a convenience method to return the four padding property values
+// See: SetPadding()
 func (a *CAlignment) GetPadding() (paddingTop, paddingBottom, paddingLeft, paddingRight int) {
 	paddingTop, _ = a.GetIntProperty(PropertyTopPadding)
 	paddingBottom, _ = a.GetIntProperty(PropertyBottomPadding)
@@ -148,13 +143,15 @@ func (a *CAlignment) GetPadding() (paddingTop, paddingBottom, paddingLeft, paddi
 	return
 }
 
-// Sets the padding on the different sides of the widget. The padding adds
-// blank space to the sides of the widget. For instance, this can be used to
-// indent the child widget towards the right by adding padding on the left.
+// SetPadding is a convenience method to update the padding for the different
+// sides of the widget. The padding adds blank space to the sides of the widget.
+// For instance, this can be used to indent the child widget towards the right
+// by adding padding on the left.
+//
 // Parameters:
-// 	paddingTop	the padding at the top of the widget
+// 	paddingTop	    the padding at the top of the widget
 // 	paddingBottom	the padding at the bottom of the widget
-// 	paddingLeft	the padding at the left of the widget
+// 	paddingLeft	    the padding at the left of the widget
 // 	paddingRight	the padding at the right of the widget.
 func (a *CAlignment) SetPadding(paddingTop, paddingBottom, paddingLeft, paddingRight int) {
 	t, b, l, r := a.GetPadding()
@@ -177,21 +174,43 @@ func (a *CAlignment) SetPadding(paddingTop, paddingBottom, paddingLeft, paddingR
 	}
 }
 
+// Add will set the current child to the Widget instance given, connect two
+// signal handlers for losing and gaining focus and finally resize the
+// Alignment instance to accommodate the new child Widget.
 func (a *CAlignment) Add(w Widget) {
 	a.CBin.Add(w)
-	w.Connect(SignalLostFocus, a.aFCHandle, a.handleLostFocus)
-	w.Connect(SignalGainedFocus, a.aFCHandle, a.handleGainedFocus)
+	w.Connect(SignalLostFocus, AlignmentLostFocusHandle, a.childLostFocus)
+	w.Connect(SignalGainedFocus, AlignmentGainedFocusHandle, a.childGainedFocus)
 	a.Resize()
 }
 
+// Remove will remove the given Widget from the Alignment instance,
+// disconnecting any connected focus signal handlers and finally resize the
+// Alignment instance to accommodate the lack of content.
 func (a *CAlignment) Remove(w Widget) {
-	_ = w.Disconnect(SignalLostFocus, a.aFCHandle)
-	_ = w.Disconnect(SignalGainedFocus, a.aFCHandle)
+	_ = w.Disconnect(SignalLostFocus, AlignmentLostFocusHandle)
+	_ = w.Disconnect(SignalGainedFocus, AlignmentGainedFocusHandle)
 	a.CBin.Remove(w)
 	a.Resize()
 }
 
-func (a *CAlignment) Resize() enums.EventFlag {
+func (a *CAlignment) childLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	theme := a.GetTheme()
+	a.SetThemeRequest(theme)
+	a.Invalidate()
+	return enums.EVENT_PASS
+}
+
+func (a *CAlignment) childGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	theme := a.GetTheme()
+	theme.Content.Normal = theme.Content.Focused
+	theme.Border.Normal = theme.Border.Focused
+	a.SetThemeRequest(theme)
+	a.Invalidate()
+	return enums.EVENT_PASS
+}
+
+func (a *CAlignment) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	a.Lock()
 	defer a.Unlock()
 	alloc := a.GetAllocation()
@@ -237,7 +256,7 @@ func (a *CAlignment) Resize() enums.EventFlag {
 	return enums.EVENT_PASS
 }
 
-func (a *CAlignment) Invalidate() enums.EventFlag {
+func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
 	theme := a.GetThemeRequest()
 	style := theme.Content.Normal
 	origin := a.GetOrigin()
@@ -282,22 +301,6 @@ func (a *CAlignment) draw(data []interface{}, argv ...interface{}) enums.EventFl
 		}
 		return enums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
-}
-
-func (a *CAlignment) handleLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	theme := a.GetTheme()
-	a.SetThemeRequest(theme)
-	a.Invalidate()
-	return enums.EVENT_PASS
-}
-
-func (a *CAlignment) handleGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	theme := a.GetTheme()
-	theme.Content.Normal = theme.Content.Focused
-	theme.Border.Normal = theme.Border.Focused
-	a.SetThemeRequest(theme)
-	a.Invalidate()
 	return enums.EVENT_PASS
 }
 
@@ -352,3 +355,13 @@ const PropertyYAlign cdk.Property = "y-align"
 // Allowed values: [0,1]
 // Default value: 1
 const PropertyYScale cdk.Property = "y-scale"
+
+const AlignmentLostFocusHandle = "alignment-lost-focus-handler"
+
+const AlignmentGainedFocusHandle = "alignment-gained-focus-handler"
+
+const AlignmentDrawHandle = "alignment-draw-handler"
+
+const AlignmentEventResizeHandle = "alignment-event-resize-handler"
+
+const AlignmentInvalidateHandler = "alignment-invalidate-handler"
