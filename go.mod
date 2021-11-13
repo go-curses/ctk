@@ -17,6 +17,5 @@ require (
 	github.com/tdewolff/parse/v2 v2.5.22
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
-	golang.org/x/sys v0.0.0-20211113001501-0c823b97ae02 // indirect
 	golang.org/x/text v0.3.7
 )
