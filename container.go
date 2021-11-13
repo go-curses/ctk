@@ -480,8 +480,8 @@ func (c *CContainer) SetFocusChain(focusableWidgets []interface{}) {
 
 // Removes a focus chain explicitly set with SetFocusChain.
 func (c *CContainer) UnsetFocusChain() {
-	c.focusChainSet = true
 	c.focusChain = []interface{}{}
+	c.focusChainSet = false
 }
 
 // Finds a child property of a container by name.
