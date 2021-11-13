@@ -80,7 +80,7 @@ func (a *CArrow) Init() bool {
 	a.SetFlags(APP_PAINTABLE)
 	_ = a.InstallBuildableProperty(PropertyArrowType, cdk.StructProperty, true, nil)
 	_ = a.InstallBuildableProperty(PropertyArrowShadowType, cdk.StructProperty, true, nil)
-	a.Connect(cdk.SignalDraw, ArrowDrawHandle, a.draw)
+	a.Connect(SignalDraw, ArrowDrawHandle, a.draw)
 	return false
 }
 
