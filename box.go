@@ -24,40 +24,45 @@ func init() {
 //	        +- ButtonBox
 //	        +- VBox
 //	        +- HBox
+//
+// The Box Widget is a Container for organizing one or more child Widgets. A Box
+// displays either a horizontal row or vertical column of the visible children
+// contained within.
 type Box interface {
 	Container
 	Buildable
 	Orientable
 
 	Init() (already bool)
-	PackStart(child Widget, expand, fill bool, padding int)
-	PackEnd(child Widget, expand, fill bool, padding int)
-	Remove(w Widget)
+	Build(builder Builder, element *CBuilderElement) error
 	GetOrientation() (orientation enums.Orientation)
 	SetOrientation(orientation enums.Orientation)
 	GetHomogeneous() (value bool)
 	SetHomogeneous(homogeneous bool)
 	GetSpacing() (value int)
 	SetSpacing(spacing int)
+	Add(child Widget)
+	Remove(w Widget)
+	PackStart(child Widget, expand, fill bool, padding int)
+	PackEnd(child Widget, expand, fill bool, padding int)
 	ReorderChild(child Widget, position int)
 	QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType PackType)
 	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType)
-	Build(builder Builder, element *CBuilderElement) error
-	ShowAll()
-	Add(child Widget)
 	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
 	GetSizeRequest() (width, height int)
-	Resize() enums.EventFlag
 }
 
-// The CBox structure implements the Box interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Box objects
+// The CBox structure implements the Box interface and is exported to
+// facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Box objects.
 type CBox struct {
 	CContainer
 }
 
+// The cBoxChild is an internal structure used for tracking the per-child
+// packing configuration. This should never need to be accessed by developers
+// directly.
 type cBoxChild struct {
 	widget   Widget
 	expand   bool
@@ -66,11 +71,20 @@ type cBoxChild struct {
 	packType PackType
 }
 
+// MakeBox is used by the Buildable system to construct a new Box with default
+// settings of: horizontal orientation, dynamically sized (not homogeneous) and
+// no extra spacing.
 func MakeBox() (box *CBox) {
 	box = NewBox(enums.ORIENTATION_HORIZONTAL, false, 0)
 	return
 }
 
+// NewBox is the constructor for new Box instances.
+//
+// Parameters:
+//  orientation  the orientation of the Box vertically or horizontally
+//  homogeneous  whether each child receives an equal size allocation or not
+//  spacing      extra spacing to include between children
 func NewBox(orientation enums.Orientation, homogeneous bool, spacing int) *CBox {
 	b := new(CBox)
 	b.Init()
@@ -80,18 +94,19 @@ func NewBox(orientation enums.Orientation, homogeneous bool, spacing int) *CBox 
 	return b
 }
 
-// Box object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Box instance
+// Init initializes a Box object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Box instance. Init is used in the
+// NewBox constructor and only necessary when implementing a derivative
+// Box type.
 func (b *CBox) Init() (already bool) {
 	if b.InitTypeItem(TypeBox, b) {
 		return true
 	}
 	b.CContainer.Init()
 	b.flags = NULL_WIDGET_FLAG
-	b.SetFlags(PARENT_SENSITIVE)
-	b.SetFlags(APP_PAINTABLE)
+	b.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
 	_ = b.InstallBuildableProperty(PropertyDebugChildren, cdk.BoolProperty, true, false)
 	_ = b.InstallBuildableProperty(PropertyOrientation, cdk.StructProperty, true, enums.ORIENTATION_HORIZONTAL)
 	_ = b.InstallBuildableProperty(PropertyHomogeneous, cdk.BoolProperty, true, false)
@@ -100,14 +115,129 @@ func (b *CBox) Init() (already bool) {
 	_ = b.InstallChildProperty(PropertyBoxChildExpand, cdk.BoolProperty, true, false)
 	_ = b.InstallChildProperty(PropertyBoxChildFill, cdk.BoolProperty, true, true)
 	_ = b.InstallChildProperty(PropertyBoxChildPadding, cdk.IntProperty, true, 0)
+	b.Connect(SignalResize, BoxResizeHandle, b.resize)
 	b.Connect(SignalDraw, BoxDrawHandle, b.draw)
 	return false
 }
 
-// PackStart
+// Build provides customizations to the Buildable system for Box Widgets.
+func (b *CBox) Build(builder Builder, element *CBuilderElement) error {
+	b.Freeze()
+	defer b.Thaw()
+	if err := b.CObject.Build(builder, element); err != nil {
+		return err
+	}
+	for _, child := range element.Children {
+		if newChild := builder.Build(child); newChild != nil {
+			child.Instance = newChild
+			if newChildWidget, ok := newChild.(Widget); ok {
+				newChildWidget.Show()
+				if len(child.Packing) > 0 {
+					expand, fill, padding, packType := builder.ParsePacking(child)
+					if packType == PackStart {
+						b.PackStart(newChildWidget, expand, fill, padding)
+					} else {
+						b.PackEnd(newChildWidget, expand, fill, padding)
+					}
+				} else {
+					b.Add(newChildWidget)
+				}
+				if newChildWidget.HasFlags(HAS_FOCUS) {
+					newChildWidget.GrabFocus()
+				}
+			} else {
+				b.LogError("new child object is not a Widget type: %v (%T)")
+			}
+		}
+	}
+	return nil
+}
+
+// GetOrientation is a convenience method for returning the orientation property
+// value.
+// See: SetOrientation()
+func (b *CBox) GetOrientation() (orientation enums.Orientation) {
+	var ok bool
+	if v, err := b.GetStructProperty(PropertyOrientation); err != nil {
+		b.LogErr(err)
+	} else if orientation, ok = v.(enums.Orientation); !ok && v != nil {
+		b.LogError("invalid value stored in %v: %v (%T)", PropertyOrientation, v, v)
+	}
+	return
+}
+
+// SetOrientation is a convenience method for updating the orientation property
+// value.
 //
-// Adds child to box, packed with reference to the start of box. The child is
-// packed after any other child packed with reference to the start of box.
+// Parameters:
+//  orientation  the desired enums.Orientation to use
+func (b *CBox) SetOrientation(orientation enums.Orientation) {
+	if err := b.SetStructProperty(PropertyOrientation, orientation); err != nil {
+		b.LogErr(err)
+	}
+	b.Resize()
+}
+
+// GetHomogeneous is a convenience method for returning the homogeneous property
+// value.
+// See: SetHomogeneous()
+func (b *CBox) GetHomogeneous() (value bool) {
+	var err error
+	if value, err = b.GetBoolProperty(PropertyHomogeneous); err != nil {
+		b.LogErr(err)
+	}
+	return
+}
+
+// SetHomogeneous is a convenience method for updating the homogeneous property
+// of the Box instance, controlling whether or not all children of box are given
+// equal space in the box.
+//
+// Parameters:
+// 	homogeneous	 TRUE to create equal allotments, FALSE for variable allotments
+func (b *CBox) SetHomogeneous(homogeneous bool) {
+	if err := b.SetBoolProperty(PropertyHomogeneous, homogeneous); err != nil {
+		b.LogErr(err)
+	}
+}
+
+// GetSpacing is a convenience method for returning the spacing property value.
+// See: SetSpacing()
+func (b *CBox) GetSpacing() (value int) {
+	var err error
+	if value, err = b.GetIntProperty(PropertySpacing); err != nil {
+		b.LogErr(err)
+	}
+	return
+}
+
+// SetSpacing is a convenience method to update the spacing property value.
+//
+// Parameters:
+// 	spacing	 the number of characters to put between children
+func (b *CBox) SetSpacing(spacing int) {
+	if err := b.SetIntProperty(PropertySpacing, spacing); err != nil {
+		b.LogErr(err)
+	}
+}
+
+// Add the given Widget to the Box using PackStart() with default settings of:
+// expand=false, fill=true and padding=0
+func (b *CBox) Add(child Widget) {
+	b.PackStart(child, false, true, 0)
+}
+
+// Remove the given Widget from the Box Container, disconnecting any signal
+// handlers in the process.
+func (b *CBox) Remove(w Widget) {
+	_ = b.Disconnect(SignalShow, BoxChildShowHandle)
+	_ = b.Disconnect(SignalHide, BoxChildHideHandle)
+	b.CContainer.Remove(w)
+}
+
+// PackStart adds child to box, packed with reference to the start of box. The
+// child is packed after any other child packed with reference to the start of
+// box.
 //
 // Parameters
 //
@@ -128,13 +258,13 @@ func (b *CBox) Init() (already bool) {
 func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("PackStart(%v,%v,%v,%v)", child, expand, fill, padding)
 	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == enums.EVENT_PASS {
-		child.Connect(SignalShow, BoxShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
+		child.Connect(SignalShow, BoxChildShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
 			child.LogDebug("signal show, resize: %v", b.ObjectName())
 			child.SetFlags(VISIBLE)
 			b.Resize()
 			return enums.EVENT_STOP
 		})
-		child.Connect(SignalHide, BoxHideHandle, func([]interface{}, ...interface{}) enums.EventFlag {
+		child.Connect(SignalHide, BoxChildHideHandle, func([]interface{}, ...interface{}) enums.EventFlag {
 			child.LogDebug("signal hide, resize: %v", b.ObjectName())
 			child.UnsetFlags(VISIBLE)
 			b.Resize()
@@ -152,11 +282,9 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 	}
 }
 
-// PackEnd
-//
-// Adds child to box, packed with reference to the end of box. The child is
-// packed after (away from end of) any other child packed with reference to the
-// end of box.
+// PackEnd adds child to box, packed with reference to the end of box. The child
+// is packed after (away from end of) any other child packed with reference to
+// the end of box.
 //
 // Parameters
 //
@@ -165,7 +293,7 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 //           The extra space will be divided evenly between all children of box
 //           that use this option
 // fill      TRUE if space given to child by the expand option is actually
-//           allocated to child , rather than just padding it. This parameter
+//           allocated to child, rather than just padding it. This parameter
 //           has no effect if expand is set to FALSE. A child is always
 //           allocated the full height of an HBox and the full width of a VBox.
 //           This option affects the other dimension
@@ -177,13 +305,13 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("PackEnd(%v,%v,%v,%v)", child, expand, fill, padding)
 	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == enums.EVENT_PASS {
-		child.Connect(SignalShow, BoxShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
+		child.Connect(SignalShow, BoxChildShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
 			child.LogDebug("signal show, resize: %v", b.ObjectName())
 			child.SetFlags(VISIBLE)
 			b.Resize()
 			return enums.EVENT_STOP
 		})
-		child.Connect(SignalHide, BoxHideHandle, func([]interface{}, ...interface{}) enums.EventFlag {
+		child.Connect(SignalHide, BoxChildHideHandle, func([]interface{}, ...interface{}) enums.EventFlag {
 			child.LogDebug("signal hide, resize: %v", b.ObjectName())
 			child.UnsetFlags(VISIBLE)
 			b.Resize()
@@ -201,86 +329,18 @@ func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 	}
 }
 
-func (b *CBox) Remove(w Widget) {
-	_ = b.Disconnect(SignalShow, BoxShowHandle)
-	_ = b.Disconnect(SignalHide, BoxHideHandle)
-	b.CContainer.Remove(w)
-}
-
-// Returns the orientation of the Box
-func (b *CBox) GetOrientation() (orientation enums.Orientation) {
-	var ok bool
-	if v, err := b.GetStructProperty(PropertyOrientation); err != nil {
-		b.LogErr(err)
-	} else if orientation, ok = v.(enums.Orientation); !ok && v != nil {
-		b.LogError("invalid value stored in %v: %v (%T)", PropertyOrientation, v, v)
-	}
-	return
-}
-
-// Sets the orientation of the Box
-func (b *CBox) SetOrientation(orientation enums.Orientation) {
-	if err := b.SetStructProperty(PropertyOrientation, orientation); err != nil {
-		b.LogErr(err)
-	}
-	b.Resize()
-}
-
-// Returns whether the box is homogeneous (all children are the same size).
-// See SetHomogeneous.
-// Returns:
-// 	TRUE if the box is homogeneous.
-func (b *CBox) GetHomogeneous() (value bool) {
-	var err error
-	if value, err = b.GetBoolProperty(PropertyHomogeneous); err != nil {
-		b.LogErr(err)
-	}
-	return
-}
-
-// Sets the “homogeneous” property of box , controlling whether or not
-// all children of box are given equal space in the box.
-// Parameters:
-// 	homogeneous	a boolean value, TRUE to create equal allotments,
-// FALSE for variable allotments
-func (b *CBox) SetHomogeneous(homogeneous bool) {
-	if err := b.SetBoolProperty(PropertyHomogeneous, homogeneous); err != nil {
-		b.LogErr(err)
-	}
-}
-
-// Gets the value set by SetSpacing.
-// Returns:
-// 	spacing between children
-func (b *CBox) GetSpacing() (value int) {
-	var err error
-	if value, err = b.GetIntProperty(PropertySpacing); err != nil {
-		b.LogErr(err)
-	}
-	return
-}
-
-// Sets the “spacing” property of box , which is the number of pixels to
-// place between children of box .
-// Parameters:
-// 	spacing	the number of pixels to put between children
-func (b *CBox) SetSpacing(spacing int) {
-	if err := b.SetIntProperty(PropertySpacing, spacing); err != nil {
-		b.LogErr(err)
-	}
-}
-
-// Moves child to a new position in the list of box children. The list is the
-// children field of Box, and contains both widgets packed GTK_PACK_START
-// as well as widgets packed GTK_PACK_END, in the order that these widgets
-// were added to box . A widget's position in the box children list
-// determines where the widget is packed into box . A child widget at some
+// ReorderChild moves the given child to a new position in the list of Box
+// children. The list is the children field of Box, and contains both widgets
+// packed PACK_START as well as widgets packed PACK_END, in the order that these
+// widgets were added to the box. A widget's position in the Box children list
+// determines where the widget is packed into box. A child widget at some
 // position in the list will be packed just after all other widgets of the
-// same packing type that appear earlier in the list.
+// same packing type that appear earlier in the list. The children field is not
+// exported and only the interface methods are able to manipulate the field.
+//
 // Parameters:
 // 	child	    the Widget to move
-// 	position	the new position for child in the list of children of box,
-// 	            starting from 0. If negative, indicates the end of the list
+// 	position	the new position for child in the list of children of box starting from 0. If negative, indicates the end of the list
 func (b *CBox) ReorderChild(child Widget, position int) {
 	var children []Widget
 	if position < 0 {
@@ -296,13 +356,12 @@ func (b *CBox) ReorderChild(child Widget, position int) {
 	b.children = children
 }
 
-// Obtains information about how child is packed into box .
+// QueryChildPacking obtains information about how the child is packed into the
+// Box. If the given child Widget is not contained within the Box an error is
+// logged and the return values will all be their `nil` equivalents.
+//
 // Parameters:
 // 	child	the Widget of the child to query
-// 	expand	pointer to return location for “expand” child property
-// 	fill	pointer to return location for “fill” child property
-// 	padding	pointer to return location for “padding” child property
-// 	packType	pointer to return location for “pack-type” child property
 func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType PackType) {
 	if cps, ok := b.property[child.ObjectID()]; ok {
 		for _, cp := range cps {
@@ -331,7 +390,10 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 	return
 }
 
-// Sets the way child is packed into box .
+// SetChildPacking updates the information about how the child is packed into
+// the Box. If the given child Widget is not contained within the Box an error
+// is logged and no action is taken.
+//
 // Parameters:
 // 	child	the Widget of the child to set
 // 	expand	the new value of the “expand” child property
@@ -365,52 +427,14 @@ func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int
 	}
 }
 
-func (b *CBox) Build(builder Builder, element *CBuilderElement) error {
-	b.Freeze()
-	defer b.Thaw()
-	if err := b.CObject.Build(builder, element); err != nil {
-		return err
-	}
-	for _, child := range element.Children {
-		if newChild := builder.Build(child); newChild != nil {
-			child.Instance = newChild
-			if newChildWidget, ok := newChild.(Widget); ok {
-				newChildWidget.Show()
-				if len(child.Packing) > 0 {
-					expand, fill, padding, packType := builder.ParsePacking(child)
-					if packType == PackStart {
-						b.PackStart(newChildWidget, expand, fill, padding)
-					} else {
-						b.PackEnd(newChildWidget, expand, fill, padding)
-					}
-				} else {
-					b.Add(newChildWidget)
-				}
-				if newChildWidget.HasFlags(HAS_FOCUS) {
-					newChildWidget.GrabFocus()
-				}
-			} else {
-				b.LogError("new child object is not a Widget type: %v (%T)")
-			}
-		}
-	}
-	return nil
-}
-
-// The Container type implements a version of Widget.ShowAll() where all the
-// children of the Container have their ShowAll() method called, in addition to
-// calling Show() on itself first.
-func (b *CBox) ShowAll() {
-	b.Show()
-	for _, child := range b.GetChildren() {
-		child.ShowAll()
-	}
-}
-
-func (b *CBox) Add(child Widget) {
-	b.PackStart(child, false, true, 0)
-}
-
+// GetFocusChain retrieves the focus chain of the Box, if one has been set
+// explicitly. If no focus chain has been explicitly set, CTK computes the
+// focus chain based on the positions of the children, taking into account the
+// child packing configuration.
+//
+// Returns:
+// 	focusableWidgets	widgets in the focus chain.
+// 	explicitlySet       TRUE if the focus chain has been set explicitly.
 func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
 	if b.focusChainSet {
 		return b.focusChain, true
@@ -441,39 +465,9 @@ func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bo
 	return
 }
 
-func (b *CBox) getBoxChildren() (children []*cBoxChild) {
-	bChildren := b.GetChildren()
-	nChildren := len(bChildren)
-	expand := make([]bool, nChildren)
-	fill := make([]bool, nChildren)
-	padding := make([]int, nChildren)
-	packType := make([]PackType, nChildren)
-	for idx, child := range bChildren {
-		expand[idx], fill[idx], padding[idx], packType[idx] = b.QueryChildPacking(child)
-		if child.IsVisible() && packType[idx] == PackStart {
-			children = append(children, &cBoxChild{
-				widget:   child,
-				expand:   expand[idx],
-				fill:     fill[idx],
-				padding:  padding[idx],
-				packType: packType[idx],
-			})
-		}
-	}
-	for idx, child := range bChildren {
-		if child.IsVisible() && packType[idx] == PackEnd {
-			children = append(children, &cBoxChild{
-				widget:   child,
-				expand:   expand[idx],
-				fill:     fill[idx],
-				padding:  padding[idx],
-				packType: packType[idx],
-			})
-		}
-	}
-	return
-}
-
+// GetSizeRequest returns the requested size of the Drawable Widget. This method
+// is used by Container Widgets to resolve the surface space allocated for their
+// child Widget instances.
 func (b *CBox) GetSizeRequest() (width, height int) {
 	children := b.getBoxChildren()
 	nChildren := len(children)
@@ -547,11 +541,10 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 	return
 }
 
-func (b *CBox) Resize() enums.EventFlag {
+func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	children := b.getBoxChildren()
 	numChildren := len(children)
 	if numChildren == 0 {
-		b.Emit(SignalResize, b)
 		return enums.EVENT_STOP
 	}
 	spacing := b.GetSpacing()
@@ -694,7 +687,6 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		}
 	}
 
-	b.Emit(SignalResize, b)
 	return enums.EVENT_STOP
 }
 
@@ -711,8 +703,6 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		extra      int
 		overflow   int
 	}, numChildren)
-
-	// TODO: resizeDynamicAlloc is not really dynamic?
 
 	for idx, child := range children {
 		req := ptypes.NewRectangle(child.widget.GetSizeRequest())
@@ -872,7 +862,6 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		}
 	}
 
-	b.Emit(SignalResize, b)
 	return enums.EVENT_STOP
 }
 
@@ -916,6 +905,39 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	return enums.EVENT_STOP
 }
 
+func (b *CBox) getBoxChildren() (children []*cBoxChild) {
+	bChildren := b.GetChildren()
+	nChildren := len(bChildren)
+	expand := make([]bool, nChildren)
+	fill := make([]bool, nChildren)
+	padding := make([]int, nChildren)
+	packType := make([]PackType, nChildren)
+	for idx, child := range bChildren {
+		expand[idx], fill[idx], padding[idx], packType[idx] = b.QueryChildPacking(child)
+		if child.IsVisible() && packType[idx] == PackStart {
+			children = append(children, &cBoxChild{
+				widget:   child,
+				expand:   expand[idx],
+				fill:     fill[idx],
+				padding:  padding[idx],
+				packType: packType[idx],
+			})
+		}
+	}
+	for idx, child := range bChildren {
+		if child.IsVisible() && packType[idx] == PackEnd {
+			children = append(children, &cBoxChild{
+				widget:   child,
+				expand:   expand[idx],
+				fill:     fill[idx],
+				padding:  padding[idx],
+				packType: packType[idx],
+			})
+		}
+	}
+	return
+}
+
 // Whether the children should all be the same size.
 // Flags: Read / Write
 // Default value: FALSE
@@ -937,6 +959,10 @@ const PropertyBoxChildFill cdk.Property = "box-child--fill"
 
 const PropertyBoxChildPadding cdk.Property = "box-child--padding"
 
-const BoxShowHandle = "box-show-handler"
-const BoxHideHandle = "box-hide-handler"
+const BoxChildShowHandle = "box-child-show-handler"
+
+const BoxChildHideHandle = "box-child-hide-handler"
+
+const BoxResizeHandle = "box-resize-handler"
+
 const BoxDrawHandle = "box-draw-handler"
