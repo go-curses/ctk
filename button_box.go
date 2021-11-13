@@ -11,7 +11,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for ButtonBox objects
 const TypeButtonBox cdk.CTypeTag = "ctk-button-box"
 
 func init() {
@@ -26,6 +25,10 @@ func init() {
 //	        +- ButtonBox
 //	          +- HButtonBox
 //	          +- VButtonBox
+//
+// The ButtonBox Widget is a Box Container that has a primary and a secondary
+// grouping of its Widget children. These are typically used by the Dialog
+// Widget to implement the action buttons.
 type ButtonBox interface {
 	Box
 	Buildable
@@ -34,34 +37,32 @@ type ButtonBox interface {
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
 	GetLayout() (value ButtonBoxStyle)
-	GetChildSecondary(w Widget) (isSecondary bool)
-	GetChildPrimary(w Widget) (isPrimary bool)
 	SetLayout(layoutStyle ButtonBoxStyle)
-	SetChildSecondary(child Widget, isSecondary bool)
-	Show()
-	ShowAll()
-	Hide()
-	PackStart(w Widget, expand, fill bool, padding int)
-	PackEnd(w Widget, expand, fill bool, padding int)
-	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType)
 	Add(w Widget)
 	Remove(w Widget)
-	Resize() enums.EventFlag
-	Invalidate() enums.EventFlag
+	PackStart(w Widget, expand, fill bool, padding int)
+	PackEnd(w Widget, expand, fill bool, padding int)
+	GetChildPrimary(w Widget) (isPrimary bool)
+	GetChildSecondary(w Widget) (isSecondary bool)
+	SetChildSecondary(child Widget, isSecondary bool)
+	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType)
 }
 
-// The CButtonBox structure implements the ButtonBox interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with ButtonBox objects
+// The CButtonBox structure implements the ButtonBox interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with ButtonBox objects.
 type CButtonBox struct {
 	CBox
 }
 
+// MakeButtonBox is used by the Buildable system to construct a new horizontal
+// homogeneous ButtonBox with no spacing between the Widget children.
 func MakeButtonBox() *CButtonBox {
 	return NewButtonBox(enums.ORIENTATION_HORIZONTAL, false, 0)
 }
 
+// NewButtonBox is a constructor for new Box instances.
 func NewButtonBox(orientation enums.Orientation, homogeneous bool, spacing int) *CButtonBox {
 	b := new(CButtonBox)
 	b.Init()
@@ -69,15 +70,16 @@ func NewButtonBox(orientation enums.Orientation, homogeneous bool, spacing int) 
 	b.SetOrientation(orientation)
 	b.SetHomogeneous(homogeneous)
 	b.SetSpacing(spacing)
-	b.Connect(SignalDraw, ButtonBoxDrawHandle, b.draw)
 	b.Thaw()
 	return b
 }
 
-// ButtonBox object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the ButtonBox instance
+// Init initializes a ButtonBox object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the ButtonBox instance. Init is used in the
+// NewButtonBox constructor and only necessary when implementing a derivative
+// ButtonBox type.
 func (b *CButtonBox) Init() (already bool) {
 	if b.InitTypeItem(TypeButtonBox, b) {
 		return true
@@ -90,10 +92,11 @@ func (b *CButtonBox) Init() (already bool) {
 	b.CBox.PackStart(NewBox(orientation, false, spacing), true, true, 0)
 	b.CBox.PackEnd(NewBox(orientation, false, spacing), true, true, 0)
 	_ = b.InstallProperty(PropertyLayoutStyle, cdk.StructProperty, true, LayoutStart)
-	// b.Connect(SignalDraw, ButtonBoxDrawHandle, b.draw)
+	b.Connect(SignalDraw, ButtonBoxDrawHandle, b.draw)
 	return false
 }
 
+// Build provides customizations to the Buildable system for ButtonBox Widgets.
 func (b *CButtonBox) Build(builder Builder, element *CBuilderElement) error {
 	b.Freeze()
 	defer b.Thaw()
@@ -149,6 +152,10 @@ func (b *CButtonBox) Build(builder Builder, element *CBuilderElement) error {
 	}
 	return nil
 }
+
+// GetLayout is a convenience method for returning the layout-style property
+// value as the ButtonBoxStyle type.
+// See: SetLayout()
 func (b *CButtonBox) GetLayout() (value ButtonBoxStyle) {
 	if v, err := b.GetStructProperty(PropertyLayoutStyle); err == nil {
 		var ok bool
@@ -161,27 +168,71 @@ func (b *CButtonBox) GetLayout() (value ButtonBoxStyle) {
 	return
 }
 
-// Returns whether child should appear in a secondary group of children.
-// Parameters:
-// 	child	a child of widget
-// Returns:
-// 	whether child should appear in a secondary group of children.
-func (b *CButtonBox) GetChildSecondary(w Widget) (isSecondary bool) {
-	if box := b.getSecondary(); box != nil {
-		for _, child := range box.GetChildren() {
-			if child.ObjectID() == w.ObjectID() {
-				return true
-			}
-		}
+// SetLayout is a convenience method for updating the layout-style property for
+// the ButtonBox. The normal expand and fill packing options are ignored in the
+// context of a ButtonBox. The layout style instead defines the visual placement
+// of the child widgets. The size request for each child determines it's
+// allocation in the ButtonBox with the exception of the "expand" layout style
+// in which the children are evenly allocated to consume all available space in
+// the ButtonBox.
+//
+// The different styles are as follows:
+//   "start"      group Widgets from the starting edge
+//   "end"        group Widgets from the ending edge
+//   "center"     group Widgets together in the center, away from edges
+//   "spread"     spread Widgets evenly and centered, away form edges
+//   "edge"       spread Widgets evenly and centered, flush with edges
+//   "expand"     expand all Widgets to evenly consume all available space
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (b *CButtonBox) SetLayout(layoutStyle ButtonBoxStyle) {
+	if err := b.SetStructProperty(PropertyLayoutStyle, layoutStyle); err != nil {
+		b.LogErr(err)
 	}
-	return false
 }
 
-// Returns whether child should appear in the primary group of children.
+// Add is a convenience method for adding the given Widget to the primary group
+// with default PackStart configuration of: expand=true, fill=true and padding=0
+func (b *CButtonBox) Add(w Widget) {
+	if primary := b.getPrimary(); primary != nil {
+		primary.PackStart(w, true, true, 0)
+	}
+}
+
+// Remove the given Widget from the ButtonBox
+func (b *CButtonBox) Remove(w Widget) {
+	if b.GetChildSecondary(w) {
+		if secondary := b.getSecondary(); secondary != nil {
+			secondary.Remove(w)
+		}
+	} else {
+		if primary := b.getPrimary(); primary != nil {
+			primary.Remove(w)
+		}
+	}
+}
+
+// PackStart will add the given Widget to the primary group with the given Box
+// packing configuration.
+func (b *CButtonBox) PackStart(w Widget, expand, fill bool, padding int) {
+	if primary := b.getPrimary(); primary != nil {
+		primary.PackStart(w, expand, fill, padding)
+	}
+}
+
+// PackEnd will add the given Widget to the secondary group with the given Box
+// packing configuration.
+func (b *CButtonBox) PackEnd(w Widget, expand, fill bool, padding int) {
+	if secondary := b.getSecondary(); secondary != nil {
+		secondary.PackEnd(w, expand, fill, padding)
+	}
+}
+
+// GetChildPrimary is a convenience method that returns TRUE if the given Widget
+// is in the primary grouping and returns FALSE otherwise.
+//
 // Parameters:
 // 	child	a child of widget
-// Returns:
-// 	whether child should appear in the primary group of children.
 func (b *CButtonBox) GetChildPrimary(w Widget) (isPrimary bool) {
 	if box := b.getPrimary(); box != nil {
 		for _, child := range box.GetChildren() {
@@ -193,40 +244,29 @@ func (b *CButtonBox) GetChildPrimary(w Widget) (isPrimary bool) {
 	return false
 }
 
-// Sets the layout for the ButtonBox. The normal expand and fill packing options
-// are ignored in the context of a ButtonBox. The layout style instead defines
-// the visual placement of the child widgets. The size request for each child
-// determines it's allocation in the ButtonBox with the exception of the
-// "expand" layout style in which the children are evenly allocated to consume
-// all available space in the ButtonBox.
+// GetChildSecondary is a convenience method that returns TRUE if the given
+// Widget is in the primary grouping and returns FALSE otherwise.
 //
-// The different styles are as follows:
-//   "start"      group Widgets from the starting edge
-//   "end"        group Widgets from the ending edge
-//   "center"     group Widgets together in the center, away from edges
-//   "spread"     spread Widgets evenly and centered, away form edges
-//   "edge"       spread Widgets evenly and centered, flush with edges
-//   "expand"     expand all Widgets to evenly consume all available space
-func (b *CButtonBox) SetLayout(layoutStyle ButtonBoxStyle) {
-	if err := b.SetStructProperty(PropertyLayoutStyle, layoutStyle); err != nil {
-		b.LogErr(err)
-	}
-}
-
-// Sets whether child should appear in a secondary group of children.
-//   A typical use of a secondary child is the help button in a dialog.
-// This group appears after the other children if the style
-//   is CTK_BUTTONBOX_START, CTK_BUTTONBOX_SPREAD or
-//   CTK_BUTTONBOX_EDGE, and before the other children if the style
-//   is CTK_BUTTONBOX_END. For horizontal button boxes, the definition
-//   of before/after depends on direction of the widget (see
-//   gtk_widget_set_direction()). If the style is CTK_BUTTONBOX_START
-//   or CTK_BUTTONBOX_END, then the secondary children are aligned at
-//   the other end of the button box from the main children. For the
-//   other styles, they appear immediately next to the main children.
 // Parameters:
 // 	child	a child of widget
-// 	secondary	if TRUE, the child appears in a secondary group of the button box.
+func (b *CButtonBox) GetChildSecondary(w Widget) (isSecondary bool) {
+	if box := b.getSecondary(); box != nil {
+		for _, child := range box.GetChildren() {
+			if child.ObjectID() == w.ObjectID() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// SetChildSecondary will ensure the given Widget is in the secondary grouping
+// if the isSecondary argument is TRUE. If isSecondary is FALSE, this will
+// ensure that the Widget is in the primary grouping.
+//
+// Parameters:
+// 	child	a child of widget
+// 	secondary	TRUE, if the child appears in a secondary group
 func (b *CButtonBox) SetChildSecondary(child Widget, isSecondary bool) {
 	defer b.Invalidate()
 	alreadySecondary := b.GetChildSecondary(child)
@@ -253,49 +293,10 @@ func (b *CButtonBox) SetChildSecondary(child Widget, isSecondary bool) {
 	}
 }
 
-func (b *CButtonBox) Show() {
-	b.CBox.Show()
-	if primary := b.getPrimary(); primary != nil {
-		primary.Show()
-	}
-	if secondary := b.getSecondary(); secondary != nil {
-		secondary.Show()
-	}
-}
-
-func (b *CButtonBox) ShowAll() {
-	b.CBox.ShowAll()
-	if primary := b.getPrimary(); primary != nil {
-		primary.ShowAll()
-	}
-	if secondary := b.getSecondary(); secondary != nil {
-		secondary.ShowAll()
-	}
-}
-
-func (b *CButtonBox) Hide() {
-	b.CBox.Hide()
-	if primary := b.getPrimary(); primary != nil {
-		primary.Hide()
-	}
-	if secondary := b.getSecondary(); secondary != nil {
-		secondary.Hide()
-	}
-}
-
-func (b *CButtonBox) PackStart(w Widget, expand, fill bool, padding int) {
-	if primary := b.getPrimary(); primary != nil {
-		primary.PackStart(w, expand, fill, padding)
-	}
-}
-
-func (b *CButtonBox) PackEnd(w Widget, expand, fill bool, padding int) {
-	if secondary := b.getSecondary(); secondary != nil {
-		secondary.PackEnd(w, expand, fill, padding)
-	}
-}
-
-// Sets the way child is packed into box .
+// SetChildPacking is a convenience method to set the packing configuration for
+// the given child Widget of the ButtonBox, regardless of which grouping the
+// Widget is in.
+//
 // Parameters:
 // 	child	the Widget of the child to set
 // 	expand	the new value of the expand child property
@@ -313,24 +314,6 @@ func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, paddi
 		}
 	} else {
 		b.LogError("%v is not a child of %v", child, b)
-	}
-}
-
-func (b *CButtonBox) Add(w Widget) {
-	if primary := b.getPrimary(); primary != nil {
-		primary.PackStart(w, true, true, 0)
-	}
-}
-
-func (b *CButtonBox) Remove(w Widget) {
-	if b.GetChildSecondary(w) {
-		if secondary := b.getSecondary(); secondary != nil {
-			secondary.Remove(w)
-		}
-	} else {
-		if primary := b.getPrimary(); primary != nil {
-			primary.Remove(w)
-		}
 	}
 }
 
@@ -360,14 +343,6 @@ func (b *CButtonBox) getSecondary() (box Box) {
 	}
 	b.LogError("button box missing secondary container")
 	return nil
-}
-
-func (b *CButtonBox) Resize() enums.EventFlag {
-	return b.CBox.Resize()
-}
-
-func (b *CButtonBox) Invalidate() enums.EventFlag {
-	return b.CBox.Invalidate()
 }
 
 func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
