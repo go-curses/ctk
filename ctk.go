@@ -1,7 +1,5 @@
-// CTK - Curses Tool Kit
-//
-// The Curses Tool Kit a curses-based graphical user interface library modeled
-// after the GTK project.
+// Package ctk is a curses-based graphical user interface library modeled
+// after the GTK API.
 //
 // The purpose of this project is to provide a similar API to the actual GTK
 // project and instead of interacting with an X11 server, the Curses Tool Kit
@@ -20,9 +18,13 @@
 // 	     |  |  |- Viewport
 // 	     |  |  |  `- ScrolledViewport
 // 	     |  |  `- Window
+// 	     |  |     `- Dialog
 // 	     |  `- Box
 // 	     |     |- HBox
-// 	     |     `- VBox
+// 	     |     |- VBox
+//	     |     `- ButtonBox
+//	     |        |- HButtonBox
+//	     |        `- VButtonBox
 // 	     |- Misc
 // 	     |  |- Arrow
 // 	     |  `- Label
