@@ -40,6 +40,6 @@ func (v *CVScrollbar) Init() (already bool) {
 	}
 	v.CScrollbar.Init()
 	v.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_FOCUS | APP_PAINTABLE)
-	v.SetTheme(DefaultColorScrollbarTheme)
+	v.SetTheme(DefaultScrollbarTheme)
 	return false
 }

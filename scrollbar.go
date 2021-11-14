@@ -19,27 +19,7 @@ func init() {
 }
 
 var (
-	DefaultMonoScrollbarTheme = paint.Theme{
-		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultMonoStyle,
-			Focused:     paint.DefaultMonoStyle.Dim(false),
-			Active:      paint.DefaultMonoStyle.Dim(false).Bold(true),
-			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
-			Overlay:     false,
-		},
-		Border: paint.ThemeAspect{
-			Normal:      paint.DefaultMonoStyle,
-			Focused:     paint.DefaultMonoStyle.Dim(false),
-			Active:      paint.DefaultMonoStyle.Dim(false).Bold(true),
-			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
-			Overlay:     false,
-		},
-	}
-	DefaultColorScrollbarTheme = paint.Theme{
+	DefaultScrollbarTheme = paint.Theme{
 		// slider
 		Content: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorDarkGray).Background(paint.ColorSilver).Dim(true).Bold(false),
@@ -148,7 +128,7 @@ func (s *CScrollbar) Init() (already bool) {
 	s.hasForwardStepper = true
 	s.hasSecondaryBackwardStepper = false
 	s.hasSecondaryForwardStepper = false
-	s.SetTheme(DefaultColorScrollbarTheme)
+	s.SetTheme(DefaultScrollbarTheme)
 	s.Resize()
 	s.Connect(SignalDraw, ScrollbarDrawHandle, s.draw)
 	return false
