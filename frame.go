@@ -8,7 +8,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Frame objects
 const TypeFrame cdk.CTypeTag = "ctk-frame"
 
 func init() {
@@ -22,19 +21,21 @@ func init() {
 //	      +- Bin
 //	        +- Frame
 //	          +- AspectFrame
+//
+// The Frame Widget wraps other Widgets with a border and optional title label.
 type Frame interface {
 	Bin
 	Buildable
 
 	Init() (already bool)
-	SetLabel(label string)
-	SetLabelWidget(labelWidget Widget)
-	SetLabelAlign(xAlign float64, yAlign float64)
-	SetShadowType(shadowType ShadowType)
 	GetLabel() (value string)
-	GetLabelAlign() (xAlign float64, yAlign float64)
+	SetLabel(label string)
 	GetLabelWidget() (value Widget)
+	SetLabelWidget(labelWidget Widget)
+	GetLabelAlign() (xAlign float64, yAlign float64)
+	SetLabelAlign(xAlign float64, yAlign float64)
 	GetShadowType() (value ShadowType)
+	SetShadowType(shadowType ShadowType)
 	GrabFocus()
 	Add(w Widget)
 	Remove(w Widget)
@@ -44,26 +45,24 @@ type Frame interface {
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	GetThemeRequest() (theme paint.Theme)
 	GetSizeRequest() (width, height int)
-	Resize() enums.EventFlag
-	Invalidate() enums.EventFlag
 }
 
-// The CFrame structure implements the Frame interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Frame objects
+// The CFrame structure implements the Frame interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Frame objects.
 type CFrame struct {
 	CBin
 
 	focusWithChild bool
 }
 
-// Default constructor for Frame objects
+// MakeFrame is used by the Buildable system to construct a new Frame.
 func MakeFrame() *CFrame {
 	return NewFrame("")
 }
 
-// construct a new frame with a default widget containing the given text
+// NewFrame is the constructor for new Frame instances.
 func NewFrame(text string) *CFrame {
 	f := new(CFrame)
 	f.Init()
@@ -79,7 +78,8 @@ func NewFrame(text string) *CFrame {
 	return f
 }
 
-// construct a new frame with the given widget instead of the normal label
+// NewFrameWithWidget will construct a new Frame with the given widget instead
+// of the default Label.
 func NewFrameWithWidget(w Widget) *CFrame {
 	f := new(CFrame)
 	f.Init()
@@ -87,10 +87,12 @@ func NewFrameWithWidget(w Widget) *CFrame {
 	return f
 }
 
-// Frame object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Frame instance
+// Init initializes a Frame object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Frame instance. Init is used in the
+// NewFrame constructor and only necessary when implementing a derivative
+// Frame type.
 func (f *CFrame) Init() (already bool) {
 	if f.InitTypeItem(TypeFrame, f) {
 		return true
@@ -105,12 +107,35 @@ func (f *CFrame) Init() (already bool) {
 	_ = f.InstallProperty(PropertyShadow, cdk.StructProperty, true, nil)
 	_ = f.InstallProperty(PropertyShadowType, cdk.StructProperty, true, nil)
 	f.focusWithChild = false
+	f.Connect(SignalInvalidate, FrameInvalidateHandle, f.invalidate)
+	f.Connect(SignalResize, FrameResizeHandle, f.resize)
 	f.Connect(SignalDraw, FrameDrawHandle, f.draw)
 	return false
 }
 
-// Sets the text of the label. If label is NULL, the current label is
-// removed.
+// GetLabel returns the text in the label Widget, if the Widget is in
+// fact of Label Widget type. If the label Widget is not an actual Label, the
+// value of the Frame label property is returned.
+//
+// Returns:
+// 	the text in the label, or NULL if there was no label widget or
+// 	the label widget was not a Label. This string is owned by
+// 	CTK and must not be modified or freed.
+func (f *CFrame) GetLabel() (value string) {
+	var err error
+	if w := f.GetLabelWidget(); w != nil {
+		if lw, ok := w.(Label); ok {
+			return lw.GetLabel()
+		}
+	}
+	if value, err = f.GetStringProperty(PropertyLabel); err != nil {
+		f.LogErr(err)
+	}
+	return
+}
+
+// SetLabel updates the text of the Label.
+//
 // Parameters:
 // 	label	the text to use as the label of the frame.
 func (f *CFrame) SetLabel(label string) {
@@ -126,8 +151,24 @@ func (f *CFrame) SetLabel(label string) {
 	}
 }
 
-// Sets the label widget for the frame. This is the widget that will appear
-// embedded in the top edge of the frame as a title.
+// GetLabelWidget retrieves the label widget for the Frame.
+// See: SetLabelWidget()
+func (f *CFrame) GetLabelWidget() (value Widget) {
+	if v, err := f.GetStructProperty(PropertyLabelWidget); err != nil {
+		f.LogErr(err)
+	} else {
+		var ok bool
+		if value, ok = v.(Widget); !ok {
+			f.LogError("value stored in %v is not a Widget: %v (%T)", PropertyLabelWidget, v, v)
+		}
+	}
+	return
+}
+
+// SetLabelWidget removes any existing Widget and replaces it with the given
+// one. This is the widget that will appear embedded in the top edge of the
+// frame as a title.
+//
 // Parameters:
 // 	labelWidget	the new label widget
 func (f *CFrame) SetLabelWidget(labelWidget Widget) {
@@ -141,8 +182,36 @@ func (f *CFrame) SetLabelWidget(labelWidget Widget) {
 	}
 }
 
-// Sets the alignment of the frame widget's label. The default values for a
-// newly created frame are 0.0 and 0.5.
+// GetLabelAlign retrieves the X and Y alignment of the frame's label. If the
+// label Widget is not of Label Widget type, then the values of the
+// label-x-align and label-y-align properties are returned.
+// See: SetLabelAlign()
+//
+// Parameters:
+// 	xAlign	X alignment of frame's label
+// 	yAlign	Y alignment of frame's label
+func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
+	var err error
+	if w := f.GetLabelWidget(); w != nil {
+		if lw, ok := w.(Label); ok {
+			xAlign, yAlign = lw.GetAlignment()
+			return
+		}
+	}
+	if xAlign, err = f.GetFloatProperty(PropertyLabelXAlign); err != nil {
+		f.LogErr(err)
+	}
+	if yAlign, err = f.GetFloatProperty(PropertyLabelYAlign); err != nil {
+		f.LogErr(err)
+	}
+	return
+}
+
+// SetLabelAlign is a convenience method for setting the label-x-align and
+// label-y-align properties of the Frame. The default values for a newly created
+// frame are 0.0 and 0.5. If the label Widget is in fact of Label Widget type,
+// SetAlignment with the given x and y alignment values.
+//
 // Parameters:
 // 	xAlign	The position of the label along the top edge of the widget. A value
 // 	        of 0.0 represents left alignment; 1.0 represents right alignment.
@@ -157,62 +226,11 @@ func (f *CFrame) SetLabelAlign(xAlign float64, yAlign float64) {
 	if err := f.SetFloatProperty(PropertyLabelYAlign, yAlign); err != nil {
 		f.LogErr(err)
 	}
-}
-
-// Sets the shadow type for frame .
-// Parameters:
-// 	type	the new ShadowType
-func (f *CFrame) SetShadowType(shadowType ShadowType) {
-	if err := f.SetStructProperty(PropertyShadowType, shadowType); err != nil {
-		f.LogErr(err)
-	}
-}
-
-// If the frame's label widget is a Label, returns the text in the label
-// widget. (The frame will have a Label for the label widget if a non-NULL
-// argument was passed to New.)
-// Returns:
-// 	the text in the label, or NULL if there was no label widget or
-// 	the lable widget was not a Label. This string is owned by
-// 	CTK and must not be modified or freed.
-func (f *CFrame) GetLabel() (value string) {
-	var err error
-	if value, err = f.GetStringProperty(PropertyLabel); err != nil {
-		f.LogErr(err)
-	}
-	return
-}
-
-// Retrieves the X and Y alignment of the frame's label. See SetLabelAlign.
-// Parameters:
-// 	xAlign	X alignment of frame's label
-// 	yAlign	Y alignment of frame's label
-func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
-	var err error
-	if xAlign, err = f.GetFloatProperty(PropertyLabelXAlign); err != nil {
-		f.LogErr(err)
-	}
-	if yAlign, err = f.GetFloatProperty(PropertyLabelYAlign); err != nil {
-		f.LogErr(err)
-	}
-	return
-}
-
-// Retrieves the label widget for the frame. See
-// SetLabelWidget.
-// Returns:
-// 	the label widget, or NULL if there is none.
-// 	[transfer none]
-func (f *CFrame) GetLabelWidget() (value Widget) {
-	if v, err := f.GetStructProperty(PropertyLabelWidget); err != nil {
-		f.LogErr(err)
-	} else {
-		var ok bool
-		if value, ok = v.(Widget); !ok {
-			f.LogError("value stored in %v is not a Widget: %v (%T)", PropertyLabelWidget, v, v)
+	if w := f.GetLabelWidget(); w != nil {
+		if lw, ok := w.(Label); ok {
+			lw.SetAlignment(xAlign, yAlign)
 		}
 	}
-	return
 }
 
 // Retrieves the shadow type of the frame. See SetShadowType.
@@ -228,6 +246,18 @@ func (f *CFrame) GetShadowType() (value ShadowType) {
 		}
 	}
 	return
+}
+
+// SetShadowType updates the shadow-type property for the Frame.
+//
+// Parameters:
+// 	type	the new ShadowType
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (f *CFrame) SetShadowType(shadowType ShadowType) {
+	if err := f.SetStructProperty(PropertyShadowType, shadowType); err != nil {
+		f.LogErr(err)
+	}
 }
 
 // If the Widget instance CanFocus() then take the focus of the associated
@@ -266,13 +296,16 @@ func (f *CFrame) GrabFocus() {
 	}
 }
 
+// Add will add the given Widget to the Frame. As the Frame Widget is of Bin
+// type, any previous child Widget is removed first.
 func (f *CFrame) Add(w Widget) {
 	f.CBin.Add(w)
-	w.Connect(SignalLostFocus, "frame-child-lost-focus-handler", f.handleLostFocus)
-	w.Connect(SignalGainedFocus, "frame-child-gained-focus-handler", f.handleGainedFocus)
+	w.Connect(SignalLostFocus, "frame-child-lost-focus-handler", f.lostFocus)
+	w.Connect(SignalGainedFocus, "frame-child-gained-focus-handler", f.gainedFocus)
 	f.Invalidate()
 }
 
+// Remove will remove the given Widget from the Frame.
 func (f *CFrame) Remove(w Widget) {
 	_ = w.Disconnect(SignalLostFocus, "frame-child-lost-focus-handler")
 	_ = w.Disconnect(SignalGainedFocus, "frame-child-gained-focus-handler")
@@ -280,6 +313,10 @@ func (f *CFrame) Remove(w Widget) {
 	f.Invalidate()
 }
 
+// IsFocus is a convenience method for returning whether or not the child Widget
+// is the focused Widget. If no child Widget exists, or the child Widget cannot
+// be focused itself, then the return value is whether or not the Frame itself
+// is the focused Widget.
 func (f *CFrame) IsFocus() bool {
 	if child := f.GetChild(); child != nil && child.CanFocus() {
 		return child.IsFocus()
@@ -287,15 +324,22 @@ func (f *CFrame) IsFocus() bool {
 	return f.CBin.IsFocus()
 }
 
+// GetFocusWithChild returns true if the Frame is supposed to follow the focus
+// of its child Widget or if it should follow its own focus.
+// See: SetFocusWithChild()
 func (f *CFrame) GetFocusWithChild() (focusWithChild bool) {
 	return f.focusWithChild
 }
 
+// SetFocusWithChild updates whether or not the Frame's theme will reflect the
+// focused state of the Frame's child Widget.
 func (f *CFrame) SetFocusWithChild(focusWithChild bool) {
 	f.focusWithChild = focusWithChild
 	f.Invalidate()
 }
 
+// GetWidgetAt returns the Widget at the given point within the Frame. Widgets
+// that are not visible are ignored.
 func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if f.HasPoint(p) && f.IsVisible() {
 		if child := f.GetChild(); child != nil {
@@ -312,10 +356,10 @@ func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-// Returns the current theme, adjusted for Widget focus and accounting for
-// any PARENT_SENSITIVE conditions. This method is primarily useful in drawable
-// Widget types during the Invalidate() and Draw() stages of the Widget
-// lifecycle
+// GetThemeRequest returns the current theme, adjusted for Widget focus and
+// accounting for any PARENT_SENSITIVE conditions. This method is primarily
+// useful in drawable Widget types during the Invalidate() and Draw() stages of
+// the Widget lifecycle.
 func (f *CFrame) GetThemeRequest() (theme paint.Theme) {
 	theme = f.GetTheme()
 	var childFocused bool
@@ -329,6 +373,8 @@ func (f *CFrame) GetThemeRequest() (theme paint.Theme) {
 	return
 }
 
+// GetSizeRequest returns the requested size of the Frame, taking into account
+// any children and their size requests.
 func (f *CFrame) GetSizeRequest() (width, height int) {
 	_, yAlign := f.GetLabelAlign()
 	size := ptypes.NewRectangle(f.CWidget.GetSizeRequest())
@@ -351,7 +397,77 @@ func (f *CFrame) GetSizeRequest() (width, height int) {
 	return size.W, size.H
 }
 
-func (f *CFrame) Resize() enums.EventFlag {
+func (f *CFrame) lostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	// f.Lock()
+	// defer f.Unlock()
+	theme := f.GetTheme()
+	if f.focusWithChild {
+		if child := f.GetChild(); child != nil && child.IsFocus() {
+			theme.Content.Normal = theme.Content.Focused
+			theme.Border.Normal = theme.Border.Focused
+		}
+	} else {
+		// theme defaults to whatever is set
+	}
+	f.SetThemeRequest(theme)
+	f.Invalidate()
+	return enums.EVENT_PASS
+}
+
+func (f *CFrame) gainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	// f.Lock()
+	// defer f.Unlock()
+	theme := f.GetTheme()
+	if f.focusWithChild {
+		if child := f.GetChild(); child != nil && child.IsFocus() {
+			theme.Content.Normal = theme.Content.Focused
+			theme.Border.Normal = theme.Border.Focused
+		}
+	} else {
+		theme.Content.Normal = theme.Content.Focused
+		theme.Border.Normal = theme.Border.Focused
+	}
+	f.SetThemeRequest(theme)
+	f.Invalidate()
+	return enums.EVENT_PASS
+}
+
+func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+	wantStop := false
+	origin := f.GetOrigin()
+	theme := f.GetThemeRequest()
+	if labelChild, ok := f.GetLabelWidget().(Label); ok && labelChild != nil {
+		local := labelChild.GetOrigin()
+		local.SubPoint(origin)
+		alloc := labelChild.GetAllocation()
+		if surface, err := memphis.GetSurface(labelChild.ObjectID()); err != nil {
+			labelChild.LogErr(err)
+		} else {
+			surface.SetOrigin(local)
+			surface.Resize(alloc, theme.Content.Normal)
+			theme.Content.FillRune = rune(0)
+			surface.Fill(theme)
+		}
+		labelChild.SetTheme(theme)
+		labelChild.Invalidate()
+		wantStop = true
+	}
+	if child := f.GetChild(); child != nil {
+		local := child.GetOrigin()
+		local.SubPoint(origin)
+		alloc := child.GetAllocation()
+		if err := memphis.ConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
+			child.LogErr(err)
+		}
+		wantStop = true
+	}
+	if wantStop {
+		return enums.EVENT_STOP
+	}
+	return enums.EVENT_PASS
+}
+
+func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	f.Lock()
 	defer f.Unlock()
 	// our allocation has been set prior to Resize() being called
@@ -456,76 +572,6 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	return enums.EVENT_PASS
 }
 
-func (f *CFrame) Invalidate() enums.EventFlag {
-	wantStop := false
-	origin := f.GetOrigin()
-	theme := f.GetThemeRequest()
-	if labelChild, ok := f.GetLabelWidget().(Label); ok && labelChild != nil {
-		local := labelChild.GetOrigin()
-		local.SubPoint(origin)
-		alloc := labelChild.GetAllocation()
-		if surface, err := memphis.GetSurface(labelChild.ObjectID()); err != nil {
-			labelChild.LogErr(err)
-		} else {
-			surface.SetOrigin(local)
-			surface.Resize(alloc, theme.Content.Normal)
-			theme.Content.FillRune = rune(0)
-			surface.Fill(theme)
-		}
-		labelChild.SetTheme(theme)
-		labelChild.Invalidate()
-		wantStop = true
-	}
-	if child := f.GetChild(); child != nil {
-		local := child.GetOrigin()
-		local.SubPoint(origin)
-		alloc := child.GetAllocation()
-		if err := memphis.ConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
-			child.LogErr(err)
-		}
-		wantStop = true
-	}
-	if wantStop {
-		return enums.EVENT_STOP
-	}
-	return enums.EVENT_PASS
-}
-
-func (f *CFrame) handleLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	// f.Lock()
-	// defer f.Unlock()
-	theme := f.GetTheme()
-	if f.focusWithChild {
-		if child := f.GetChild(); child != nil && child.IsFocus() {
-			theme.Content.Normal = theme.Content.Focused
-			theme.Border.Normal = theme.Border.Focused
-		}
-	} else {
-		// theme defaults to whatever is set
-	}
-	f.SetThemeRequest(theme)
-	f.Invalidate()
-	return enums.EVENT_PASS
-}
-
-func (f *CFrame) handleGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	// f.Lock()
-	// defer f.Unlock()
-	theme := f.GetTheme()
-	if f.focusWithChild {
-		if child := f.GetChild(); child != nil && child.IsFocus() {
-			theme.Content.Normal = theme.Content.Focused
-			theme.Border.Normal = theme.Border.Focused
-		}
-	} else {
-		theme.Content.Normal = theme.Content.Focused
-		theme.Border.Normal = theme.Border.Focused
-	}
-	f.SetThemeRequest(theme)
-	f.Invalidate()
-	return enums.EVENT_PASS
-}
-
 // Text of the frame's label.
 // Flags: Read / Write
 // Default value: NULL
@@ -556,5 +602,9 @@ const PropertyShadow cdk.Property = "shadow"
 // Flags: Read / Write
 // Default value: GTK_SHADOW_ETCHED_IN
 const PropertyShadowType cdk.Property = "shadow-type"
+
+const FrameInvalidateHandle = "frame-invalidate-handler"
+
+const FrameResizeHandle = "frame-resize-handler"
 
 const FrameDrawHandle = "frame-draw-handler"
