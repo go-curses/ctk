@@ -757,7 +757,6 @@ func (b *CButton) invalidate(data []interface{}, argv ...interface{}) enums.Even
 	if child := b.GetChild(); child != nil {
 		theme := b.GetThemeRequest()
 		child.SetTheme(theme)
-		child.Invalidate()
 	}
 	return enums.EVENT_STOP
 }
