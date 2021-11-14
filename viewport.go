@@ -51,6 +51,9 @@ type Viewport interface {
 // of interacting with Viewport objects
 type CViewport struct {
 	CBin
+
+	hAdjustment *CAdjustment
+	vAdjustment *CAdjustment
 }
 
 // Default constructor for Viewport objects
@@ -60,9 +63,9 @@ func MakeViewport() *CViewport {
 
 func NewViewport(hAdjustment, vAdjustment *CAdjustment) *CViewport {
 	v := new(CViewport)
+	v.hAdjustment = hAdjustment
+	v.vAdjustment = vAdjustment
 	v.Init()
-	v.SetHAdjustment(hAdjustment)
-	v.SetVAdjustment(vAdjustment)
 	return v
 }
 
@@ -77,9 +80,15 @@ func (v *CViewport) Init() (already bool) {
 	v.CBin.Init()
 	v.flags = NULL_WIDGET_FLAG
 	v.SetFlags(SENSITIVE | PARENT_SENSITIVE | APP_PAINTABLE)
-	_ = v.InstallProperty(PropertyHAdjustment, cdk.StructProperty, true, nil)
+	if v.vAdjustment == nil {
+		v.vAdjustment = NewAdjustment(0, 0, 0, 0, 0, 0)
+	}
+	if v.hAdjustment == nil {
+		v.hAdjustment = NewAdjustment(0, 0, 0, 0, 0, 0)
+	}
+	_ = v.InstallProperty(PropertyHAdjustment, cdk.StructProperty, true, v.hAdjustment)
 	_ = v.InstallProperty(PropertyViewportShadowType, cdk.StructProperty, true, nil)
-	_ = v.InstallProperty(PropertyVAdjustment, cdk.StructProperty, true, nil)
+	_ = v.InstallProperty(PropertyVAdjustment, cdk.StructProperty, true, v.vAdjustment)
 	v.Connect(SignalInvalidate, ViewportInvalidateHandle, v.invalidate)
 	v.Connect(SignalResize, ViewportResizeHandle, v.resize)
 	v.Connect(SignalDraw, ViewportDrawHandle, v.draw)
@@ -120,6 +129,8 @@ func (v *CViewport) GetVAdjustment() (adjustment *CAdjustment) {
 func (v *CViewport) SetHAdjustment(adjustment *CAdjustment) {
 	if err := v.SetStructProperty(PropertyHAdjustment, adjustment); err != nil {
 		v.LogErr(err)
+	} else {
+		v.hAdjustment = adjustment
 	}
 }
 
@@ -129,6 +140,8 @@ func (v *CViewport) SetHAdjustment(adjustment *CAdjustment) {
 func (v *CViewport) SetVAdjustment(adjustment *CAdjustment) {
 	if err := v.SetStructProperty(PropertyVAdjustment, adjustment); err != nil {
 		v.LogErr(err)
+	} else {
+		v.vAdjustment = adjustment
 	}
 }
 
