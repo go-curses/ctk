@@ -365,17 +365,18 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFl
 		surface.Fill(b.GetTheme())
 		for _, child := range children {
 			if child.widget.IsVisible() {
-				child.widget.Draw()
-				if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
-					child.widget.LogErr(err)
-				} else {
-					if debugChildren && orientation == enums.ORIENTATION_VERTICAL {
-						childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
-					} else if debugChildren {
-						childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
-					}
-					if err := surface.CompositeSurface(childSurface); err != nil {
-						b.LogError("composite error: %v", err)
+				if f := child.widget.Draw(); f == enums.EVENT_STOP {
+					if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
+						child.widget.LogErr(err)
+					} else {
+						if debugChildren && orientation == enums.ORIENTATION_VERTICAL {
+							childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
+						} else if debugChildren {
+							childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
+						}
+						if err := surface.CompositeSurface(childSurface); err != nil {
+							b.LogError("composite error: %v", err)
+						}
 					}
 				}
 			}
@@ -385,6 +386,7 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFl
 		} else if debug {
 			surface.DebugBox(paint.ColorPurple, b.ObjectInfo())
 		}
+		return enums.EVENT_STOP
 	}
 	return enums.EVENT_PASS
 }
