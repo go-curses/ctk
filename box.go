@@ -9,7 +9,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Box objects
 const TypeBox cdk.CTypeTag = "ctk-box"
 
 func init() {
@@ -115,6 +114,7 @@ func (b *CBox) Init() (already bool) {
 	_ = b.InstallChildProperty(PropertyBoxChildExpand, cdk.BoolProperty, true, false)
 	_ = b.InstallChildProperty(PropertyBoxChildFill, cdk.BoolProperty, true, true)
 	_ = b.InstallChildProperty(PropertyBoxChildPadding, cdk.IntProperty, true, 0)
+	b.Connect(SignalInvalidate, BoxInvalidateHandle, b.invalidate)
 	b.Connect(SignalResize, BoxResizeHandle, b.resize)
 	b.Connect(SignalDraw, BoxDrawHandle, b.draw)
 	return false
@@ -541,6 +541,19 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 	return
 }
 
+func (b *CBox) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+	origin := b.GetOrigin()
+	for _, child := range b.getBoxChildren() {
+		local := child.widget.GetOrigin()
+		local.SubPoint(origin)
+		alloc := child.widget.GetAllocation()
+		if err := memphis.ConfigureSurface(child.widget.ObjectID(), local, alloc, b.GetThemeRequest().Content.Normal); err != nil {
+			child.widget.LogErr(err)
+		}
+	}
+	return enums.EVENT_STOP
+}
+
 func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	children := b.getBoxChildren()
 	numChildren := len(children)
@@ -883,17 +896,18 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		surface.Fill(b.GetTheme())
 		for _, child := range children {
 			if child.widget.IsVisible() {
-				child.widget.Draw()
-				if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
-					child.widget.LogErr(err)
-				} else {
-					if debugChildren && orientation == enums.ORIENTATION_VERTICAL {
-						childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
-					} else if debugChildren {
-						childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
-					}
-					if err := surface.CompositeSurface(childSurface); err != nil {
-						b.LogError("composite error: %v", err)
+				if f := child.widget.Draw(); f == enums.EVENT_STOP {
+					if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
+						child.widget.LogErr(err)
+					} else {
+						if debugChildren && orientation == enums.ORIENTATION_VERTICAL {
+							childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
+						} else if debugChildren {
+							childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
+						}
+						if err := surface.CompositeSurface(childSurface); err != nil {
+							b.LogError("composite error: %v", err)
+						}
 					}
 				}
 			}
@@ -964,6 +978,8 @@ const PropertyBoxChildPadding cdk.Property = "box-child--padding"
 const BoxChildShowHandle = "box-child-show-handler"
 
 const BoxChildHideHandle = "box-child-hide-handler"
+
+const BoxInvalidateHandle = "box-invalidate-handler"
 
 const BoxResizeHandle = "box-resize-handler"
 
