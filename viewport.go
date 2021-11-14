@@ -43,8 +43,6 @@ type Viewport interface {
 	GetShadowType() (value ShadowType)
 	GetBinWindow() (value Window)
 	GetViewWindow() (value Window)
-	Invalidate() enums.EventFlag
-	Resize() enums.EventFlag
 }
 
 // The CViewport structure implements the Viewport interface and is
@@ -82,6 +80,8 @@ func (v *CViewport) Init() (already bool) {
 	_ = v.InstallProperty(PropertyHAdjustment, cdk.StructProperty, true, nil)
 	_ = v.InstallProperty(PropertyViewportShadowType, cdk.StructProperty, true, nil)
 	_ = v.InstallProperty(PropertyVAdjustment, cdk.StructProperty, true, nil)
+	v.Connect(SignalInvalidate, ViewportInvalidateHandle, v.invalidate)
+	v.Connect(SignalResize, ViewportResizeHandle, v.resize)
 	v.Connect(SignalDraw, ViewportDrawHandle, v.draw)
 	return false
 }
@@ -173,7 +173,7 @@ func (v *CViewport) GetViewWindow() (value Window) {
 	return nil
 }
 
-func (v *CViewport) Invalidate() enums.EventFlag {
+func (v *CViewport) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if child := v.GetChild(); child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(v.GetOrigin())
@@ -185,7 +185,7 @@ func (v *CViewport) Invalidate() enums.EventFlag {
 	return enums.EVENT_PASS
 }
 
-func (v *CViewport) Resize() enums.EventFlag {
+func (v *CViewport) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	alloc := v.GetAllocation()
 	child := v.GetChild()
 	horizontal, vertical := v.GetHAdjustment(), v.GetVAdjustment()
@@ -201,7 +201,8 @@ func (v *CViewport) Resize() enums.EventFlag {
 			vertical.Configure(0, 0, 0, 0, 0, 0)
 		}
 		v.Invalidate()
-		return v.Emit(SignalResize, v)
+		// return v.Emit(SignalResize, v)
+		return enums.EVENT_STOP
 	}
 	hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
 	vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
@@ -262,7 +263,7 @@ func (v *CViewport) Resize() enums.EventFlag {
 		v.Invalidate()
 		return enums.EVENT_STOP
 	}
-	return v.Emit(SignalResize, v)
+	return enums.EVENT_PASS
 }
 
 func (v *CViewport) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
@@ -313,4 +314,6 @@ const PropertyViewportVAdjustment cdk.Property = "vadjustment"
 // 	arg2 Adjustment
 const SignalSetScrollAdjustments cdk.Signal = "set-scroll-adjustments"
 
+const ViewportInvalidateHandle = "viewport-invalidate-handler"
+const ViewportResizeHandle = "viewport-resize-handler"
 const ViewportDrawHandle = "viewport-draw-handler"
