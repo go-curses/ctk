@@ -23,16 +23,15 @@ import (
 	"github.com/go-curses/cdk/lib/ptypes"
 )
 
-// CDK type tag for CTK Objects
 const TypeObject cdk.CTypeTag = "ctk-object"
 
 func init() {
 	_ = cdk.TypesManager.AddType(TypeObject, nil)
 }
 
-// In the Curses Tool Kit, the Object type is an extension of the CDK Object
-// type and for all intents and purposes, this is the base class for any CTK
-// type with no other CTK type embedding a CDK type directly
+// Object in the Curses Tool Kit, is an extension of the CDK Object type and for
+// all intents and purposes, this is the base class for any CTK type with no
+// other CTK type embedding a CDK type directly.
 type Object interface {
 	cdk.Object
 
@@ -62,10 +61,10 @@ type Object interface {
 	GetCssColor(name cdk.Property) (value paint.Color, err error)
 }
 
-// The CObject structure implements the Object interface and is exported to
-// facilitate type embedding with custom implementations. No member variables
+// The CObject structure implements the Object interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
 // are exported as the interface methods are the only intended means of
-// interacting with CTK objects
+// interacting with Object objects.
 type CObject struct {
 	cdk.CObject
 
@@ -75,10 +74,12 @@ type CObject struct {
 	css           map[cdk.Property]*cdk.CProperty
 }
 
-// CTK object initialization. This must be called at least once to setup the
-// necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Object instance
+// Init initializes an Object instance. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Object instance. Init is used in the
+// NewObject constructor and only necessary when implementing a derivative
+// Object type.
 func (o *CObject) Init() (already bool) {
 	if o.InitTypeItem(TypeObject, o) {
 		return true
@@ -115,6 +116,7 @@ func (o *CObject) Init() (already bool) {
 	return false
 }
 
+// Build provides customizations to the Buildable system for Object Widgets.
 func (o *CObject) Build(builder Builder, element *CBuilderElement) error {
 	o.Freeze()
 	defer o.Thaw()
@@ -143,17 +145,17 @@ func (o *CObject) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-// Convenience method to return a string identifying the Object instance with
-// it's type, unique identifier, name if set (see SetName()), the origin point
-// and current size allocation
+// ObjectInfo is a convenience method to return a string identifying the Object
+// instance with it's type, unique identifier, name if set (see SetName()), the
+// origin point and current size allocation.
 func (o *CObject) ObjectInfo() string {
 	info := fmt.Sprintf("%v %v,%v %v", o.ObjectID(), o.origin, o.GetAllocation(), o.ObjectName())
 	return info
 }
 
-// Set the origin of this instance in display space. This method emits an origin
-// signal initially and if the listeners return EVENT_PASS then the change is
-// applied
+// SetOrigin updates the origin of this instance in display space. This method
+// emits an origin signal initially and if the listeners return EVENT_PASS then
+// the change is applied.
 //
 // Emits: SignalOrigin, Argv=[Object instance, new origin]
 func (o *CObject) SetOrigin(x, y int) {
@@ -162,15 +164,16 @@ func (o *CObject) SetOrigin(x, y int) {
 	}
 }
 
-// Returns the current origin point of the Object instance
+// GetOrigin returns the current origin point of the Object instance
 func (o *CObject) GetOrigin() ptypes.Point2I {
 	return *o.origin
 }
 
-// Set the allocated size of the Object instance. This method is only useful for
-// custom CTK types that need to render child Widgets. This method emits an
-// allocation signal initially and if the listeners return EVENT_PASS the change
-// is applied and constrained to a minimum width and height of zero
+// SetAllocation updates the allocated size of the Object instance. This method
+// is only useful for custom CTK types that need to render child Widgets. This
+// method emits an allocation signal initially and if the listeners return
+// EVENT_PASS the change is applied and constrained to a minimum width and
+// height of zero.
 func (o *CObject) SetAllocation(size ptypes.Rectangle) {
 	if f := o.Emit(SignalAllocation, o.allocation, size); f == enums.EVENT_PASS {
 		o.allocation.Set(size.W, size.H)
@@ -178,16 +181,16 @@ func (o *CObject) SetAllocation(size ptypes.Rectangle) {
 	}
 }
 
-// Returns the current allocation size of the Object instance
+// GetAllocation returns the current allocation size of the Object instance.
 func (o *CObject) GetAllocation() ptypes.Rectangle {
 	return *o.allocation
 }
 
-// Returns the Object's instance if the given point is within the Object's
-// display space bounds. This method is mainly used by Window objects and other
-// event processing Widgets that need to find a Widget by mouse-cursor
-// coordinates for example. If this Object does not encompasses the point given,
-// it returns nil
+// GetObjectAt returns the Object's instance if the given point is within the
+// Object's display space bounds. This method is mainly used by Window objects
+// and other event processing Widgets that need to find a Widget by mouse-cursor
+// coordinates for example. If this Object does not encompass the point given,
+// it returns `nil`.
 func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 	if o.HasPoint(p) {
 		return o
@@ -195,8 +198,8 @@ func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 	return nil
 }
 
-// Determines whether or not the given point is within the Object's display
-// space bounds
+// HasPoint determines whether or not the given point is within the Object's
+// display space bounds.
 func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 	origin := o.GetOrigin()
 	size := o.GetAllocation()
@@ -208,59 +211,55 @@ func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 	return false
 }
 
-// Emits an invalidate signal, primarily used in other CTK types which are
-// drawable and need an opportunity to invalidate the render canvases so that
-// the next CTK draw cycle can reflect the latest changes to the Object instance
-//
-// Emits: SignalInvalidate, Argv=[Object instance]
+// Invalidate emits an invalidate signal, primarily used in other CTK types
+// which are drawable and need an opportunity to invalidate the memphis surfaces
+// so that the next CTK draw cycle can reflect the latest changes to the Object
+// instance.
 func (o *CObject) Invalidate() enums.EventFlag {
 	return o.Emit(SignalInvalidate, o)
 }
 
-// Emits a cdk-event signal, primarily used to consume CDK events received such
-// as mouse or key events in other CTK and custom types that embed CObject
-//
-// Emits: SignalCdkEvent, Argv=[Object instance, event]
+// ProcessEvent emits a cdk-event signal, primarily used to consume CDK events
+// received such as mouse or key events in other CTK and custom types that embed
+// CObject.
 func (o *CObject) ProcessEvent(evt cdk.Event) enums.EventFlag {
 	return o.Emit(SignalCdkEvent, o, evt)
 }
 
-// Emits a draw signal, primarily used to render canvases and cause end-user
-// facing display updates. Signal listeners can draw to the Canvas and return
+// Draw emits a draw signal, primarily used to render canvases and cause user
+// facing display updates. Signal listeners can draw to the surface and return
 // EVENT_STOP to cause those changes to be composited upon the larger display
-// canvas
-//
-// Emits: SignalDraw, Argv=[Object instance, canvas]
+// surface.
 func (o *CObject) Draw() enums.EventFlag {
 	return o.Emit(SignalDraw, o, nil)
 }
 
-// Emits a resize signal, primarily used to make adjustments or otherwise
-// reallocate resources necessary for subsequent draw events
-//
-// Emits: SignalResize, Argv=[Object instance, allocated size]
+// Resize emits a resize signal, primarily used to make adjustments or otherwise
+// reallocate resources necessary for subsequent draw events.
 func (o *CObject) Resize() enums.EventFlag {
 	size := o.GetAllocation()
 	return o.Emit(SignalResize, o, size)
 }
 
-// Returns the current text direction for this Object instance
+// GetTextDirection returns the current text direction for this Object instance.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetTextDirection() (direction TextDirection) {
 	return o.textDirection
 }
 
-// Set the text direction for this Object instance. This method emits a
-// text-direction signal initially and if the listeners return EVENT_PASS, the
-// change is applied
+// SetTextDirection updates text direction for this Object instance. This method
+// emits a text-direction signal initially and if the listeners return
+// EVENT_PASS, the change is applied.
 //
-// Emit: SignalTextDirection, Argv=[Object instance, new text direction]
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) SetTextDirection(direction TextDirection) {
 	if f := o.Emit(SignalTextDirection, o, direction); f == enums.EVENT_PASS {
 		o.textDirection = direction
 	}
 }
 
-// return a selector string identifying this exact Object instance.
+// CssSelector returns a selector string identifying this exact Object instance.
 func (o *CObject) CssSelector() (selector string) {
 	selector += o.GetTypeTag().String()
 	name := o.GetName()
@@ -270,6 +269,10 @@ func (o *CObject) CssSelector() (selector string) {
 	return
 }
 
+// InstallCssProperty installs a new cdk.Property in a secondary CSS-focused
+// property list.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) InstallCssProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) (err error) {
 	switch kind {
 	case cdk.BoolProperty, cdk.StringProperty, cdk.IntProperty, cdk.FloatProperty, cdk.ColorProperty:
@@ -283,6 +286,10 @@ func (o *CObject) InstallCssProperty(name cdk.Property, kind cdk.PropertyType, w
 	return nil
 }
 
+// GetCssProperty returns the cdk.Property instance of the property found with
+// the name given, returning `nil` if no property by the name given is found.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssProperty(name cdk.Property) (property *cdk.CProperty) {
 	var ok bool
 	if property, ok = o.css[name]; !ok {
@@ -291,6 +298,9 @@ func (o *CObject) GetCssProperty(name cdk.Property) (property *cdk.CProperty) {
 	return
 }
 
+// GetCssProperties returns all the installed CSS properties for the Object.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssProperties() (properties []*cdk.CProperty) {
 	for _, v := range o.css {
 		properties = append(properties, v)
@@ -298,13 +308,21 @@ func (o *CObject) GetCssProperties() (properties []*cdk.CProperty) {
 	return
 }
 
-// func (o *CObject) GetCssValue(name Property) (value interface{}) {
-// 	if v, ok := o.css[name]; ok {
-// 		value = v.Value()
-// 	}
-// 	return
-// }
+// GetCssValue returns the value of the property found with the same name as the
+// given name.
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (o *CObject) GetCssValue(name cdk.Property) (value interface{}) {
+	if v, ok := o.css[name]; ok {
+		value = v.Value()
+	}
+	return
+}
 
+// GetCssBool is a convenience method to return a boolean value for the CSS
+// property of the given name.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssBool(name cdk.Property) (value bool, err error) {
 	if prop := o.GetCssProperty(name); prop != nil {
 		if prop.Type() == cdk.BoolProperty {
@@ -322,6 +340,10 @@ func (o *CObject) GetCssBool(name cdk.Property) (value bool, err error) {
 	return
 }
 
+// GetCssString is a convenience method to return a string value for the CSS
+// property of the given name.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssString(name cdk.Property) (value string, err error) {
 	if prop := o.GetCssProperty(name); prop != nil {
 		if prop.Type() == cdk.StringProperty {
@@ -339,6 +361,10 @@ func (o *CObject) GetCssString(name cdk.Property) (value string, err error) {
 	return
 }
 
+// GetCssInt is a convenience method to return a int value for the CSS
+// property of the given name.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssInt(name cdk.Property) (value int, err error) {
 	if prop := o.GetCssProperty(name); prop != nil {
 		if prop.Type() == cdk.IntProperty {
@@ -356,6 +382,10 @@ func (o *CObject) GetCssInt(name cdk.Property) (value int, err error) {
 	return
 }
 
+// GetCssFloat is a convenience method to return a float value for the CSS
+// property of the given name.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssFloat(name cdk.Property) (value float64, err error) {
 	if prop := o.GetCssProperty(name); prop != nil {
 		if prop.Type() == cdk.FloatProperty {
@@ -373,6 +403,10 @@ func (o *CObject) GetCssFloat(name cdk.Property) (value float64, err error) {
 	return
 }
 
+// GetCssColor is a convenience method to return a paint.Color value for the CSS
+// property of the given name.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssColor(name cdk.Property) (value paint.Color, err error) {
 	if prop := o.GetCssProperty(name); prop != nil {
 		if prop.Type() == cdk.ColorProperty {
