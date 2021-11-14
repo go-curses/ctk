@@ -110,6 +110,7 @@ func setupUi(manager cdk.Display) error {
 	frame := ctk.NewFrame("This is a frame")
 	frame.SetSizeRequest(30, -1)
 	frame.SetFocusWithChild(true)
+	frame.SetLabelAlign(0.5, 0.5)
 	frame.Show()
 	hbox2.PackStart(frame, false, false, 0)
 	// frame.SetLabelAlign(0.0, 0.5)
