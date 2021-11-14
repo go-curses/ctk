@@ -5,7 +5,6 @@ import (
 	"github.com/go-curses/cdk/lib/enums"
 )
 
-// CDK type-tag for EventBox objects
 const TypeEventBox cdk.CTypeTag = "ctk-event-box"
 
 func init() {
@@ -18,6 +17,9 @@ func init() {
 //	    +- Container
 //	      +- Bin
 //	        +- EventBox
+//
+// The EventBox Widget is used to capture Widget events (mouse, keyboard)
+// without needing having any defined user-interface.
 type EventBox interface {
 	Bin
 	Buildable
@@ -33,30 +35,32 @@ type EventBox interface {
 	ProcessEvent(evt cdk.Event) enums.EventFlag
 }
 
-// The CEventBox structure implements the EventBox interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with EventBox objects
+// The CEventBox structure implements the EventBox interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with EventBox objects.
 type CEventBox struct {
 	CBin
 }
 
-// Default constructor for EventBox objects
+// MakeEventBox is used by the Buildable system to construct a new EventBox.
 func MakeEventBox() *CEventBox {
 	return NewEventBox()
 }
 
-// Constructor for EventBox objects
+// NewEventBox is the constructor for new EventBox instances.
 func NewEventBox() (value *CEventBox) {
 	e := new(CEventBox)
 	e.Init()
 	return e
 }
 
-// EventBox object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the EventBox instance
+// Init initializes a EventBox object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the EventBox instance. Init is used in the
+// NewEventBox constructor and only necessary when implementing a derivative
+// EventBox type.
 func (b *CEventBox) Init() (already bool) {
 	if b.InitTypeItem(TypeEventBox, b) {
 		return true
@@ -68,11 +72,12 @@ func (b *CEventBox) Init() (already bool) {
 	return false
 }
 
-// Set whether the event box window is positioned above the windows of its
-// child, as opposed to below it. If the window is above, all events inside
-// the event box will go to the event box. If the window is below, events in
-// windows of child widgets will first got to that widget, and then to its
-// parents. The default is to keep the window below the child.
+// SetAboveChild updates whether the event box window is positioned above the
+// windows of its child, as opposed to below it. If the window is above, all
+// events inside the event box will go to the event box. If the window is below,
+// events in windows of child widgets will first got to that widget, and then to
+// its parents. The default is to keep the window below the child.
+//
 // Parameters:
 // 	aboveChild	TRUE if the event box window is above the windows of its child
 func (e *CEventBox) SetAboveChild(aboveChild bool) {
@@ -81,10 +86,9 @@ func (e *CEventBox) SetAboveChild(aboveChild bool) {
 	}
 }
 
-// Returns whether the event box window is above or below the windows of its
-// child. See SetAboveChild for details.
-// Returns:
-// 	TRUE if the event box window is above the window of its child.
+// GetAboveChild returns whether the event box window is above or below the
+// windows of its child.
+// See: SetAboveChild()
 func (e *CEventBox) GetAboveChild() (value bool) {
 	var err error
 	if value, err = e.GetBoolProperty(PropertyAboveChild); err != nil {
@@ -93,17 +97,17 @@ func (e *CEventBox) GetAboveChild() (value bool) {
 	return
 }
 
-// Set whether the event box uses a visible or invisible child window. The
-// default is to use visible windows. In an invisible window event box, the
-// window that the event box creates is a GDK_INPUT_ONLY window, which means
-// that it is invisible and only serves to receive events. A visible window
-// event box creates a visible (GDK_INPUT_OUTPUT) window that acts as the
+// SetVisibleWindow updates whether the event box uses a visible or invisible
+// child window. The default is to use visible windows. In an invisible window
+// event box, the window that the event box creates is a GDK_INPUT_ONLY window,
+// which means that it is invisible and only serves to receive events. A visible
+// window event box creates a visible (GDK_INPUT_OUTPUT) window that acts as the
 // parent window for all the widgets contained in the event box. You should
 // generally make your event box invisible if you just want to trap events.
 // Creating a visible window may cause artifacts that are visible to the
-// user, especially if the user is using a theme with gradients or pixmaps.
-// The main reason to create a non input-only event box is if you want to set
-// the background to a different color or draw on it.
+// user. The main reason to create a non input-only event box is if you want to
+// set the background to a different color or draw on it.
+//
 // Parameters:
 // 	visibleWindow	boolean value
 func (e *CEventBox) SetVisibleWindow(visibleWindow bool) {
@@ -112,10 +116,8 @@ func (e *CEventBox) SetVisibleWindow(visibleWindow bool) {
 	}
 }
 
-// Returns whether the event box has a visible window. See
-// SetVisibleWindow for details.
-// Returns:
-// 	TRUE if the event box window is visible
+// GetVisibleWindow returns whether the event box has a visible window.
+// See: SetVisibleWindow()
 func (e *CEventBox) GetVisibleWindow() (value bool) {
 	var err error
 	if value, err = e.GetBoolProperty(PropertyVisibleWindow); err != nil {
@@ -124,15 +126,11 @@ func (e *CEventBox) GetVisibleWindow() (value bool) {
 	return
 }
 
-// If the Widget instance CanFocus() then take the focus of the associated
-// Window. Any previously focused Widget will emit a lost-focus signal and the
-// newly focused Widget will emit a gained-focus signal. This method emits a
-// grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied
-//
-// Emits: SignalGrabFocus, Argv=[Widget instance]
-// Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
-// Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
+// GrabFocus will take the focus of the associated Window if it the EventBox
+// CanFocus() (has the CAN_FOCUS flag). Any previously focused Widget will emit
+// a lost-focus signal and the newly focused Widget will emit a gained-focus
+// signal. This method emits a grab-focus signal initially and if the listeners
+// return EVENT_PASS, the changes are applied.
 func (b *CEventBox) GrabFocus() {
 	if b.CanFocus() {
 		if r := b.Emit(SignalGrabFocus, b); r == enums.EVENT_PASS {
@@ -160,14 +158,19 @@ func (b *CEventBox) GrabFocus() {
 	}
 }
 
+// Activate will emit an activate signal and return TRUE if the signal handlers
+// return EVENT_STOP indicating that the event was in fact handled.
 func (b *CEventBox) Activate() (value bool) {
 	return b.Emit(SignalActivate, b) == enums.EVENT_STOP
 }
 
+// CancelEvent will emit a cancel-event signal.
 func (b *CEventBox) CancelEvent() {
 	b.Emit(SignalCancelEvent, b)
 }
 
+// ProcessEvent manages the processing of events, current this is just emitting
+// a cdk-event signal and returning the result.
 func (b *CEventBox) ProcessEvent(evt cdk.Event) enums.EventFlag {
 	return b.Emit(SignalCdkEvent, b, evt)
 }
