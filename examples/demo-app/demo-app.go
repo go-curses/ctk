@@ -171,6 +171,7 @@ func setupUi(manager cdk.Display) error {
 		// dialog.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
 		// dialog.GetVBox().SetBoolProperty(Property, true)
 		// }
+		dialog.SetDefaultResponse(ctk.ResponseHelp)
 		response := dialog.Run()
 		gls.Go(func() {
 			select {
