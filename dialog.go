@@ -15,7 +15,6 @@ import (
 	"github.com/jtolio/gls"
 )
 
-// CDK type-tag for Dialog objects
 const TypeDialog cdk.CTypeTag = "ctk-dialog"
 
 func init() {
@@ -45,11 +44,15 @@ func init() {
 //	            +- PageSetupUnixDialog
 //	            +- PrintUnixDialog
 //	            +- RecentChooserDialog
+//
+// The Dialog Widget is a Window with actionable Buttons, typically intended to
+// be used as a transient for another Window rather than a Window on its own.
 type Dialog interface {
 	Window
 	Buildable
 
 	Init() (already bool)
+	Build(builder Builder, element *CBuilderElement) error
 	Run() (response chan ResponseType)
 	Response(responseId ResponseType)
 	AddButton(buttonText string, responseId ResponseType) (value Button)
@@ -62,18 +65,15 @@ type Dialog interface {
 	GetWidgetForResponse(responseId ResponseType) (value Widget)
 	GetActionArea() (value ButtonBox)
 	GetContentArea() (value VBox)
-	Build(builder Builder, element *CBuilderElement) error
 	Show()
+	ShowAll()
 	Destroy()
-	ProcessEvent(evt cdk.Event) enums.EventFlag
-	Resize() enums.EventFlag
-	Invalidate() enums.EventFlag
 }
 
-// The CDialog structure implements the Dialog interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Dialog objects
+// The CDialog structure implements the Dialog interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Dialog objects.
 type CDialog struct {
 	CWindow
 
@@ -87,43 +87,37 @@ type CDialog struct {
 	response ResponseType
 }
 
-// Default constructor for Dialog objects
+// MakeDialog is used by the Buildable system to construct a new Dialog.
 func MakeDialog() *CDialog {
 	return NewDialog()
 }
 
-// Constructor for Dialog objects
+// NewDialog is the constructor for new Dialog instances.
 func NewDialog() (value *CDialog) {
 	d := new(CDialog)
 	d.Init()
 	return d
 }
 
-// Creates a new Dialog with title title (or NULL for the default title;
-// see WindowSetTitle) and transient parent parent (or NULL for none;
-// see WindowSetTransientFor). The flags argument can be used to
-// make the dialog modal (GTK_DIALOG_MODAL) and/or to have it destroyed along
-// with its transient parent (GTK_DIALOG_DESTROY_WITH_PARENT). After flags ,
-// button text/response ID pairs should be listed, with a NULL pointer ending
-// the list. Button text can be either a stock ID such as GTK_STOCK_OK, or
-// some arbitrary text. A response ID can be any positive number, or one of
-// the values in the ResponseType enumeration. If the user clicks one of
-// these dialog buttons, Dialog will emit the response signal with
-// the corresponding response ID. If a Dialog receives the
-// delete-event signal, it will emit ::response with a response ID of
-// GTK_RESPONSE_DELETE_EVENT. However, destroying a dialog does not emit the
-// ::response signal; so be careful relying on ::response when using the
-// GTK_DIALOG_DESTROY_WITH_PARENT flag. Buttons are from left to right, so
-// the first button in the list will be the leftmost button in the dialog.
-// Here's a simple example:
+// NewDialogWithButtons creates a new Dialog with title, transient parent, a
+// bitmask of DialogFlags and a variadic list of paired items. The items are
+// the button ResponseType paired with a Button label string (which can be a
+// ctk.StockID for access to the stock Buttons in CTK).
+//
+// The `flags` argument can be used to make the dialog modal (ctk.DialogModal)
+// and/or to have it destroyed along with its transient parent
+// (ctk.DialogDestroyWithParent).
+//
+// If the user clicks one of these Dialog Buttons, the Dialog will emit the
+// response signal with the corresponding response ID. Buttons are from left to
+// right, so the first button in the list will be the leftmost button in the
+// Dialog.
+//
 // Parameters:
-// 	title	Title of the dialog, or NULL.
-// 	parent	Transient parent of the dialog, or NULL.
+// 	title	label for the dialog
+// 	parent	Transient parent of the dialog, or `nil`
 // 	flags	from DialogFlags
-// 	firstButtonText	stock ID or text to go in first button, or NULL.
-// 	varargs	response ID for first button, then additional buttons, ending with NULL
-// Returns:
-// 	a new Dialog
+// 	argv	response ID with label pairs
 func NewDialogWithButtons(title string, parent Window, flags DialogFlags, argv ...interface{}) (value *CDialog) {
 	d := new(CDialog)
 	d.dialogFlags = flags
@@ -138,10 +132,12 @@ func NewDialogWithButtons(title string, parent Window, flags DialogFlags, argv .
 	return d
 }
 
-// Dialog object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Dialog instance
+// Init initializes a Dialog object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Dialog instance. Init is used in the
+// NewDialog constructor and only necessary when implementing a derivative
+// Dialog type.
 func (d *CDialog) Init() (already bool) {
 	if d.InitTypeItem(TypeDialog, d) {
 		return true
@@ -160,12 +156,10 @@ func (d *CDialog) Init() (already bool) {
 	d.content.Show()
 	vbox.PackStart(d.content, true, true, 0)
 	d.action = NewHButtonBox(false, 0)
-	// d.action.SetSizeRequest(-1, 3)
 	d.action.Show()
 	vbox.PackEnd(d.action, false, true, 0)
 	d.done = make(chan bool, 1)
 	d.response = ResponseNone
-	d.Connect(SignalDraw, DialogDrawHandle, d.draw)
 	d.Connect(SignalResponse, DialogResponseHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if len(argv) == 1 {
 			if value, ok := argv[0].(ResponseType); ok {
@@ -180,283 +174,15 @@ func (d *CDialog) Init() (already bool) {
 		d.done <- true
 		return enums.EVENT_PASS
 	})
+	d.Connect(SignalCdkEvent, DialogEventHandle, d.event)
+	d.Connect(SignalInvalidate, DialogInvalidateHandle, d.invalidate)
+	d.Connect(SignalResize, DialogResizeHandle, d.resize)
+	d.Connect(SignalDraw, DialogDrawHandle, d.draw)
 	d.widgets = make(map[ResponseType][]Widget)
 	return false
 }
 
-// Blocks in a recursive main loop until the dialog either emits the
-// response signal, or is destroyed. If the dialog is destroyed during
-// the call to Run, Run returns GTK_RESPONSE_NONE.
-// Otherwise, it returns the response ID from the ::response signal emission.
-// Before entering the recursive main loop, Run calls
-// WidgetShow on the dialog for you. Note that you still need to show
-// any children of the dialog yourself. During Run, the default
-// behavior of delete-event is disabled; if the dialog receives
-// ::delete_event, it will not be destroyed as windows usually are, and
-// Run will return GTK_RESPONSE_DELETE_EVENT. Also, during
-// Run the dialog will be modal. You can force Run
-// to return at any time by calling Response to emit the
-// ::response signal. Destroying the dialog during Run is a very
-// bad idea, because your post-run code won't know whether the dialog was
-// destroyed or not. After Run returns, you are responsible for
-// hiding or destroying the dialog if you wish to do so. Typical usage of
-// this function might be: Note that even though the recursive main loop
-// gives the effect of a modal dialog (it prevents the user from interacting
-// with other windows in the same window group while the dialog is run),
-// callbacks such as timeouts, IO channel watches, DND drops, etc, will be
-// triggered during a Run call.
-// Returns:
-// 	response ID
-func (d *CDialog) Run() (response chan ResponseType) {
-	response = make(chan ResponseType, 1)
-	display := d.GetDisplay()
-	screen := display.Screen()
-	if screen == nil {
-		d.LogError("screen not found")
-		response <- ResponseNone
-		return
-	}
-	parentId := uuid.Nil
-	dw, dh := screen.Size()
-	previousWindow := display.ActiveWindow()
-	if transient := d.GetTransientFor(); transient != nil {
-		parentId = transient.ObjectID()
-		display.AddWindowOverlay(parentId, d, d.getDialogRegion())
-		d.Resize()
-		display.SetActiveWindow(transient)
-	} else {
-		d.SetAllocation(ptypes.MakeRectangle(dw, dh))
-		d.Resize()
-		display.SetActiveWindow(d)
-	}
-	display.RequestDraw()
-	display.RequestShow()
-	gls.Go(func() {
-		// wait for the response event
-		select {
-		case <-d.done:
-		}
-		response <- d.response
-		if parentId != uuid.Nil {
-			display.RemoveWindowOverlay(parentId, d.ObjectID())
-		}
-		display.SetActiveWindow(previousWindow)
-		display.RequestDraw()
-		display.RequestShow()
-	})
-	return
-}
-
-// Emits the response signal with the given response ID. Used to
-// indicate that the user has responded to the dialog in some way; typically
-// either you or Run will be monitoring the ::response signal
-// and take appropriate action.
-// Parameters:
-// 	responseId	response ID
-func (d *CDialog) Response(responseId ResponseType) {
-	d.Emit(SignalResponse, responseId)
-}
-
-// Adds a button with the given text (or a stock button, if button_text is a
-// stock ID) and sets things up so that clicking the button will emit the
-// response signal with the given response_id . The button is appended
-// to the end of the dialog's action area. The button widget is returned, but
-// usually you don't need it.
-// Parameters:
-// 	buttonText	text of button, or stock ID
-// 	responseId	response ID for the button
-// Returns:
-// 	the button widget that was added.
-// 	[transfer none]
-func (d *CDialog) AddButton(buttonText string, responseId ResponseType) (button Button) {
-	if item := LookupStockItem(StockID(buttonText)); item != nil {
-		button = NewButtonFromStock(StockID(buttonText))
-	} else {
-		button = NewButtonWithLabel(buttonText)
-	}
-	button.Show()
-	d.AddActionWidget(button, responseId)
-	return
-}
-
-// Adds more buttons, same as calling AddButton repeatedly. The
-// variable argument list should be NULL-terminated as with
-// NewWithButtons. Each button must have both text and
-// response ID.
-// Parameters:
-// 	firstButtonText	button text or stock ID
-// 	varargs	response ID for first button, then more text-response_id pairs
-func (d *CDialog) AddButtons(argv ...interface{}) {
-	if len(argv)%2 != 0 {
-		d.LogError("not an even number of arguments given")
-		return
-	}
-	for i := 0; i < len(argv); i += 2 {
-		var ok bool
-		var text string
-		if text, ok = argv[i].(string); !ok {
-			if stockId, ok := argv[i].(StockID); ok {
-				text = string(stockId)
-			} else {
-				d.LogError("invalid text argument: %v (%T)", argv[i])
-				continue
-			}
-		}
-		var responseId ResponseType
-		if responseId, ok = argv[i+1].(ResponseType); !ok {
-			d.LogError("invalid ResponseType argument: %v (%T)", argv[i])
-			continue
-		}
-		d.AddButton(text, responseId)
-	}
-}
-
-// Adds an activatable widget to the action area of a Dialog, connecting a
-// signal handler that will emit the response signal on the dialog when
-// the widget is activated. The widget is appended to the end of the dialog's
-// action area. If you want to add a non-activatable widget, simply pack it
-// into the action_area field of the Dialog struct.
-// Parameters:
-// 	child	an activatable widget
-// 	responseId	response ID for child
-//
-func (d *CDialog) AddActionWidget(child Widget, responseId ResponseType) {
-	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
-		d.LogDebug("responding with: %v", responseId)
-		d.Response(responseId)
-		return enums.EVENT_STOP
-	})
-	d.action.PackStart(child, false, false, 0)
-	d.widgets[responseId] = append(d.widgets[responseId], child)
-}
-
-func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId ResponseType) {
-	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
-		d.LogDebug("responding with: %v", responseId)
-		d.Response(responseId)
-		return enums.EVENT_STOP
-	})
-	d.action.PackEnd(child, false, false, 0)
-	d.widgets[responseId] = append(d.widgets[responseId], child)
-}
-
-// Sets the last widget in the dialog's action area with the given
-// response_id as the default widget for the dialog. Pressing "Enter"
-// normally activates the default widget.
-// Parameters:
-// 	responseId	a response ID
-func (d *CDialog) SetDefaultResponse(responseId ResponseType) {
-	d.defResponse = responseId
-}
-
-// Calls WidgetSetSensitive (widget, setting ) for each widget in the
-// dialog's action area with the given response_id . A convenient way to
-// sensitize/desensitize dialog buttons.
-// Parameters:
-// 	responseId	a response ID
-// 	setting	TRUE for sensitive
-func (d *CDialog) SetResponseSensitive(responseId ResponseType, sensitive bool) {
-	if list, ok := d.widgets[responseId]; ok {
-		for _, w := range list {
-			w.SetSensitive(sensitive)
-		}
-	}
-}
-
-// Gets the response id of a widget in the action area of a dialog.
-// Parameters:
-// 	widget	a widget in the action area of dialog
-//
-// Returns:
-// 	the response id of widget , or GTK_RESPONSE_NONE if widget
-// 	doesn't have a response id set.
-func (d *CDialog) GetResponseForWidget(widget Widget) (value ResponseType) {
-	for response, widgets := range d.widgets {
-		for _, w := range widgets {
-			if w.ObjectID() == widget.ObjectID() {
-				return response
-			}
-		}
-	}
-	return ResponseNone
-}
-
-// Gets the widget button that uses the given response ID in the action area
-// of a dialog.
-// Parameters:
-// 	responseId	the response ID used by the dialog
-// widget
-// Returns:
-// 	the widget button that uses the given response_id , or NULL.
-// 	[transfer none]
-func (d *CDialog) GetWidgetForResponse(responseId ResponseType) (value Widget) {
-	if widgets, ok := d.widgets[responseId]; ok {
-		if last := len(widgets) - 1; last > -1 {
-			value = widgets[last]
-		}
-	}
-	return
-}
-
-// Returns the action area of dialog .
-// Returns:
-// 	the action area.
-// 	[transfer none]
-func (d *CDialog) GetActionArea() (value ButtonBox) {
-	return d.action
-}
-
-// Returns the content area of dialog .
-// Returns:
-// 	the content area VBox.
-// 	[transfer none]
-func (d *CDialog) GetContentArea() (value VBox) {
-	return d.content
-}
-
-// // Returns TRUE if dialogs are expected to use an alternative button order on
-// // the screen screen . See SetAlternativeButtonOrder for more
-// // details about alternative button order. If you need to use this function,
-// // you should probably connect to the ::notify:gtk-alternative-button-order
-// // signal on the Settings object associated to screen , in order to be
-// // notified if the button order setting changes.
-// // Parameters:
-// // 	screen	a Screen, or NULL to use the default screen.
-// // Returns:
-// // 	Whether the alternative button order should be used
-// func (d *CDialog) AlternativeButtonOrder(screen Screen) (value bool) {
-// 	return false
-// }
-//
-// // Sets an alternative button order. If the
-// // gtk-alternative-button-order setting is set to TRUE, the dialog
-// // buttons are reordered according to the order of the response ids passed to
-// // this function. By default, CTK dialogs use the button order advocated by
-// // the Gnome right, and the cancel button left of it. But the builtin CTK
-// // dialogs and MessageDialogs do provide an alternative button order,
-// // which is more suitable on some platforms, e.g. Windows. Use this function
-// // after adding all the buttons to your dialog, as the following example
-// // shows:
-// // Parameters:
-// // 	firstResponseId	a response id used by one dialog
-// // 's buttons
-// // 	varargs	a list of more response ids of dialog
-// // 's buttons, terminated by -1
-// func (d *CDialog) SetAlternativeButtonOrder(firstResponseId int, argv ...interface{}) {}
-//
-// // Sets an alternative button order. If the
-// // gtk-alternative-button-order setting is set to TRUE, the dialog
-// // buttons are reordered according to the order of the response ids in
-// // new_order . See SetAlternativeButtonOrder for more
-// // information. This function is for use by language bindings.
-// // Parameters:
-// // 	nParams	the number of response ids in new_order
-// //
-// // 	newOrder	an array of response ids of
-// // dialog
-// // 's buttons.
-// func (d *CDialog) SetAlternativeButtonOrderFromArray(nParams int, newOrder int) {}
-
+// Build provides customizations to the Buildable system for Dialog Widgets.
 func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 	d.Freeze()
 	defer d.Thaw()
@@ -492,11 +218,233 @@ func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-func (d *CDialog) Hide() {
-	d.UnsetFlags(VISIBLE)
-	d.CWindow.Hide()
+// Run in CTK, unlike the GTK equivalent, does not block the main thread.
+// Run maintains its own internal main-loop process and returns a ResponseType
+// channel so that once the user presses one of the action-buttons or closes the
+// Dialog with ESC for example, the response channel can deliver the user-input
+// to the Dialog calling code.
+//
+// Before entering the recursive main loop, Run calls Show on the Dialog for
+// you. Note that you still need to Show any children of the Dialog yourself.
+// You can force Run to return at any time by calling Response to emit the
+// ::response signal directly. Destroying the dialog during Run is a very
+// bad idea, because your post-run code won't know whether the dialog was
+// destroyed or not and there would likely be a closed-chan issue with the
+// ResponseType channel.
+//
+// After Run returns, you are responsible for hiding or destroying the dialog if
+// you wish to do so.
+func (d *CDialog) Run() (response chan ResponseType) {
+	d.Show()
+	response = make(chan ResponseType, 1)
+	display := d.GetDisplay()
+	screen := display.Screen()
+	if screen == nil {
+		d.LogError("screen not found")
+		response <- ResponseNone
+		return
+	}
+	parentId := uuid.Nil
+	dw, dh := screen.Size()
+	previousWindow := display.ActiveWindow()
+	if transient := d.GetTransientFor(); transient != nil {
+		parentId = transient.ObjectID()
+		display.AddWindowOverlay(parentId, d, d.getDialogRegion())
+		d.Resize()
+		display.SetActiveWindow(transient)
+	} else {
+		d.SetAllocation(ptypes.MakeRectangle(dw, dh))
+		d.Resize()
+		display.SetActiveWindow(d)
+	}
+	if d.defResponse != ResponseNone {
+		if ab, ok := d.widgets[d.defResponse]; ok {
+			last := len(ab) - 1
+			if ab[last] != nil {
+				ab[last].GrabFocus()
+			}
+		}
+	}
+	display.RequestDraw()
+	display.RequestShow()
+	gls.Go(func() {
+		// wait for the response event
+		select {
+		case <-d.done:
+		}
+		response <- d.response
+		if parentId != uuid.Nil {
+			display.RemoveWindowOverlay(parentId, d.ObjectID())
+		}
+		display.SetActiveWindow(previousWindow)
+		display.RequestDraw()
+		display.RequestShow()
+	})
+	return
 }
 
+// Response emits the response signal with the given response ID. Used to
+// indicate that the user has responded to the dialog in some way; typically
+// either you or Run will be monitoring the ::response signal and take
+// appropriate action.
+//
+// Parameters:
+// 	responseId	ResponseType identifier
+func (d *CDialog) Response(responseId ResponseType) {
+	d.Emit(SignalResponse, responseId)
+}
+
+// AddButton is a convenience method for AddActionWidget to create a Button with
+// the given text (or a stock button, if button_text is a StockID) and set
+// things up so that clicking the button will emit the response signal with the
+// given ResponseType. The Button is appended to the end of the dialog's action
+// area. The button widget is returned, but usually you don't need it.
+//
+// Parameters:
+// 	buttonText	text of button, or stock ID
+// 	responseId	response ID for the button
+func (d *CDialog) AddButton(buttonText string, responseId ResponseType) (button Button) {
+	if item := LookupStockItem(StockID(buttonText)); item != nil {
+		button = NewButtonFromStock(StockID(buttonText))
+	} else {
+		button = NewButtonWithLabel(buttonText)
+	}
+	button.Show()
+	d.AddActionWidget(button, responseId)
+	return
+}
+
+// AddButtons is a convenience method for AddButton to create many buttons, in
+// the same way as calling AddButton repeatedly. Each Button must have both
+// ResponseType and label text provided.
+//
+// Parameters:
+// 	argv	response ID with label pairs
+func (d *CDialog) AddButtons(argv ...interface{}) {
+	if len(argv)%2 != 0 {
+		d.LogError("not an even number of arguments given")
+		return
+	}
+	for i := 0; i < len(argv); i += 2 {
+		var ok bool
+		var text string
+		if text, ok = argv[i].(string); !ok {
+			if stockId, ok := argv[i].(StockID); ok {
+				text = string(stockId)
+			} else {
+				d.LogError("invalid text argument: %v (%T)", argv[i])
+				continue
+			}
+		}
+		var responseId ResponseType
+		if responseId, ok = argv[i+1].(ResponseType); !ok {
+			d.LogError("invalid ResponseType argument: %v (%T)", argv[i])
+			continue
+		}
+		d.AddButton(text, responseId)
+	}
+}
+
+// AddActionWidget adds the given activatable widget to the action area of a
+// Dialog, connecting a signal handler that will emit the response signal on the
+// Dialog when the widget is activated. The widget is appended to the end of the
+// Dialog's action area. If you want to add a non-activatable widget, simply
+// pack it into the action_area field of the Dialog struct.
+//
+// Parameters:
+// 	child	an activatable widget
+// 	responseId	response ID for child
+func (d *CDialog) AddActionWidget(child Widget, responseId ResponseType) {
+	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
+		d.LogDebug("responding with: %v", responseId)
+		d.Response(responseId)
+		return enums.EVENT_STOP
+	})
+	d.action.PackStart(child, false, false, 0)
+	d.widgets[responseId] = append(d.widgets[responseId], child)
+}
+
+// AddSecondaryActionWidget is the same as AddActionWidget with the exception of
+// adding the given Widget to the secondary action Button grouping instead of
+// the primary grouping as with AddActionWidget.
+func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId ResponseType) {
+	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
+		d.LogDebug("responding with: %v", responseId)
+		d.Response(responseId)
+		return enums.EVENT_STOP
+	})
+	d.action.PackEnd(child, false, false, 0)
+	d.widgets[responseId] = append(d.widgets[responseId], child)
+}
+
+// SetDefaultResponse updates which action Widget is activated when the user
+// presses the ENTER key without changing the focused Widget first. The last
+// Widget in the Dialog's action area with the given ResponseType as the default
+// widget for the dialog.
+//
+// Parameters:
+// 	responseId	a response ID
+func (d *CDialog) SetDefaultResponse(responseId ResponseType) {
+	d.defResponse = responseId
+}
+
+// SetResponseSensitive calls Widget.SetSensitive for each widget in the
+// Dialog's action area with the given Responsetype. A convenient way to
+// sensitize/desensitize Dialog Buttons.
+//
+// Parameters:
+// 	responseId	a response ID
+// 	setting	TRUE for sensitive
+func (d *CDialog) SetResponseSensitive(responseId ResponseType, sensitive bool) {
+	if list, ok := d.widgets[responseId]; ok {
+		for _, w := range list {
+			w.SetSensitive(sensitive)
+		}
+	}
+}
+
+// GetResponseForWidget is a convenience method for looking up the ResponseType
+// associated with the given Widget in the Dialog action area. Returns
+// ResponseNone if the Widget is not found in the action area of the Dialog.
+//
+// Parameters:
+// 	widget	a widget in the action area of dialog
+func (d *CDialog) GetResponseForWidget(widget Widget) (value ResponseType) {
+	for response, widgets := range d.widgets {
+		for _, w := range widgets {
+			if w.ObjectID() == widget.ObjectID() {
+				return response
+			}
+		}
+	}
+	return ResponseNone
+}
+
+// GetWidgetForResponse returns the last Widget Button that uses the given
+// ResponseType in the action area of a Dialog.
+//
+// Parameters:
+// 	responseId	the response ID used by the dialog widget
+func (d *CDialog) GetWidgetForResponse(responseId ResponseType) (value Widget) {
+	if widgets, ok := d.widgets[responseId]; ok {
+		if last := len(widgets) - 1; last > -1 {
+			value = widgets[last]
+		}
+	}
+	return
+}
+
+// GetActionArea returns the action area ButtonBox of a Dialog instance.
+func (d *CDialog) GetActionArea() (value ButtonBox) {
+	return d.action
+}
+
+// GetContentArea returns the content area VBox of a Dialog instance.
+func (d *CDialog) GetContentArea() (value VBox) {
+	return d.content
+}
+
+// Show ensures that the Dialog, content and action areas are all set to VISIBLE
 func (d *CDialog) Show() {
 	d.SetFlags(VISIBLE)
 	d.CWindow.Show()
@@ -504,6 +452,8 @@ func (d *CDialog) Show() {
 	d.action.Show()
 }
 
+// ShowAll calls ShowAll upon the Dialog, content area, action area and all the
+// action Widget children.
 func (d *CDialog) ShowAll() {
 	d.SetFlags(VISIBLE)
 	d.CWindow.ShowAll()
@@ -519,6 +469,9 @@ func (d *CDialog) ShowAll() {
 	}
 }
 
+// Destroy hides the Dialog, removes it from any transient Window associations,
+// removes the Dialog from the Display and finally emits the destroy-event
+// signal.
 func (d *CDialog) Destroy() {
 	d.Hide()
 	dm := d.GetDisplay()
@@ -529,42 +482,6 @@ func (d *CDialog) Destroy() {
 	}
 	d.Emit(SignalDestroyEvent, d)
 }
-
-func (d *CDialog) ProcessEvent(evt cdk.Event) enums.EventFlag {
-	// d.Lock()
-	// defer d.Unlock()
-	switch e := evt.(type) {
-	case *cdk.EventKey:
-		switch e.Key() {
-		case cdk.KeyEscape:
-			if f := d.Emit(SignalClose); f == enums.EVENT_PASS {
-				d.Response(ResponseClose)
-			}
-			return enums.EVENT_STOP
-		}
-	case *cdk.EventResize:
-		if tw := d.GetTransientFor(); tw != nil {
-			tw.ProcessEvent(evt)
-		}
-		return d.Resize()
-	case *cdk.EventMouse:
-		if f := d.Emit(SignalEventMouse, d, evt); f == enums.EVENT_PASS {
-			if child := d.GetChild(); child != nil {
-				if mw := child.GetWidgetAt(ptypes.NewPoint2I(e.Position())); mw != nil {
-					if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
-						if f := ms.ProcessEvent(evt); f == enums.EVENT_STOP {
-							return enums.EVENT_STOP
-						}
-					}
-				}
-			}
-		}
-	}
-	return d.CWindow.ProcessEvent(evt)
-}
-
-// TODO: set-size-request makes dialog window size, truncated by actual size
-// TODO: local canvas / child alloc and origin issues
 
 func (d *CDialog) getDialogRegion() (region ptypes.Region) {
 	if dm := cdk.GetDefaultDisplay(); dm != nil {
@@ -594,7 +511,60 @@ func (d *CDialog) getDialogRegion() (region ptypes.Region) {
 	return
 }
 
-func (d *CDialog) Resize() enums.EventFlag {
+// TODO: set-size-request makes dialog window size, truncated by actual size
+// TODO: local canvas / child alloc and origin issues
+
+func (d *CDialog) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if evt, ok := argv[1].(cdk.Event); ok {
+		// d.Lock()
+		// defer d.Unlock()
+		switch e := evt.(type) {
+		case *cdk.EventKey:
+			switch e.Key() {
+			case cdk.KeyEscape:
+				if f := d.Emit(SignalClose); f == enums.EVENT_PASS {
+					d.Response(ResponseClose)
+				}
+				return enums.EVENT_STOP
+			}
+		case *cdk.EventResize:
+			if tw := d.GetTransientFor(); tw != nil {
+				tw.ProcessEvent(evt)
+			}
+			return d.Resize()
+		case *cdk.EventMouse:
+			if f := d.Emit(SignalEventMouse, d, evt); f == enums.EVENT_PASS {
+				if child := d.GetChild(); child != nil {
+					point := ptypes.NewPoint2I(e.Position())
+					point.AddPoint(d.GetOrigin())
+					if mw := child.GetWidgetAt(point); mw != nil {
+						if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
+							if f := ms.ProcessEvent(evt); f == enums.EVENT_STOP {
+								return enums.EVENT_STOP
+							}
+						}
+					}
+				}
+			}
+		}
+		// do not block parent event handlers with enums.EVENT_STOP, always
+		// allow event-pass-through so that normal Window events can be handled
+		// without duplicating the features here
+	}
+	return enums.EVENT_PASS
+}
+
+func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+	// d.rebuildFocusChain()
+	origin := d.GetOrigin()
+	alloc := d.GetAllocation()
+	if err := memphis.ConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
+		d.LogErr(err)
+	}
+	return enums.EVENT_STOP
+}
+
+func (d *CDialog) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	region := d.getDialogRegion().NewClone()
 	if tf := d.GetTransientFor(); tf != nil {
 		if dm := d.GetDisplay(); dm != nil {
@@ -605,29 +575,19 @@ func (d *CDialog) Resize() enums.EventFlag {
 	d.SetAllocation(region.Size())
 
 	if child := d.GetChild(); child != nil {
-		origin := ptypes.MakePoint2I(1, 1)
-		child.SetOrigin(origin.X, origin.Y)
+		local := ptypes.MakePoint2I(1, 1)
+		child.SetOrigin(region.X+local.X, region.Y+local.Y)
 		alloc := region.Size().NewClone()
 		alloc.Sub(2, 2)
 		child.SetAllocation(*alloc)
 		child.Resize()
-		if err := memphis.ConfigureSurface(child.ObjectID(), origin, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
+		if err := memphis.ConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
 			child.LogErr(err)
 		}
 	}
 
 	d.Invalidate()
 	return enums.EVENT_STOP
-}
-
-func (d *CDialog) Invalidate() enums.EventFlag {
-	// d.rebuildFocusChain()
-	origin := d.GetOrigin()
-	alloc := d.GetAllocation()
-	if err := memphis.ConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
-		d.LogErr(err)
-	}
-	return d.Emit(SignalInvalidate, d)
 }
 
 func (d *CDialog) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
@@ -645,7 +605,9 @@ func (d *CDialog) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		} else {
 			surface.FillBorder(false, true, d.GetThemeRequest())
 		}
-		// d.content.SetBoolProperty(cdk.PropertyDebug, true)
+		// _ = d.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
+		// _ = d.content.SetBoolProperty(cdk.PropertyDebug, true)
+		// _ = d.action.SetBoolProperty(cdk.PropertyDebug, true)
 		vbox := d.GetVBox()
 		if r := vbox.Draw(); r == enums.EVENT_STOP {
 			if err := surface.Composite(vbox.ObjectID()); err != nil {
@@ -674,5 +636,13 @@ const SignalClose cdk.Signal = "close"
 const SignalResponse cdk.Signal = "response"
 
 const DialogResponseHandle = "dialog-response-handler"
+
+const DialogEventHandle = "dialog-event-handler"
+
+const DialogInvalidateHandle = "dialog-invalidate-handler"
+
+const DialogResizeHandle = "dialog-resize-handler"
+
 const DialogDrawHandle = "dialog-draw-handler"
+
 const DialogActivateHandle = "dialog-activate-handler"
