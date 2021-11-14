@@ -10,7 +10,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Window objects
 const TypeWindow cdk.CTypeTag = "ctk-window"
 
 func init() {
@@ -41,8 +40,9 @@ func init() {
 //	          +- Assistant
 //	          +- OffscreenWindow
 //	          +- Plug
+//
 // In the Curses Tool Kit, the Window type is an extension of the CTK Bin
-// type and also embeds the cdk.Window interface so that it can be utilized
+// type and also implements the cdk.Window interface so that it can be utilized
 // within the Curses Development Kit framework. A Window is a TOPLEVEL Widget
 // that can contain other widgets.
 type Window interface {
@@ -133,7 +133,6 @@ type Window interface {
 	FocusPrevious() enums.EventFlag
 	GetEventFocus() (o interface{})
 	SetEventFocus(o interface{})
-	ProcessEvent(evt cdk.Event) enums.EventFlag
 	GetThemeRequest() (theme paint.Theme)
 	Invalidate() enums.EventFlag
 }
@@ -233,6 +232,7 @@ func (w *CWindow) Init() (already bool) {
 	_ = w.GetVBox()
 	w.hoverFocus = nil
 	w.Invalidate()
+	w.Connect(SignalCdkEvent, WindowEventHandle, w.event)
 	w.Connect(SignalDraw, WindowDrawHandle, w.draw)
 	return false
 }
@@ -1514,86 +1514,90 @@ func (w *CWindow) SetEventFocus(o interface{}) {
 	}
 }
 
-func (w *CWindow) ProcessEvent(evt cdk.Event) enums.EventFlag {
-	w.Lock()
-	defer w.Unlock()
-	switch e := evt.(type) {
-	case *cdk.EventError:
-		if f := w.Emit(SignalError, w, e); f == enums.EVENT_PASS {
-			w.LogError(e.Error())
-		}
-	case *cdk.EventKey:
-		if f := w.Emit(SignalEventKey, w, e); f == enums.EVENT_PASS {
-			if w.MnemonicActivate(e.Rune(), e.Modifiers()) {
-				return enums.EVENT_STOP
+func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if evt, ok := argv[1].(cdk.Event); ok {
+		// w.Lock()
+		// defer w.Unlock()
+		switch e := evt.(type) {
+		case *cdk.EventError:
+			if f := w.Emit(SignalError, w, e); f == enums.EVENT_PASS {
+				w.LogError(e.Error())
 			}
-			// check focused
-			if fi := w.GetFocus(); fi != nil {
-				if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
-					sw.LogDebug("ProcessEvent(EventKey): %v", evt)
-					if f := sw.ProcessEvent(evt); f == enums.EVENT_STOP {
-						return enums.EVENT_STOP
+		case *cdk.EventKey:
+			if f := w.Emit(SignalEventKey, w, e); f == enums.EVENT_PASS {
+				if w.MnemonicActivate(e.Rune(), e.Modifiers()) {
+					return enums.EVENT_STOP
+				}
+				// check focused
+				if fi := w.GetFocus(); fi != nil {
+					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
+						sw.LogDebug("ProcessEvent(EventKey): %v", evt)
+						if f := sw.ProcessEvent(evt); f == enums.EVENT_STOP {
+							return enums.EVENT_STOP
+						}
 					}
 				}
-			}
-			// check focus change
-			switch e.Key() {
-			case cdk.KeyBacktab:
-				w.LogDebug("shift+tab key caught")
-				if e.Modifiers().Has(cdk.ModShift) {
-					w.LogDebug("tab key focus next: %v", w.GetNextFocus())
-					w.FocusNext()
-				} else {
-					w.LogDebug("tab key focus previous: %v", w.GetNextFocus())
-					w.FocusPrevious()
+				// check focus change
+				switch e.Key() {
+				case cdk.KeyBacktab:
+					w.LogDebug("shift+tab key caught")
+					if e.Modifiers().Has(cdk.ModShift) {
+						w.LogDebug("tab key focus next: %v", w.GetNextFocus())
+						w.FocusNext()
+					} else {
+						w.LogDebug("tab key focus previous: %v", w.GetNextFocus())
+						w.FocusPrevious()
+					}
+					return enums.EVENT_STOP
+				case cdk.KeyTab:
+					if e.Modifiers().Has(cdk.ModShift) {
+						w.LogDebug("tab key focus previous: %v", w.GetNextFocus())
+						w.FocusPrevious()
+					} else {
+						w.LogDebug("tab key focus next: %v", w.GetNextFocus())
+						w.FocusNext()
+					}
+					return enums.EVENT_STOP
 				}
-				return enums.EVENT_STOP
-			case cdk.KeyTab:
-				if e.Modifiers().Has(cdk.ModShift) {
-					w.LogDebug("tab key focus previous: %v", w.GetNextFocus())
-					w.FocusPrevious()
-				} else {
-					w.LogDebug("tab key focus next: %v", w.GetNextFocus())
-					w.FocusNext()
-				}
-				return enums.EVENT_STOP
 			}
-		}
-	case *cdk.EventMouse:
-		// need to track enter/leave widget states
-		if f := w.Emit(SignalEventMouse, w, e); f == enums.EVENT_PASS {
-			if mw := w.GetWidgetAt(ptypes.NewPoint2I(e.Position())); mw != nil {
-				if w.hoverFocus != nil {
-					if w.hoverFocus.ObjectID() != mw.ObjectID() {
-						w.hoverFocus.Emit(SignalLeave)
-						w.hoverFocus.LogDebug("signal leave")
-						mw.Emit(SignalEnter)
-						mw.LogDebug("signal enter")
+		case *cdk.EventMouse:
+			// need to track enter/leave widget states
+			if f := w.Emit(SignalEventMouse, w, e); f == enums.EVENT_PASS {
+				if mw := w.GetWidgetAt(ptypes.NewPoint2I(e.Position())); mw != nil {
+					if w.hoverFocus != nil {
+						if w.hoverFocus.ObjectID() != mw.ObjectID() {
+							w.hoverFocus.Emit(SignalLeave)
+							w.hoverFocus.LogDebug("signal leave")
+							mw.Emit(SignalEnter)
+							mw.LogDebug("signal enter")
+							w.hoverFocus = mw
+						}
+					} else {
 						w.hoverFocus = mw
 					}
-				} else {
-					w.hoverFocus = mw
-				}
-				if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
-					return ms.ProcessEvent(e)
+					if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
+						return ms.ProcessEvent(e)
+					}
 				}
 			}
+		case *cdk.EventResize:
+			alloc := ptypes.MakeRectangle(w.GetDisplay().Screen().Size())
+			origin := ptypes.MakePoint2I(0, 0)
+			w.SetAllocation(alloc)
+			w.SetOrigin(origin.X, origin.Y)
+			if err := memphis.ConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
+				w.LogErr(err)
+			}
+			if f := w.Emit(SignalResize, w, e, origin, alloc); f == enums.EVENT_PASS {
+				w.LogDebug("ProcessEvent(EventResize): (%v) %v", alloc, e)
+				return w.Resize()
+			}
 		}
-	case *cdk.EventResize:
-		alloc := ptypes.MakeRectangle(w.GetDisplay().Screen().Size())
-		origin := ptypes.MakePoint2I(0, 0)
-		w.SetAllocation(alloc)
-		w.SetOrigin(origin.X, origin.Y)
-		if err := memphis.ConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
-			w.LogErr(err)
-		}
-		if f := w.Emit(SignalResize, w, e, origin, alloc); f == enums.EVENT_PASS {
-			w.LogDebug("ProcessEvent(EventResize): (%v) %v", alloc, e)
-			return w.Resize()
-		}
+		w.LogTrace("ProcessEvent(cdk.Event): %v", evt)
+		// return w.Emit(SignalCdkEvent, w, evt)
+		return enums.EVENT_STOP
 	}
-	w.LogTrace("ProcessEvent(cdk.Event): %v", evt)
-	return w.Emit(SignalCdkEvent, w, evt)
+	return enums.EVENT_PASS
 }
 
 func (w *CWindow) GetThemeRequest() (theme paint.Theme) {
@@ -1812,5 +1816,7 @@ const SignalKeysChanged cdk.Signal = "keys-changed"
 const SignalSetFocus cdk.Signal = "set-focus"
 
 var ErrFallthrough = fmt.Errorf("fallthrough")
+
+const WindowEventHandle = "window-event-handler"
 
 const WindowDrawHandle = "window-draw-handler"
