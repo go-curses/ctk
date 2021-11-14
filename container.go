@@ -44,6 +44,8 @@ func init() {
 // any CTK type that will contain other widgets. The Container also supports the
 // tracking of focus and default widgets by maintaining two chain-list types:
 // FocusChain and DefaultChain.
+//
+// Note that currently CTK only supports the FocusChain
 type Container interface {
 	Widget
 	Buildable
