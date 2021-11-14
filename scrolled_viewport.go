@@ -67,13 +67,8 @@ type ScrolledViewport interface {
 	Hide()
 	GrabFocus()
 	GetWidgetAt(p *ptypes.Point2I) Widget
-	InternalGetWidgetAt(p *ptypes.Point2I) Widget
 	CancelEvent()
-	ProcessEvent(evt cdk.Event) enums.EventFlag
-	ProcessEventAtPoint(p *ptypes.Point2I, evt *cdk.EventMouse) enums.EventFlag
 	GetRegions() (c, h, v ptypes.Region)
-	Resize() enums.EventFlag
-	Invalidate() enums.EventFlag
 }
 
 type CScrolledViewport struct {
@@ -99,10 +94,8 @@ func (s *CScrolledViewport) Init() (already bool) {
 	s.CViewport.Init()
 	s.flags = NULL_WIDGET_FLAG
 	s.SetFlags(SENSITIVE | CAN_FOCUS | APP_PAINTABLE)
-	_ = s.InstallProperty(PropertyHAdjustment, cdk.StructProperty, true, NewAdjustment(0, 0, 0, 0, 0, 0))
 	_ = s.InstallProperty(PropertyHScrollbarPolicy, cdk.StructProperty, true, PolicyAlways)
 	_ = s.InstallProperty(PropertyScrolledViewportShadowType, cdk.StructProperty, true, SHADOW_NONE)
-	_ = s.InstallProperty(PropertyVAdjustment, cdk.StructProperty, true, NewAdjustment(0, 0, 0, 0, 0, 0))
 	_ = s.InstallProperty(PropertyVScrollbarPolicy, cdk.StructProperty, true, PolicyAlways)
 	_ = s.InstallProperty(PropertyWindowPlacement, cdk.StructProperty, true, GravityNorthWest)
 	_ = s.InstallProperty(PropertyWindowPlacementSet, cdk.BoolProperty, true, false)
@@ -124,10 +117,13 @@ func (s *CScrolledViewport) Init() (already bool) {
 		s.SetVAdjustment(vs.GetAdjustment())
 		vs.UnsetFlags(CAN_FOCUS)
 	}
-	s.Invalidate()
+	s.Connect(SignalCdkEvent, ScrolledViewportEventHandle, s.event)
 	s.Connect(SignalLostFocus, ScrolledViewportLostFocusHandle, s.lostFocus)
 	s.Connect(SignalGainedFocus, ScrolledViewportGainedFocusHandle, s.gainedFocus)
+	s.Connect(SignalInvalidate, ScrolledViewportDrawHandle, s.invalidate)
+	s.Connect(SignalResize, ScrolledViewportDrawHandle, s.resize)
 	s.Connect(SignalDraw, ScrolledViewportDrawHandle, s.draw)
+	s.Invalidate()
 	return false
 }
 
@@ -488,7 +484,7 @@ func (s *CScrolledViewport) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-func (s *CScrolledViewport) InternalGetWidgetAt(p *ptypes.Point2I) Widget {
+func (s *CScrolledViewport) internalGetWidgetAt(p *ptypes.Point2I) Widget {
 	if s.HasPoint(p) {
 		if vs := s.GetVScrollbar(); vs != nil {
 			if vs.HasPoint(p) {
@@ -525,71 +521,73 @@ func (s *CScrolledViewport) CancelEvent() {
 	s.Invalidate()
 }
 
-func (s *CScrolledViewport) ProcessEvent(evt cdk.Event) enums.EventFlag {
-	s.Lock()
-	defer s.Unlock()
-	switch e := evt.(type) {
-	case *cdk.EventMouse:
-		if e.IsWheelImpulse() {
-			s.GrabFocus()
-			switch e.WheelImpulse() {
-			case cdk.WheelUp:
-				if vs := s.GetVScrollbar(); vs != nil {
-					if f := vs.ForwardStep(); f == enums.EVENT_STOP {
-						s.Invalidate()
-						return enums.EVENT_STOP
+func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if evt, ok := argv[1].(cdk.Event); ok {
+		s.Lock()
+		defer s.Unlock()
+		switch e := evt.(type) {
+		case *cdk.EventMouse:
+			if e.IsWheelImpulse() {
+				s.GrabFocus()
+				switch e.WheelImpulse() {
+				case cdk.WheelUp:
+					if vs := s.GetVScrollbar(); vs != nil {
+						if f := vs.ForwardStep(); f == enums.EVENT_STOP {
+							s.Invalidate()
+							return enums.EVENT_STOP
+						}
+						return enums.EVENT_PASS
 					}
-					return enums.EVENT_PASS
-				}
-			case cdk.WheelLeft:
-				if hs := s.GetHScrollbar(); hs != nil {
-					if f := hs.BackwardStep(); f == enums.EVENT_STOP {
-						s.Invalidate()
-						return enums.EVENT_STOP
+				case cdk.WheelLeft:
+					if hs := s.GetHScrollbar(); hs != nil {
+						if f := hs.BackwardStep(); f == enums.EVENT_STOP {
+							s.Invalidate()
+							return enums.EVENT_STOP
+						}
+						return enums.EVENT_PASS
 					}
-					return enums.EVENT_PASS
-				}
-			case cdk.WheelDown:
-				if vs := s.GetVScrollbar(); vs != nil {
-					if f := vs.BackwardStep(); f == enums.EVENT_STOP {
-						s.Invalidate()
-						return enums.EVENT_STOP
+				case cdk.WheelDown:
+					if vs := s.GetVScrollbar(); vs != nil {
+						if f := vs.BackwardStep(); f == enums.EVENT_STOP {
+							s.Invalidate()
+							return enums.EVENT_STOP
+						}
 					}
-				}
-			case cdk.WheelRight:
-				if hs := s.GetHScrollbar(); hs != nil {
-					if f := hs.ForwardStep(); f == enums.EVENT_STOP {
-						s.Invalidate()
-						return enums.EVENT_STOP
+				case cdk.WheelRight:
+					if hs := s.GetHScrollbar(); hs != nil {
+						if f := hs.ForwardStep(); f == enums.EVENT_STOP {
+							s.Invalidate()
+							return enums.EVENT_STOP
+						}
+						return enums.EVENT_PASS
 					}
-					return enums.EVENT_PASS
 				}
 			}
-		}
-		point := ptypes.NewPoint2I(e.Position())
-		if f := s.ProcessEventAtPoint(point, e); f == enums.EVENT_STOP {
-			s.GrabFocus()
-			return enums.EVENT_STOP
-		}
-	case *cdk.EventKey:
-		if vs := s.GetVScrollbar(); vs != nil {
-			if f := vs.ProcessEvent(evt); f == enums.EVENT_STOP {
-				s.Invalidate()
+			point := ptypes.NewPoint2I(e.Position())
+			if f := s.processEventAtPoint(point, e); f == enums.EVENT_STOP {
+				s.GrabFocus()
 				return enums.EVENT_STOP
 			}
-		}
-		if hs := s.GetHScrollbar(); hs != nil {
-			if f := hs.ProcessEvent(evt); f == enums.EVENT_STOP {
-				s.Invalidate()
-				return enums.EVENT_STOP
+		case *cdk.EventKey:
+			if vs := s.GetVScrollbar(); vs != nil {
+				if f := vs.ProcessEvent(evt); f == enums.EVENT_STOP {
+					s.Invalidate()
+					return enums.EVENT_STOP
+				}
+			}
+			if hs := s.GetHScrollbar(); hs != nil {
+				if f := hs.ProcessEvent(evt); f == enums.EVENT_STOP {
+					s.Invalidate()
+					return enums.EVENT_STOP
+				}
 			}
 		}
 	}
 	return enums.EVENT_PASS
 }
 
-func (s *CScrolledViewport) ProcessEventAtPoint(p *ptypes.Point2I, evt *cdk.EventMouse) enums.EventFlag {
-	if w := s.InternalGetWidgetAt(p); w != nil {
+func (s *CScrolledViewport) processEventAtPoint(p *ptypes.Point2I, evt *cdk.EventMouse) enums.EventFlag {
+	if w := s.internalGetWidgetAt(p); w != nil {
 		if w.ObjectID() != s.ObjectID() {
 			if ws, ok := w.(Sensitive); ok {
 				if f := ws.ProcessEvent(evt); f == enums.EVENT_STOP {
@@ -601,12 +599,6 @@ func (s *CScrolledViewport) ProcessEventAtPoint(p *ptypes.Point2I, evt *cdk.Even
 	}
 	return enums.EVENT_PASS
 }
-
-//
-// func (s *CScrolledViewport) SetSizeRequest(w, h int) {
-// 	s.CWidget.SetSizeRequest(w, h)
-// 	s.Invalidate()
-// }
 
 // Returns a CDK Region for each of the viewport child space, horizontal and vertical
 // scrollbar spaces.
@@ -629,7 +621,7 @@ func (s *CScrolledViewport) GetRegions() (c, h, v ptypes.Region) {
 	return
 }
 
-func (s *CScrolledViewport) Resize() enums.EventFlag {
+func (s *CScrolledViewport) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	// s.resizeViewport()
 	// s.resizeScrollbars()
 	s.Invalidate()
@@ -654,21 +646,24 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) enums.
 				true,
 				child.GetTheme(),
 			)
-			child.Draw()
-			if err := surface.Composite(child.ObjectID()); err != nil {
-				s.LogError("child composite error: %v", err)
+			if f := child.Draw(); f == enums.EVENT_STOP {
+				if err := surface.Composite(child.ObjectID()); err != nil {
+					s.LogError("child composite error: %v", err)
+				}
 			}
 		}
 		if vs := s.GetVScrollbar(); child != nil && vs != nil && s.VerticalShowByPolicy() {
-			vs.Draw()
-			if err := surface.Composite(vs.ObjectID()); err != nil {
-				s.LogError("vertical scrollbar composite error: %v", err)
+			if f := vs.Draw(); f == enums.EVENT_STOP {
+				if err := surface.Composite(vs.ObjectID()); err != nil {
+					s.LogError("vertical scrollbar composite error: %v", err)
+				}
 			}
 		}
 		if hs := s.GetHScrollbar(); child != nil && hs != nil && s.HorizontalShowByPolicy() {
-			hs.Draw()
-			if err := surface.Composite(hs.ObjectID()); err != nil {
-				s.LogError("horizontal scrollbar composite error: %v", err)
+			if f := hs.Draw(); f == enums.EVENT_STOP {
+				if err := surface.Composite(hs.ObjectID()); err != nil {
+					s.LogError("horizontal scrollbar composite error: %v", err)
+				}
 			}
 		}
 		if child != nil && s.VerticalShowByPolicy() && s.HorizontalShowByPolicy() {
@@ -684,7 +679,7 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) enums.
 	return enums.EVENT_PASS
 }
 
-func (s *CScrolledViewport) Invalidate() enums.EventFlag {
+func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
 	s.resizeViewport()
 	s.resizeScrollbars()
 	origin := s.GetOrigin()
@@ -920,4 +915,7 @@ const SignalScrollChild cdk.Signal = "scroll-child"
 
 const ScrolledViewportLostFocusHandle = "scrolled-viewport-lost-focus-handler"
 const ScrolledViewportGainedFocusHandle = "scrolled-viewport-gained-focus-handler"
+const ScrolledViewportEventHandle = "scrolled-viewport-event-handler"
+const ScrolledViewportInvalidateHandle = "scrolled-viewport-invalidate-handler"
+const ScrolledViewportResizeHandle = "scrolled-viewport-resize-handler"
 const ScrolledViewportDrawHandle = "scrolled-viewport-draw-handler"
