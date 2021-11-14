@@ -13,8 +13,12 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-// CDK type-tag for Label objects
 const TypeLabel cdk.CTypeTag = "ctk-label"
+
+var (
+	rxLabelPlainText = regexp.MustCompile(`(?msi)(_)([a-z])`)
+	rxLabelMnemonic  = regexp.MustCompile(`(?msi)_([a-z])`)
+)
 
 func init() {
 	_ = cdk.TypesManager.AddType(TypeLabel, func() interface{} { return MakeLabel() })
@@ -49,6 +53,8 @@ func init() {
 //	      +- Label
 //	        +- AccelLabel
 //	        +- TipsQuery
+//
+// The Label Widget presents text to the end user.
 type Label interface {
 	Misc
 	Alignable
@@ -100,14 +106,12 @@ type Label interface {
 	GetPlainTextInfo() (maxWidth, lineCount int)
 	GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int)
 	GetSizeRequest() (width, height int)
-	Resize() enums.EventFlag
-	Invalidate() enums.EventFlag
 }
 
-// The CLabel structure implements the Label interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Label objects
+// The CLabel structure implements the Label interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Label objects.
 type CLabel struct {
 	CMisc
 
@@ -118,11 +122,12 @@ type CLabel struct {
 	tbStyle paint.Style
 }
 
-// Default constructor for Label objects
+// MakeLabel is used by the Buildable system to construct a new Label.
 func MakeLabel() *CLabel {
 	return NewLabel("")
 }
 
+// NewLabel is the constructor for new Label instances.
 func NewLabel(plain string) *CLabel {
 	l := new(CLabel)
 	l.Init()
@@ -130,29 +135,28 @@ func NewLabel(plain string) *CLabel {
 	return l
 }
 
-// Creates a new Label, containing the text in str . If characters in str
-// are preceded by an underscore, they are underlined. If you need a literal
-// underscore character in a label, use '__' (two underscores). The first
-// underlined character represents a keyboard accelerator called a mnemonic.
-// The mnemonic key can be used to activate another widget, chosen
-// automatically, or explicitly using SetMnemonicWidget. If
-// SetMnemonicWidget is not called, then the first activatable
-// ancestor of the Label will be chosen as the mnemonic widget. For
-// instance, if the label is inside a button or menu item, the button or menu
-// item will automatically become the mnemonic widget and be activated by the
-// mnemonic.
+// NewLabelWithMnemonic creates a new Label, containing the text given. If
+// characters in the string are preceded by an underscore, they are underlined.
+// If you need a literal underscore character in a label, use '__' (two
+// underscores). The first underlined character represents a keyboard
+// accelerator called a mnemonic. The mnemonic key can be used to activate
+// another widget, chosen automatically, or explicitly using SetMnemonicWidget.
+// If SetMnemonicWidget is not called, then the first activatable ancestor of
+// the Label will be chosen as the mnemonic widget. For instance, if the label
+// is inside a button or menu item, the button or menu item will automatically
+// become the mnemonic widget and be activated by the mnemonic.
+//
 // Parameters:
-// 	str	The text of the label, with an underscore in front of the
-// mnemonic character
-// Returns:
-// 	the new Label
-func NewLabelWithMnemonic(str string) (value *CLabel) {
+// 	label	text, with an underscore in front of the mnemonic character
+func NewLabelWithMnemonic(label string) (value *CLabel) {
 	l := new(CLabel)
 	l.Init()
-	l.SetTextWithMnemonic(str)
+	l.SetTextWithMnemonic(label)
 	return l
 }
 
+// NewLabelWithMarkup creates a new Label, containing the text given and if the
+// text contains Tango markup, the rendered text will display accordingly.
 func NewLabelWithMarkup(markup string) (label *CLabel, err error) {
 	label = new(CLabel)
 	label.Init()
@@ -160,10 +164,12 @@ func NewLabelWithMarkup(markup string) (label *CLabel, err error) {
 	return
 }
 
-// Label object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Label instance
+// Init initializes a Label object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Label instance. Init is used in the
+// NewLabel constructor and only necessary when implementing a derivative
+// Label type.
 func (l *CLabel) Init() (already bool) {
 	if l.InitTypeItem(TypeLabel, l) {
 		return true
@@ -188,6 +194,8 @@ func (l *CLabel) Init() (already bool) {
 	_ = l.InstallProperty(PropertyWidthChars, cdk.IntProperty, true, -1)
 	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
 	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, enums.WRAP_WORD)
+	l.Connect(SignalInvalidate, LabelInvalidateHandle, l.invalidate)
+	l.Connect(SignalResize, LabelResizeHandle, l.resize)
 	l.Connect(SignalDraw, LabelDrawHandle, l.draw)
 	l.text = ""
 	l.tbuffer = nil
@@ -200,6 +208,7 @@ func (l *CLabel) Init() (already bool) {
 	return false
 }
 
+// Build provides customizations to the Buildable system for Label Widgets.
 func (l *CLabel) Build(builder Builder, element *CBuilderElement) error {
 	l.Freeze()
 	defer l.Thaw()
@@ -218,11 +227,12 @@ func (l *CLabel) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-// Sets the text within the Label widget. It overwrites any text that was
-// there before. This will also clear any previously set mnemonic
+// SetText updates the text within the Label widget. It overwrites any text that
+// was there before. This will also clear any previously set mnemonic
 // accelerators.
+//
 // Parameters:
-// 	str	The text you want to set
+// 	text	the text you want to set
 func (l *CLabel) SetText(text string) {
 	l.Lock()
 	defer l.Unlock()
@@ -232,22 +242,21 @@ func (l *CLabel) SetText(text string) {
 	l.Invalidate()
 }
 
-// Sets a PangoAttrList; the attributes in the list are applied to the label
-// text.
+// SetAttributes updates the attributes property to be the given paint.Style.
+//
 // Parameters:
-// 	attrs	a PangoAttrList
+// 	attrs	a paint.Style
 func (l *CLabel) SetAttributes(attrs paint.Style) {
 	if err := l.SetStructProperty(PropertyAttributes, attrs); err != nil {
 		l.LogErr(err)
 	}
 }
 
-// Parses str which is marked up with the Pango text markup language, setting
-// the label's text and attribute list based on the parse results. If the str
-// is external data, you may need to escape it with g_markup_escape_text or
-// g_markup_printf_escaped:
+// SetMarkup parses text which is marked up with the Tango text markup language,
+// setting the Label's text and attribute list based on the parse results.
+//
 // Parameters:
-// 	str	a markup string (see Pango markup format)
+// 	text	a markup string (see Tango markup format)
 func (l *CLabel) SetMarkup(text string) (parseError error) {
 	l.Lock()
 	defer l.Unlock()
@@ -262,12 +271,13 @@ func (l *CLabel) SetMarkup(text string) (parseError error) {
 	return nil
 }
 
-// Parses str which is marked up with the Pango text markup language, setting
-// the label's text and attribute list based on the parse results. If
-// characters in str are preceded by an underscore, they are underlined
-// indicating that they represent a keyboard accelerator called a mnemonic.
-// The mnemonic key can be used to activate another widget, chosen
+// SetMarkupWithMnemonic parses str which is marked up with the Tango text
+// markup language, setting the label's text and attribute list based on the
+// parse results. If characters in str are preceded by an underscore, they are
+// underlined indicating that they represent a keyboard accelerator called a
+// mnemonic. The mnemonic key can be used to activate another widget, chosen
 // automatically, or explicitly using SetMnemonicWidget.
+//
 // Parameters:
 // 	str	a markup string (see Pango markup format)
 func (l *CLabel) SetMarkupWithMnemonic(str string) (err error) {
@@ -276,12 +286,13 @@ func (l *CLabel) SetMarkupWithMnemonic(str string) (err error) {
 	return
 }
 
-// Sets the alignment of the lines in the text of the label relative to each
-// other. GTK_JUSTIFY_LEFT is the default value when the widget is first
-// created with New. If you instead want to set the alignment of
-// the label as a whole, use MiscSetAlignment instead.
-// SetJustify has no effect on labels containing only a single
-// line.
+// SetJustify updates the alignment of the lines in the text of the label
+// relative to each other. JUSTIFY_LEFT is the default value when the widget is
+// first created with New. If you instead want to set the alignment of the label
+// as a whole, use SetAlignment instead.
+//
+// SetJustify has no effect on labels containing only a single line.
+//
 // Parameters:
 // 	jtype	a Justification
 func (l *CLabel) SetJustify(justify enums.Justification) {
@@ -290,8 +301,9 @@ func (l *CLabel) SetJustify(justify enums.Justification) {
 	}
 }
 
-// Sets the mode used to ellipsize (add an ellipsis: "...") to the text if
-// there is not enough space to render the entire string.
+// SetEllipsize updates the mode used to ellipsize (add an ellipsis: "...") to
+// the text if there is not enough space to render the entire string.
+//
 // Parameters:
 // 	mode	bool
 func (l *CLabel) SetEllipsize(mode bool) {
@@ -300,7 +312,8 @@ func (l *CLabel) SetEllipsize(mode bool) {
 	}
 }
 
-// Sets the desired width in characters of label to n_chars .
+// SetWidthChars updates the desired width in characters of label to nChars.
+//
 // Parameters:
 // 	nChars	the new desired width, in characters.
 func (l *CLabel) SetWidthChars(nChars int) {
@@ -309,7 +322,9 @@ func (l *CLabel) SetWidthChars(nChars int) {
 	}
 }
 
-// Sets the desired maximum width in characters of label to n_chars .
+// SetMaxWidthChars updates the desired maximum width in characters of label to
+// nChars.
+//
 // Parameters:
 // 	nChars	the new desired maximum width, in characters.
 func (l *CLabel) SetMaxWidthChars(nChars int) {
@@ -318,14 +333,14 @@ func (l *CLabel) SetMaxWidthChars(nChars int) {
 	}
 }
 
-// Toggles line wrapping within the Label widget. TRUE makes it break
-// lines if text exceeds the widget's size. FALSE lets the text get cut off
-// by the edge of the widget if it exceeds the widget size. Note that setting
-// line wrapping to TRUE does not make the label wrap at its parent
+// SetLineWrap updates the line wrapping within the Label widget. TRUE makes it
+// break lines if text exceeds the widget's size. FALSE lets the text get cut
+// off by the edge of the widget if it exceeds the widget size. Note that
+// setting line wrapping to TRUE does not make the label wrap at its parent
 // container's width, because CTK widgets conceptually can't make their
 // requisition depend on the parent container's size. For a label that wraps
-// at a specific position, set the label's width using
-// SetSizeRequest.
+// at a specific position, set the label's width using SetSizeRequest.
+//
 // Parameters:
 // 	wrap	the setting
 func (l *CLabel) SetLineWrap(wrap bool) {
@@ -334,9 +349,10 @@ func (l *CLabel) SetLineWrap(wrap bool) {
 	}
 }
 
-// If line wrapping is on (see SetLineWrap) this controls how
-// the line wrapping is done. The default is PANGO_WRAP_WORD which means wrap
-// on word boundaries.
+// SetLineWrapMode updates the line wrapping if line-wrap is on (see
+// SetLineWrap) this controls how the line wrapping is done. The default is
+// WRAP_WORD which means wrap on word boundaries.
+//
 // Parameters:
 // 	wrapMode	the line wrapping mode
 func (l *CLabel) SetLineWrapMode(wrapMode enums.WrapMode) {
@@ -345,11 +361,13 @@ func (l *CLabel) SetLineWrapMode(wrapMode enums.WrapMode) {
 	}
 }
 
-// If the label has been set so that it has an mnemonic key this function
+// GetMnemonicKeyVal returns the mnemonic character in the Label text if the
+// Label has been set so that it has an mnemonic key. Rhis function
 // returns the keyval used for the mnemonic accelerator. If there is no
-// mnemonic set up it returns GDK_VoidSymbol.
+// mnemonic set up it returns `rune(0)`.
+//
 // Returns:
-// 	GDK keyval usable for accelerators, or GDK_VoidSymbol
+//  value	keyval usable for accelerators
 func (l *CLabel) GetMnemonicKeyVal() (value rune) {
 	if l.GetUseUnderline() {
 		label := l.GetClearText()
@@ -363,9 +381,7 @@ func (l *CLabel) GetMnemonicKeyVal() (value rune) {
 	return
 }
 
-// Gets the value set by SetSelectable.
-// Returns:
-// 	TRUE if the user can copy text from the label
+// GetSelectable returns the value set by SetSelectable.
 func (l *CLabel) GetSelectable() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertySelectable); err != nil {
@@ -374,38 +390,44 @@ func (l *CLabel) GetSelectable() (value bool) {
 	return
 }
 
-// Fetches the text from a label widget, as displayed on the screen. This
-// does not include any embedded underlines indicating mnemonics or Tango
-// markup. (See GetLabel)
-// Returns:
-// 	the text in the label widget.
+// GetText returns the text from a label widget, as displayed on the screen.
+// This does not include any embedded underlines indicating mnemonics or Tango
+// markup.
+// See: GetLabel
 func (l *CLabel) GetText() (value string) {
 	value = l.GetCleanText()
 	return
 }
 
-// Selects a range of characters in the label, if the label is selectable.
-// See SetSelectable. If the label is not selectable, this
-// function has no effect. If start_offset or end_offset are -1, then the end
-// of the label will be substituted.
+// SelectRegion selects a range of characters in the label, if the label is
+// selectable. If the label is not selectable, this function has no effect. If
+// start_offset or end_offset are -1, then the end of the label will be
+// substituted.
+// See: SetSelectable()
+//
 // Parameters:
 // 	startOffset	start offset (in characters not bytes)
 // 	endOffset	end offset (in characters not bytes)
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) SelectRegion(startOffset int, endOffset int) {}
 
-// If the label has been set so that it has an mnemonic key (using i.e.
+// SetMnemonicWidget updates the mnemonic-widget property with the given Widget.
+// If the label has been set so that it has a mnemonic key (using i.e.
 // SetMarkupWithMnemonic, SetTextWithMnemonic,
-// NewWithMnemonic or the "use_underline" property) the label
-// can be associated with a widget that is the target of the mnemonic. When
-// the label is inside a widget (like a Button or a Notebook tab) it is
-// automatically associated with the correct widget, but sometimes (i.e. when
-// the target is a Entry next to the label) you need to set it explicitly
-// using this function. The target widget will be accelerated by emitting the
-// Widget::mnemonic-activate signal on it. The default handler for this
-// signal will activate the widget if there are no mnemonic collisions and
-// toggle focus between the colliding widgets otherwise.
+// NewWithMnemonic or the use-underline property) the label can be associated
+// with a widget that is the target of the mnemonic. When the label is inside a
+// widget (like a Button or a Notebook tab) it is automatically associated with
+// the correct widget, but sometimes (i.e. when the target is a Entry next to
+// the label) you need to set it explicitly using this function. The target
+// widget will be accelerated by emitting the mnemonic-activate signal on it.
+// The default handler for this signal will activate the widget if there are no
+// mnemonic collisions and toggle focus between the colliding widgets otherwise.
+//
 // Parameters:
 // 	widget	the target Widget.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) SetMnemonicWidget(widget Widget) {
 	if err := l.SetStructProperty(PropertyMnemonicWidget, widget); err != nil {
 		l.LogErr(err)
@@ -414,21 +436,25 @@ func (l *CLabel) SetMnemonicWidget(widget Widget) {
 	}
 }
 
-// Selectable labels allow the user to select text from the label, for
-// copy-and-paste.
+// SetSelectable updates the selectable property for the Label. Labels allow the
+// user to select text from the label, for copy-and-paste.
+//
 // Parameters:
 // 	setting	TRUE to allow selecting text in the label
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) SetSelectable(setting bool) {
 	if err := l.SetBoolProperty(PropertySelectable, setting); err != nil {
 		l.LogErr(err)
 	}
 }
 
-// Sets the label's text from the string str . If characters in str are
-// preceded by an underscore, they are underlined indicating that they
-// represent a keyboard accelerator called a mnemonic. The mnemonic key can
-// be used to activate another widget, chosen automatically, or explicitly
-// using SetMnemonicWidget.
+// SetTextWithMnemonic updates the Label's text from the string str. If
+// characters in str are preceded by an underscore, they are underlined
+// indicating that they represent a keyboard accelerator called a mnemonic. The
+// mnemonic key can be used to activate another widget, chosen automatically, or
+// explicitly using SetMnemonicWidget.
+//
 // Parameters:
 // 	str	a string
 func (l *CLabel) SetTextWithMnemonic(str string) {
@@ -436,14 +462,9 @@ func (l *CLabel) SetTextWithMnemonic(str string) {
 	l.SetText(str)
 }
 
-// Gets the attribute list that was set on the label using
-// SetAttributes, if any. This function does not reflect
-// attributes that come from the labels markup (see SetMarkup).
-// If you want to get the effective attributes for the label, use
-// pango_layout_get_attribute (GetLayout (label)).
-// Returns:
-// 	the attribute list, or NULL if none was set.
-// 	[transfer none]
+// GetAttributes returns the attribute list that was set on the label using
+// SetAttributes, if any. This function does not reflect attributes that come
+// from the labels markup (see SetMarkup).
 func (l *CLabel) GetAttributes() (value paint.Style) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyAttributes); err != nil {
@@ -454,9 +475,8 @@ func (l *CLabel) GetAttributes() (value paint.Style) {
 	return
 }
 
-// Returns the justification of the label. See SetJustify.
-// Returns:
-// 	Justification
+// GetJustify returns the justification of the label.
+// See: SetJustify()
 func (l *CLabel) GetJustify() (value enums.Justification) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyJustify); err != nil {
@@ -467,10 +487,8 @@ func (l *CLabel) GetJustify() (value enums.Justification) {
 	return
 }
 
-// Returns the ellipsizing position of the label. See
-// SetEllipsize.
-// Returns:
-// 	PangoEllipsizeMode
+// GetEllipsize returns the ellipsizing state of the label.
+// See: SetEllipsize()
 func (l *CLabel) GetEllipsize() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyEllipsize); err != nil {
@@ -479,10 +497,8 @@ func (l *CLabel) GetEllipsize() (value bool) {
 	return
 }
 
-// Retrieves the desired width of label , in characters. See
-// SetWidthChars.
-// Returns:
-// 	the width of the label in characters.
+// GetWidthChars retrieves the desired width of label, in characters.
+// See: SetWidthChars()
 func (l *CLabel) GetWidthChars() (value int) {
 	var err error
 	if value, err = l.GetIntProperty(PropertyWidthChars); err != nil {
@@ -491,10 +507,8 @@ func (l *CLabel) GetWidthChars() (value int) {
 	return
 }
 
-// Retrieves the desired maximum width of label , in characters. See
-// SetWidthChars.
-// Returns:
-// 	the maximum width of the label in characters.
+// GetMaxWidthChars retrieves the desired maximum width of label, in characters.
+// See: SetWidthChars()
 func (l *CLabel) GetMaxWidthChars() (value int) {
 	var err error
 	if value, err = l.GetIntProperty(PropertyMaxWidthChars); err != nil {
@@ -503,11 +517,9 @@ func (l *CLabel) GetMaxWidthChars() (value int) {
 	return
 }
 
-// Fetches the text from a label widget including any embedded underlines
-// indicating mnemonics and Pango markup. (See GetText).
-// Returns:
-// 	the text of the label widget. This string is owned by the
-// 	widget and must not be modified or freed.
+// GetLabel returns the text from a label widget including any embedded
+// underlines indicating mnemonics and Tango markup.
+// See: GetText()
 func (l *CLabel) GetLabel() (value string) {
 	var err error
 	if value, err = l.GetStringProperty(PropertyLabel); err != nil {
@@ -516,10 +528,8 @@ func (l *CLabel) GetLabel() (value string) {
 	return
 }
 
-// Returns whether lines in the label are automatically wrapped. See
-// SetLineWrap.
-// Returns:
-// 	TRUE if the lines of the label are automatically wrapped.
+// GetLineWrap returns whether lines in the label are automatically wrapped.
+// See: SetLineWrap()
 func (l *CLabel) GetLineWrap() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyWrap); err != nil {
@@ -528,9 +538,8 @@ func (l *CLabel) GetLineWrap() (value bool) {
 	return
 }
 
-// Returns line wrap mode used by the label. See SetLineWrapMode.
-// Returns:
-// 	the current enums.WrapMode
+// GetLineWrapMode returns line wrap mode used by the label.
+// See: SetLineWrapMode()
 func (l *CLabel) GetLineWrapMode() (value enums.WrapMode) {
 	// if !l.GetLineWrap() {
 	// 	return enums.WRAP_NONE
@@ -544,12 +553,9 @@ func (l *CLabel) GetLineWrapMode() (value enums.WrapMode) {
 	return
 }
 
-// Retrieves the target of the mnemonic (keyboard shortcut) of this label.
-// See SetMnemonicWidget.
-// Returns:
-// 	the target of the label's mnemonic, or NULL if none has been
-// 	set and the default algorithm will be used.
-// 	[transfer none]
+// GetMnemonicWidget retrieves the target of the mnemonic (keyboard shortcut) of
+// this Label.
+// See: SetMnemonicWidget()
 func (l *CLabel) GetMnemonicWidget() (value Widget) {
 	if v, err := l.GetStructProperty(PropertyMnemonicWidget); err == nil {
 		value, _ = v.(Widget)
@@ -560,21 +566,17 @@ func (l *CLabel) GetMnemonicWidget() (value Widget) {
 	return
 }
 
-// Gets the selected range of characters in the label, returning TRUE if
-// there's a selection.
-// Parameters:
-// 	start	return location for start of selection, as a character offset.
-// 	end	return location for end of selection, as a character offset.
-// Returns:
-// 	TRUE if selection is non-empty
+// GetSelectionBounds returns the selected range of characters in the label,
+// returning TRUE for nonEmpty if there's a selection.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) GetSelectionBounds() (start int, end int, nonEmpty bool) {
 	return 0, 0, false
 }
 
-// Returns whether the label's text is interpreted as marked up with the
-// Pango text markup language. See SetUseMarkup.
-// Returns:
-// 	TRUE if the label's text will be parsed for markup.
+// GetUseMarkup returns whether the label's text is interpreted as marked up
+// with the Tango text markup language.
+// See: SetUseMarkup()
 func (l *CLabel) GetUseMarkup() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyUseMarkup); err != nil {
@@ -583,11 +585,9 @@ func (l *CLabel) GetUseMarkup() (value bool) {
 	return
 }
 
-// Returns whether an embedded underline in the label indicates a mnemonic.
-// See SetUseUnderline.
-// Returns:
-// 	TRUE whether an embedded underline in the label indicates the
-// 	mnemonic accelerator keys.
+// GetUseUnderline returns whether an embedded underline in the label indicates
+// a mnemonic.
+// See: SetUseUnderline()
 func (l *CLabel) GetUseUnderline() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyUseUnderline); err != nil {
@@ -596,9 +596,7 @@ func (l *CLabel) GetUseUnderline() (value bool) {
 	return
 }
 
-// Returns whether the label is in single line mode.
-// Returns:
-// 	TRUE when the label is in single line mode.
+// GetSingleLineMode returns whether the label is in single line mode.
 func (l *CLabel) GetSingleLineMode() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertySingleLineMode); err != nil {
@@ -607,9 +605,10 @@ func (l *CLabel) GetSingleLineMode() (value bool) {
 	return
 }
 
-// Sets the text of the label. The label is interpreted as including embedded
-// underlines and/or Pango markup depending on the values of the
-// “use-underline”" and “use-markup” properties.
+// SetLabel updates the text of the label. The label is interpreted as including
+// embedded underlines and/or Pango markup depending on the values of the
+// use-underline and use-markup properties.
+//
 // Parameters:
 // 	str	the new text to set for the label
 func (l *CLabel) SetLabel(str string) {
@@ -626,8 +625,10 @@ func (l *CLabel) SetLabel(str string) {
 	}
 }
 
-// Sets whether the text of the label contains markup in Pango's text markup
-// language. See SetMarkup.
+// SetUseMarkup updates whether the text of the label contains markup in Tango's
+// text markup language.
+// See: SetMarkup()
+//
 // Parameters:
 // 	setting	TRUE if the label's text should be parsed for markup.
 func (l *CLabel) SetUseMarkup(setting bool) {
@@ -638,8 +639,10 @@ func (l *CLabel) SetUseMarkup(setting bool) {
 	}
 }
 
-// If true, an underline in the text indicates the next character should be
-// used for the mnemonic accelerator key.
+// SetUseUnderline updates the use-underline property for the Lable. If TRUE, an
+// underline in the text indicates the next character should be used for the
+// mnemonic accelerator key.
+//
 // Parameters:
 // 	setting	TRUE if underlines in the text indicate mnemonics
 func (l *CLabel) SetUseUnderline(setting bool) {
@@ -650,7 +653,8 @@ func (l *CLabel) SetUseUnderline(setting bool) {
 	}
 }
 
-// Sets whether the label is in single line mode.
+// SetSingleLineMode updates whether the label is in single line mode.
+//
 // Parameters:
 // 	singleLineMode	TRUE if the label should be in single line mode
 func (l *CLabel) SetSingleLineMode(singleLineMode bool) {
@@ -661,31 +665,37 @@ func (l *CLabel) SetSingleLineMode(singleLineMode bool) {
 	}
 }
 
-// Returns the URI for the currently active link in the label. The active
-// link is the one under the mouse pointer or, in a selectable label, the
+// GetCurrentUri returns the URI for the currently active link in the label. The
+// active link is the one under the mouse pointer or, in a selectable label, the
 // link in which the text cursor is currently positioned. This function is
-// intended for use in a “activate-link” handler or for use in a
-// “query-tooltip” handler.
-// Returns:
-// 	the currently active URI. The string is owned by CTK and must
-// 	not be freed or modified.
+// intended for use in a activate-link handler or for use in a
+// query-tooltip handler.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) GetCurrentUri() (value string) {
 	return ""
 }
 
-// Sets whether the label should keep track of clicked links (and use a
-// different color for them).
+// SetTrackVisitedLinks updates whether the label should keep track of clicked
+// links (and use a different color for them).
+//
 // Parameters:
 // 	trackLinks	TRUE to track visited links
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) SetTrackVisitedLinks(trackLinks bool) {
 	if err := l.SetBoolProperty(PropertyTrackVisitedLinks, trackLinks); err != nil {
 		l.LogErr(err)
 	}
 }
 
-// Returns whether the label is currently keeping track of clicked links.
+// GetTrackVisitedLinks returns whether the label is currently keeping track of
+// clicked links.
+//
 // Returns:
 // 	TRUE if clicked links are remembered
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (l *CLabel) GetTrackVisitedLinks() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyTrackVisitedLinks); err != nil {
@@ -694,12 +704,13 @@ func (l *CLabel) GetTrackVisitedLinks() (value bool) {
 	return
 }
 
-// Set the Theme for the Widget instance. This will also refresh the requested
-// theme. A request theme is a transient theme, based on the actually set theme
-// and adjusted for focus. If the given theme is equivalent to the current theme
-// then no action is taken. After verifying that the given theme is different,
-// this method emits a set-theme signal and if the listeners return EVENT_PASS,
-// the changes are applied and the Widget.Invalidate() method is called
+// SetTheme updates the theme for the Widget instance. This will also refresh
+// the requested theme. A request theme is a transient theme, based on the
+// actually set theme and adjusted for focus. If the given theme is equivalent
+// to the current theme then no action is taken. After verifying that the given
+// theme is different, this method emits a set-theme signal and if the listeners
+// return EVENT_PASS, the changes are applied and the Widget.Invalidate() method
+// is called.
 func (l *CLabel) SetTheme(theme paint.Theme) {
 	if theme.String() != l.GetTheme().String() {
 		if f := l.Emit(SignalSetTheme, l, theme); f == enums.EVENT_PASS {
@@ -709,11 +720,7 @@ func (l *CLabel) SetTheme(theme paint.Theme) {
 	}
 }
 
-var (
-	rxLabelPlainText = regexp.MustCompile(`(?msi)(_)([a-z])`)
-	rxLabelMnemonic  = regexp.MustCompile(`(?msi)_([a-z])`)
-)
-
+// GetClearText returns the Label's text, stripped of markup.
 func (l *CLabel) GetClearText() (text string) {
 	if l.tbuffer == nil {
 		return ""
@@ -729,6 +736,7 @@ func (l *CLabel) GetClearText() (text string) {
 	return
 }
 
+// GetPlainText returns the Label's text, stripped of markup and mnemonics.
 func (l *CLabel) GetPlainText() (text string) {
 	if l.tbuffer == nil {
 		return ""
@@ -744,11 +752,13 @@ func (l *CLabel) GetPlainText() (text string) {
 	return
 }
 
+// GetCleanText filters the result of GetClearText to strip leading underscores.
 func (l *CLabel) GetCleanText() (text string) {
 	text = rxLabelPlainText.ReplaceAllString(l.GetPlainText(), "$2")
 	return
 }
 
+// GetPlainTextInfo returns the maximum line width and line count.
 func (l *CLabel) GetPlainTextInfo() (maxWidth, lineCount int) {
 	if l.tbuffer == nil {
 		return -1, -1
@@ -757,6 +767,9 @@ func (l *CLabel) GetPlainTextInfo() (maxWidth, lineCount int) {
 	return
 }
 
+// GetPlainTextInfoAtWidth returns the maximum line width and line count, with the given width as an override to the
+// value set with SetMaxWidthChars. This is used primarily for pre-rendering stages like Resize to determine the size
+// allocations without having to render the actual text with Tango first.
 func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
 	if l.tbuffer == nil {
 		return -1, -1
@@ -765,6 +778,8 @@ func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
 	return
 }
 
+// GetSizeRequest returns the requested size of the Label taking into account
+// the label's content and any padding set.
 func (l *CLabel) GetSizeRequest() (width, height int) {
 	size := ptypes.NewRectangle(l.CWidget.GetSizeRequest())
 	if size.W <= -1 {
@@ -792,96 +807,6 @@ func (l *CLabel) GetSizeRequest() (width, height int) {
 	size.H += yPadding * 2
 	// min size of 3 according to GTK
 	return size.W, size.H
-}
-
-func (l *CLabel) Resize() enums.EventFlag {
-	l.Lock()
-	defer l.Unlock()
-	alloc := l.GetAllocation()
-	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
-		l.LogTrace("not visible, zero width or zero height")
-		return enums.EVENT_PASS
-	}
-
-	origin := l.GetOrigin()
-	if err := memphis.ConfigureSurface(l.ObjectID(), origin, alloc, l.getStyleRequest()); err != nil {
-		l.LogErr(err)
-	}
-
-	local := ptypes.MakePoint2I(0, 0)
-	size := ptypes.NewRectangle(alloc.W, alloc.H)
-
-	// req := l.CWidget.SizeRequest()
-	xPad, _ := l.GetPadding()
-	local.X += xPad
-	// if req.W > -1 {
-	// 	_, size.H = l.GetPlainTextInfoAtWidth(req.W)
-	// } else {
-	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
-	// }
-
-	_, yAlign := l.GetAlignment()
-	if size.H < alloc.H {
-		delta := alloc.H - size.H
-		local.Y += int(float64(delta) * yAlign)
-	}
-
-	if err := memphis.ConfigureSurface(l.tid, local, *size, l.getStyleRequest()); err != nil {
-		l.LogErr(err)
-	}
-
-	l.Invalidate()
-	l.Emit(SignalResize, l)
-	return enums.EVENT_STOP
-}
-
-func (l *CLabel) Invalidate() enums.EventFlag {
-	style := l.getStyleRequest()
-	_ = l.refreshBufferWithStyle(style)
-	l.refreshMnemonics()
-
-	theme := l.GetThemeRequest()
-	// theme.Content.FillRune = ' '
-	theme.Content.FillRune = rune(0)
-	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
-		l.LogErr(err)
-	}
-	if err := memphis.FillSurface(l.tid, theme); err != nil {
-		l.LogErr(err)
-	}
-
-	return enums.EVENT_STOP
-}
-
-func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
-	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		l.Lock()
-		defer l.Unlock()
-		alloc := l.GetAllocation()
-		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
-			l.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
-		}
-
-		if l.tbuffer != nil {
-			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
-				l.LogErr(err)
-			} else {
-				if f := l.tbuffer.Draw(tSurface, l.GetSingleLineMode(), l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), enums.ALIGN_TOP); f == enums.EVENT_STOP {
-					// tSurface.DebugBox(paint.ColorSilver, "tbuf")
-					if err := surface.CompositeSurface(tSurface); err != nil {
-						l.LogErr(err)
-					}
-				}
-			}
-		}
-
-		if debug, _ := l.GetBoolProperty(cdk.PropertyDebug); debug {
-			surface.DebugBox(paint.ColorSilver, l.ObjectInfo())
-		}
-		return enums.EVENT_STOP
-	}
-	return enums.EVENT_PASS
 }
 
 func (l *CLabel) getMaxCharsRequest() (maxWidth int) {
@@ -944,6 +869,93 @@ func (l *CLabel) refreshMnemonics() {
 			}
 		}
 	}
+}
+
+func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+	l.Lock()
+	defer l.Unlock()
+	alloc := l.GetAllocation()
+	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
+		l.LogTrace("not visible, zero width or zero height")
+		return enums.EVENT_PASS
+	}
+
+	origin := l.GetOrigin()
+	if err := memphis.ConfigureSurface(l.ObjectID(), origin, alloc, l.getStyleRequest()); err != nil {
+		l.LogErr(err)
+	}
+
+	local := ptypes.MakePoint2I(0, 0)
+	size := ptypes.NewRectangle(alloc.W, alloc.H)
+
+	// req := l.CWidget.SizeRequest()
+	xPad, _ := l.GetPadding()
+	local.X += xPad
+	// if req.W > -1 {
+	// 	_, size.H = l.GetPlainTextInfoAtWidth(req.W)
+	// } else {
+	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
+	// }
+
+	_, yAlign := l.GetAlignment()
+	if size.H < alloc.H {
+		delta := alloc.H - size.H
+		local.Y += int(float64(delta) * yAlign)
+	}
+
+	if err := memphis.ConfigureSurface(l.tid, local, *size, l.getStyleRequest()); err != nil {
+		l.LogErr(err)
+	}
+
+	l.Invalidate()
+	return enums.EVENT_STOP
+}
+
+func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+	style := l.getStyleRequest()
+	_ = l.refreshBufferWithStyle(style)
+	l.refreshMnemonics()
+	theme := l.GetThemeRequest()
+	// theme.Content.FillRune = ' '
+	theme.Content.FillRune = rune(0)
+	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
+		l.LogErr(err)
+	}
+	if err := memphis.FillSurface(l.tid, theme); err != nil {
+		l.LogErr(err)
+	}
+	return enums.EVENT_STOP
+}
+
+func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if surface, ok := argv[1].(*memphis.CSurface); ok {
+		l.Lock()
+		defer l.Unlock()
+		alloc := l.GetAllocation()
+		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
+			l.LogTrace("not visible, zero width or zero height")
+			return enums.EVENT_PASS
+		}
+
+		if l.tbuffer != nil {
+			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
+				l.LogErr(err)
+			} else {
+				if f := l.tbuffer.Draw(tSurface, l.GetSingleLineMode(), l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), enums.ALIGN_TOP); f == enums.EVENT_STOP {
+					// tSurface.DebugBox(paint.ColorSilver, "tbuf")
+					if err := surface.CompositeSurface(tSurface); err != nil {
+						l.LogErr(err)
+					}
+				}
+			}
+		}
+
+		if debug, _ := l.GetBoolProperty(cdk.PropertyDebug); debug {
+			surface.DebugBox(paint.ColorSilver, l.ObjectInfo())
+		}
+		return enums.EVENT_STOP
+	}
+	return enums.EVENT_PASS
 }
 
 // A list of style attributes to apply to the text of the label.
@@ -1090,5 +1102,9 @@ const SignalMoveCursor cdk.Signal = "move-cursor"
 // Listener function arguments:
 // 	menu Menu	the menu that is being populated
 const SignalPopulatePopup cdk.Signal = "populate-popup"
+
+const LabelInvalidateHandle = "label-invalidate-handler"
+
+const LabelResizeHandle = "label-resize-handler"
 
 const LabelDrawHandle = "label-draw-handler"
