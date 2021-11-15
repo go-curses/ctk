@@ -100,10 +100,12 @@ func (a *CAdjustment) GetValue() (value int) {
 // set-value signal initially and if the listeners return an EVENT_PASS then the
 // new value is applied and a call to ValueChanged() is made.
 func (a *CAdjustment) SetValue(value int) {
-	if err := a.SetIntProperty(PropertyValue, value); err != nil {
-		a.LogErr(err)
-	} else {
-		a.ValueChanged()
+	if f := a.Emit(SignalSetValue, value); f == enums.EVENT_PASS {
+		if err := a.SetIntProperty(PropertyValue, value); err != nil {
+			a.LogErr(err)
+		} else {
+			a.ValueChanged()
+		}
 	}
 }
 
@@ -115,16 +117,18 @@ func (a *CAdjustment) ClampPage(upper, lower int) {
 	var up, lo int
 	up, _ = a.GetIntProperty(PropertyUpper)
 	lo, _ = a.GetIntProperty(PropertyLower)
-	if up != upper || lo != lower {
-		a.Freeze()
-		if up != upper {
-			a.SetUpper(upper)
+	if f := a.Emit(SignalClampPage, upper, lower); f == enums.EVENT_PASS {
+		if up != upper || lo != lower {
+			a.Freeze()
+			if up != upper {
+				a.SetUpper(upper)
+			}
+			if lo != lower {
+				a.SetLower(lower)
+			}
+			a.Thaw()
+			a.Changed()
 		}
-		if lo != lower {
-			a.SetLower(lower)
-		}
-		a.Thaw()
-		a.Changed()
 	}
 }
 
@@ -168,25 +172,27 @@ func (a *CAdjustment) Settings() (value, lower, upper, stepIncrement, pageIncrem
 // 	pageIncrement	the new page increment
 // 	pageSize	the new page size
 func (a *CAdjustment) Configure(value, lower, upper, stepIncrement, pageIncrement, pageSize int) {
-	a.Freeze()
-	aValue, aLower, aUpper, aStepIncrement, aPageIncrement, aPageSize := a.Settings()
-	valueChanged := aValue != value
-	changed := aLower != lower || aUpper != upper ||
-		aStepIncrement != stepIncrement ||
-		aPageIncrement != pageIncrement ||
-		aPageSize != pageSize
-	a.SetValue(value)
-	a.SetLower(lower)
-	a.SetUpper(upper)
-	a.SetStepIncrement(stepIncrement)
-	a.SetPageIncrement(pageIncrement)
-	a.SetPageSize(pageSize)
-	a.Thaw()
-	if changed {
-		a.Changed()
-	}
-	if valueChanged {
-		a.ValueChanged()
+	if f := a.Emit(SignalConfigure, value, lower, upper, stepIncrement, pageIncrement, pageSize); f == enums.EVENT_PASS {
+		a.Freeze()
+		aValue, aLower, aUpper, aStepIncrement, aPageIncrement, aPageSize := a.Settings()
+		valueChanged := aValue != value
+		changed := aLower != lower || aUpper != upper ||
+			aStepIncrement != stepIncrement ||
+			aPageIncrement != pageIncrement ||
+			aPageSize != pageSize
+		a.SetValue(value)
+		a.SetLower(lower)
+		a.SetUpper(upper)
+		a.SetStepIncrement(stepIncrement)
+		a.SetPageIncrement(pageIncrement)
+		a.SetPageSize(pageSize)
+		a.Thaw()
+		if changed {
+			a.Changed()
+		}
+		if valueChanged {
+			a.ValueChanged()
+		}
 	}
 }
 
@@ -203,10 +209,12 @@ func (a *CAdjustment) GetLower() (value int) {
 // set-lower signal initially and if the listeners return an EVENT_PASS then the
 // value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetLower(lower int) {
-	if err := a.SetIntProperty(PropertyLower, lower); err != nil {
-		a.LogErr(err)
-	} else {
-		a.Changed()
+	if f := a.Emit(SignalSetLower, lower); f == enums.EVENT_PASS {
+		if err := a.SetIntProperty(PropertyLower, lower); err != nil {
+			a.LogErr(err)
+		} else {
+			a.Changed()
+		}
 	}
 }
 
@@ -223,10 +231,12 @@ func (a *CAdjustment) GetUpper() (upper int) {
 // set-upper signal initially and if the listeners return an EVENT_PASS then the
 // value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetUpper(upper int) {
-	if err := a.SetIntProperty(PropertyUpper, upper); err != nil {
-		a.LogErr(err)
-	} else {
-		a.Changed()
+	if f := a.Emit(SignalSetUpper, upper); f == enums.EVENT_PASS {
+		if err := a.SetIntProperty(PropertyUpper, upper); err != nil {
+			a.LogErr(err)
+		} else {
+			a.Changed()
+		}
 	}
 }
 
@@ -246,10 +256,12 @@ func (a *CAdjustment) GetStepIncrement() (stepIncrement int) {
 // emits a set-step-increment signal initially and if the listeners return an
 // EVENT_PASS then the value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetStepIncrement(stepIncrement int) {
-	if err := a.SetIntProperty(PropertyStepIncrement, stepIncrement); err != nil {
-		a.LogErr(err)
-	} else {
-		a.Changed()
+	if f := a.Emit(SignalSetStepIncrement, stepIncrement); f == enums.EVENT_PASS {
+		if err := a.SetIntProperty(PropertyStepIncrement, stepIncrement); err != nil {
+			a.LogErr(err)
+		} else {
+			a.Changed()
+		}
 	}
 }
 
@@ -269,10 +281,12 @@ func (a *CAdjustment) GetPageIncrement() (pageIncrement int) {
 // emits a set-page-increment signal initially and if the listeners return an
 // EVENT_PASS then the value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetPageIncrement(pageIncrement int) {
-	if err := a.SetIntProperty(PropertyPageIncrement, pageIncrement); err != nil {
-		a.LogErr(err)
-	} else {
-		a.Changed()
+	if f := a.Emit(SignalSetPageIncrement, pageIncrement); f == enums.EVENT_PASS {
+		if err := a.SetIntProperty(PropertyPageIncrement, pageIncrement); err != nil {
+			a.LogErr(err)
+		} else {
+			a.Changed()
+		}
 	}
 }
 
@@ -294,10 +308,12 @@ func (a *CAdjustment) GetPageSize() (pageSize int) {
 // set-page-size signal initially and if the listeners return an EVENT_PASS then the value is
 // applied and a call to Changed() is made.
 func (a *CAdjustment) SetPageSize(pageSize int) {
-	if err := a.SetIntProperty(PropertyPageSize, pageSize); err != nil {
-		a.LogErr(err)
-	} else {
-		a.Changed()
+	if f := a.Emit(SignalSetPageSize, pageSize); f == enums.EVENT_PASS {
+		if err := a.SetIntProperty(PropertyPageSize, pageSize); err != nil {
+			a.LogErr(err)
+		} else {
+			a.Changed()
+		}
 	}
 }
 
@@ -362,5 +378,21 @@ const PropertyUpper cdk.Property = "upper"
 const PropertyValue cdk.Property = "value"
 
 const SignalChanged cdk.Signal = "changed"
+
+const SignalSetValue cdk.Signal = "set-value"
+
+const SignalClampPage cdk.Signal = "clamp-page"
+
+const SignalConfigure cdk.Signal = "configure"
+
+const SignalSetLower cdk.Signal = "set-lower"
+
+const SignalSetUpper cdk.Signal = "set-upper"
+
+const SignalSetStepIncrement cdk.Signal = "set-step-increment"
+
+const SignalSetPageIncrement cdk.Signal = "set-page-increment"
+
+const SignalSetPageSize cdk.Signal = "set-page-size"
 
 const SignalValueChanged cdk.Signal = "value-changed"
