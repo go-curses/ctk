@@ -589,7 +589,7 @@ func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 					return w
 				}
 			default:
-				if child.HasPoint(p) {
+				if child.HasPoint(p) && child.IsVisible() {
 					return child
 				}
 			}
