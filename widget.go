@@ -34,51 +34,43 @@ func init() {
 //	    +- OldEditable
 //	    +- Preview
 //	    +- Progress
+//
 // Widget is the base class all widgets in CTK derive from. It manages the
 // widget lifecycle, states and style. Widget introduces style properties -
-// these are basically object properties that are stored not on the object,
-// but in the style object associated to the widget. Style properties are set
-// in resource files. This mechanism is used for configuring such things as
-// the location of the scrollbar arrows through the theme, giving theme
-// authors more control over the look of applications without the need to
-// write a theme engine in C. Use ClassInstallStyleProperty
-// to install style properties for a widget class,
-// ClassFindStyleProperty or
-// ClassListStyleProperties to get information about existing
-// style properties and StyleGetProperty,
-// StyleGet or StyleGetValist to obtain the
-// value of a style property. The Widget implementation of the Buildable
-// interface supports a custom <accelerator> element, which has attributes
-// named key, modifiers and signal and allows to specify accelerators.
-// Example 14. A UI definition fragment specifying an accelerator In addition
-// to accelerators, Widget also support a custom <accessible> element, which
-// supports actions and relations. Properties on the accessible
-// implementation of an object can be set by accessing the internal child
-// "accessible" of a Widget. Example 15. A UI definition fragment specifying
-// an accessible
+// these are basically object properties that are stored not on the object, but
+// in the style object associated to the widget. Style properties are set in
+// resource files. This mechanism is used for configuring such things as the
+// location of the scrollbar arrows through the theme, giving theme authors more
+// control over the look of applications without the need to write a theme
+// engine. Use InstallStyleProperty to install style properties for a Widget,
+// FindStyleProperty or ListStyleProperties to get information about existing
+// style properties and Style.GetProperty() or Style.Get() to obtain the value
+// of a style property. The Widget implementation of the Buildable interface
+// supports a custom <accelerator> element, which has attributes named key,
+// modifiers and signal and allows developers to specify accelerators.
+//
+// Note that usage of Style mentioned above is unimplemented at this time, the
+// comment is left here as a reminder of what it should be doing. Currently,
+// the ctk.Style is not used at all and instead, the paint.Style and paint.Theme
+// from CDK are used throughout. To change the style of a Widget, construct a
+// new paint.Theme structure and apply it to the Widget with SetTheme().
 type Widget interface {
 	Object
 
 	Init() (already bool)
-	GtkCallback(data interface{})
 	Destroy()
-	Destroyed(widgetPointer Widget)
 	Unparent()
 	Show()
-	ShowNow()
 	Hide()
 	ShowAll()
 	Map()
 	Unmap()
 	Realize()
 	Unrealize()
-	QueueDraw()
-	QueueResizeNoRedraw()
 	AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods ModifierType, accelFlags AccelFlags)
 	RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods ModifierType) (value bool)
 	SetAccelPath(accelPath string, accelGroup AccelGroup)
 	CanActivateAccel(signalId int) (value bool)
-	Event(event cdk.Event) (value bool)
 	Activate() (value bool)
 	Reparent(parent Container)
 	Intersect(area ptypes.Rectangle, intersection ptypes.Rectangle) (value bool)
@@ -119,15 +111,11 @@ type Widget interface {
 	ModifyBg(state StateType, color paint.Color)
 	ModifyText(state StateType, color paint.Color)
 	ModifyBase(state StateType, color paint.Color)
-	ModifyCursor(primary paint.Color, secondary paint.Color)
-	PopCompositeChild()
-	PushCompositeChild()
-	QueueDrawArea(x int, y int, width int, height int)
 	SetAppPaintable(appPaintable bool)
 	SetDoubleBuffered(doubleBuffered bool)
 	SetRedrawOnAllocate(redrawOnAllocate bool)
 	SetCompositeName(name string)
-	SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjustment) (value bool)
+	SetScrollAdjustments(hAdjustment Adjustment, vAdjustment Adjustment) (value bool)
 	RegionIntersect(region ptypes.Region) (value ptypes.Region)
 	SendExpose(event cdk.Event) (value int)
 	SendFocusChange(event cdk.Event) (value bool)
@@ -210,10 +198,10 @@ type Widget interface {
 	Draw() enums.EventFlag
 }
 
-// The CWidget structure implements the Widget interface and is exported to
-// facilitate type embedding with custom implementations. No member variables
+// The CWidget structure implements the Widget interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
 // are exported as the interface methods are the only intended means of
-// interacting with CTK objects
+// interacting with Widget objects.
 type CWidget struct {
 	CObject
 
@@ -224,10 +212,12 @@ type CWidget struct {
 	flagsLock *sync.RWMutex
 }
 
-// CTK widget initialization. This must be called at least once to setup the
-// necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Widget instance
+// Init initializes a Widget object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Widget instance. Init is used in the
+// NewWidget constructor and only necessary when implementing a derivative
+// Widget type.
 func (w *CWidget) Init() (already bool) {
 	if w.InitTypeItem(TypeWidget, w) {
 		return true
@@ -267,15 +257,7 @@ func (w *CWidget) Init() (already bool) {
 	return false
 }
 
-// The type of the callback functions used for e.g. iterating over the
-// children of a container, see ContainerForeach.
-// Parameters:
-// 	widget	the widget to operate on
-// 	data	user-supplied data
-func (w *CWidget) GtkCallback(data interface{}) {}
-
-// Destroys a widget. Equivalent to ObjectDestroy, except that you
-// don't have to cast the widget to Object. When a widget is destroyed, it
+// Destroy a widget. Equivalent to DestroyObject. When a widget is destroyed, it
 // will break any references it holds to other objects. If the widget is
 // inside a container, the widget will be removed from the container. If the
 // widget is a toplevel (derived from Window), it will be removed from the
@@ -285,22 +267,15 @@ func (w *CWidget) GtkCallback(data interface{}) {}
 // the widget with g_object_ref. In most cases, only toplevel widgets
 // (windows) require explicit destruction, because when you destroy a
 // toplevel its children will be destroyed as well.
-func (w *CWidget) Destroy() {}
+func (w *CWidget) Destroy() {
+	if err := w.DestroyObject(); err != nil {
+		w.LogErr(err)
+	}
+}
 
-// This function sets *widget_pointer to NULL if widget_pointer != NULL. It's
-// intended to be used as a callback connected to the "destroy" signal of a
-// widget. You connect Destroyed as a signal handler, and pass
-// the address of your widget variable as user data. Then when the widget is
-// destroyed, the variable will be set to NULL. Useful for example to avoid
-// multiple copies of the same dialog.
-// Parameters:
-// 	widgetPointer	address of a variable that contains widget
-// .
-func (w *CWidget) Destroyed(widgetPointer Widget) {}
-
-// This function is only for use in widget implementations. Should be called
-// by implementations of the remove method on Container, to dissociate a
-// child from the container.
+// Unparent is only for use in widget implementations. Should be called by
+// implementations of the remove method on Container, to dissociate a child from
+// the container.
 func (w *CWidget) Unparent() {
 	if w.parent != nil {
 		if parent, ok := w.parent.(Container); ok {
@@ -311,7 +286,7 @@ func (w *CWidget) Unparent() {
 	}
 }
 
-// Flags a widget to be displayed. Any widget that isn't shown will not
+// Show flags a widget to be displayed. Any widget that isn't shown will not
 // appear on the screen. If you want to show all the widgets in a container,
 // it's easier to call ShowAll on the container, instead of
 // individually showing the widgets. Remember that you have to show the
@@ -328,14 +303,8 @@ func (w *CWidget) Show() {
 	}
 }
 
-// Shows a widget. If the widget is an unmapped toplevel widget (i.e. a
-// Window that has not yet been shown), enter the main loop and wait for
-// the window to actually be mapped. Be careful; because the main loop is
-// running, anything can happen during this function.
-func (w *CWidget) ShowNow() {}
-
-// Reverses the effects of Show, causing the widget to be hidden
-// (invisible to the user).
+// Hide reverses the effects of Show, causing the widget to be hidden (invisible
+// to the user).
 func (w *CWidget) Hide() {
 	if w.HasFlags(VISIBLE) {
 		if r := w.Emit(SignalHide, w); r == enums.EVENT_PASS {
@@ -345,7 +314,7 @@ func (w *CWidget) Hide() {
 	}
 }
 
-// Recursively shows a widget, and any child widgets (if the widget is a
+// ShowAll recursively shows a widget, and any child widgets (if the widget is a
 // container).
 func (w *CWidget) ShowAll() {
 	w.Show()
@@ -353,6 +322,7 @@ func (w *CWidget) ShowAll() {
 
 // This function is only for use in widget implementations. Causes a widget
 // to be mapped if it isn't already.
+//
 func (w *CWidget) Map() {}
 
 // This function is only for use in widget implementations. Causes a widget
@@ -378,39 +348,6 @@ func (w *CWidget) Realize() {}
 // be unrealized (frees all GDK resources associated with the widget, such as
 // widget->window ).
 func (w *CWidget) Unrealize() {}
-
-// Equivalent to calling QueueDrawArea for the entire area of
-// a widget.
-func (w *CWidget) QueueDraw() {}
-
-// This function works like QueueResize, except that the widget
-// is not invalidated.
-func (w *CWidget) QueueResizeNoRedraw() {}
-
-// This function is only for use in widget implementations. Obtains
-// widget->requisition , unless someone has forced a particular geometry on
-// the widget (e.g. with SetSizeRequest), in which case it
-// returns that geometry instead of the widget's requisition. This function
-// differs from SizeRequest in that it retrieves the last size
-// request value from widget->requisition , while SizeRequest
-// actually calls the "size_request" method on widget to compute the size
-// request and fill in widget->requisition , and only then returns
-// widget->requisition . Because this function does not call the
-// "size_request" method, it can only be used when you know that
-// widget->requisition is up-to-date, that is, SizeRequest has
-// been called since the last time a resize was queued. In general, only
-// container implementations have this information; applications should use
-// SizeRequest.
-// Parameters:
-// 	requisition	a Requisition to be filled in
-// func (w *CWidget) GetChildRequisition(requisition Requisition) {}
-
-// This function is only used by Container subclasses, to assign a size
-// and position to their child widgets.
-// Parameters:
-// 	allocation	position and size to be allocated to widget
-//
-// func (w *CWidget) SizeAllocate(allocation Allocation) {}
 
 // Installs an accelerator for this widget in accel_group that causes
 // accel_signal to be emitted if the accelerator is activated. The
@@ -473,21 +410,6 @@ func (w *CWidget) SetAccelPath(accelPath string, accelGroup AccelGroup) {}
 // Returns:
 // 	TRUE if the accelerator can be activated.
 func (w *CWidget) CanActivateAccel(signalId int) (value bool) {
-	return false
-}
-
-// Rarely-used function. This function is used to emit the event signals on a
-// widget (those signals should never be emitted without using this function
-// to do so). If you want to synthesize an event though, don't use this
-// function; instead, use MainDoEvent so the event will behave as if
-// it were in the event queue. Don't synthesize expose events; instead, use
-// WindowInvalidateRect to invalidate a region of the window.
-// Parameters:
-// 	event	a Event
-// Returns:
-// 	return from the event signal emission (TRUE if the event was
-// 	handled)
-func (w *CWidget) Event(event cdk.Event) (value bool) {
 	return false
 }
 
@@ -1091,121 +1013,6 @@ func (w *CWidget) ModifyText(state StateType, color paint.Color) {}
 // or NULL to undo the effect of previous calls to
 // of ModifyBase.
 func (w *CWidget) ModifyBase(state StateType, color paint.Color) {}
-
-// Sets the font to use for a widget. All other style values are left
-// untouched. See also ModifyStyle.
-// Parameters:
-// 	fontDesc	the font description to use, or NULL to undo
-// the effect of previous calls to ModifyFont.
-// func (w *CWidget) ModifyFont(fontDesc PangoFontDescription) {}
-
-// Sets the cursor color to use in a widget, overriding the
-// cursor-color and secondary-cursor-color style properties. All
-// other style values are left untouched. See also ModifyStyle.
-// Parameters:
-// 	primary	the color to use for primary cursor (does not need to be
-// allocated), or NULL to undo the effect of previous calls to
-// of ModifyCursor.
-// 	secondary	the color to use for secondary cursor (does not need to be
-// allocated), or NULL to undo the effect of previous calls to
-// of ModifyCursor.
-func (w *CWidget) ModifyCursor(primary paint.Color, secondary paint.Color) {}
-
-// Creates a new PangoContext with the appropriate font map, font
-// description, and base direction for drawing text for this widget. See also
-// GetPangoContext.
-// Returns:
-// 	the new PangoContext.
-// 	[transfer full]
-// func (w *CWidget) CreatePangoContext() (value PangoContext) {
-// 	return nil
-// }
-
-// Gets a PangoContext with the appropriate font map, font description, and
-// base direction for this widget. Unlike the context returned by
-// CreatePangoContext, this context is owned by the widget (it
-// can be used until the screen for the widget changes or the widget is
-// removed from its toplevel), and will be updated to match any changes to
-// the widget's attributes. If you create and keep a PangoLayout using this
-// context, you must deal with changes to the context by calling
-// pango_layout_context_changed on the layout in response to the
-// style-set and direction-changed signals for the widget.
-// Returns:
-// 	the PangoContext for the widget.
-// 	[transfer none]
-// func (w *CWidget) GetPangoContext() (value PangoContext) {
-// 	return nil
-// }
-
-// Creates a new PangoLayout with the appropriate font map, font description,
-// and base direction for drawing text for this widget. If you keep a
-// PangoLayout created in this way around, in order to notify the layout of
-// changes to the base direction or font of this widget, you must call
-// pango_layout_context_changed in response to the style-set and
-// direction-changed signals for the widget.
-// Parameters:
-// 	text	text to set on the layout (can be NULL)
-// Returns:
-// 	the new PangoLayout.
-// 	[transfer full]
-// func (w *CWidget) CreatePangoLayout(text string) (value PangoLayout) {
-// 	return nil
-// }
-
-// A convenience function that uses the theme engine and RC file settings for
-// widget to look up stock_id and render it to a pixbuf. stock_id should be a
-// stock icon ID such as GTK_STOCK_OPEN or GTK_STOCK_OK. size should be a
-// size such as GTK_ICON_SIZE_MENU. detail should be a string that identifies
-// the widget or code doing the rendering, so that theme engines can
-// special-case rendering for that widget or code. The pixels in the returned
-// Pixbuf are shared with the rest of the application and should not be
-// modified. The pixbuf should be freed after use with g_object_unref.
-// Parameters:
-// 	stockId	a stock ID
-// 	size	(type int) a stock size. A size of (IconSize)-1 means
-// render at the size of the source and don't scale (if there are
-// multiple source sizes, CTK picks one of the available sizes).
-// 	detail	render detail to pass to theme engine.
-// Returns:
-// 	a new pixbuf, or NULL if the stock ID wasn't known.
-// 	[transfer full]
-// func (w *CWidget) RenderIcon(stockId string, size IconSize, detail string) (value Pixbuf) {
-// 	return nil
-// }
-
-// Cancels the effect of a previous call to
-// PushCompositeChild.
-func (w *CWidget) PopCompositeChild() {}
-
-// Makes all newly-created widgets as composite children until the
-// corresponding PopCompositeChild call. A composite child is
-// a child that's an implementation detail of the container it's inside and
-// should not be visible to people using the container. Composite children
-// aren't treated differently by GTK (but see ContainerForeach vs.
-// ContainerForall), but e.g. GUI builders might want to treat them in
-// a different way. Here is a simple example:
-func (w *CWidget) PushCompositeChild() {}
-
-// Invalidates the rectangular area of widget defined by x , y , width and
-// height by calling WindowInvalidateRect on the widget's window and
-// all its child windows. Once the main loop becomes idle (after the current
-// batch of events has been processed, roughly), the window will receive
-// expose events for the union of all regions that have been invalidated.
-// Normally you would only use this function in widget implementations. You
-// might also use it, or WindowInvalidateRect directly, to schedule a
-// redraw of a DrawingArea or some portion thereof. Frequently you can
-// just call WindowInvalidateRect or WindowInvalidateRegion
-// instead of this function. Those functions will invalidate only a single
-// window, instead of the widget and all its children. The advantage of
-// adding to the invalidated region compared to simply drawing immediately is
-// efficiency; using an invalid region ensures that you only have to redraw
-// one time.
-// Parameters:
-// 	x	x coordinate of upper-left corner of rectangle to redraw
-// 	y	y coordinate of upper-left corner of rectangle to redraw
-// 	width	width of region to draw
-// 	height	height of region to draw
-func (w *CWidget) QueueDrawArea(x int, y int, width int, height int) {}
 
 // Sets whether the application intends to draw on the widget in an
 // expose-event handler. This is a hint to the widget and does not
@@ -2957,4 +2764,5 @@ const SignalVisibilityNotifyEvent cdk.Signal = "visibility-notify-event"
 const SignalWindowStateEvent cdk.Signal = "window-state-event"
 
 const WidgetLostFocusHandle = "widget-lost-focus-handler"
+
 const WidgetGainedFocusHandle = "widget-gained-focus-handler"
