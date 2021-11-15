@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/go-curses/cdk"
@@ -68,6 +69,17 @@ func main() {
 			w.ShowAll()
 			// tell CDK that this window is the foreground window
 			d.SetActiveWindow(w)
+			// add a quit handler to say goodbye when the program exits
+			d.AddQuitHandler(
+				"hello-world-quit-handler",
+				func() {
+					// Note that the Display and other CTK things are no longer
+					// functional at this point.
+					fmt.Println("Hello World says Goodbye!")
+					// Logging however still works.
+					log.InfoF("Hello World logging goodbye!")
+				},
+			)
 			// no errors to report, nil to proceed
 			return nil
 		},
