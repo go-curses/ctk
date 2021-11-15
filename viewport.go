@@ -22,15 +22,15 @@ func init() {
 //	    +- Container
 //	      +- Bin
 //	        +- Viewport
+//
 // The Viewport widget acts as an adaptor class, implementing scrollability
 // for child widgets that lack their own scrolling capabilities. Use Viewport
 // to scroll child widgets such as Table, Box, and so on. If a widget has
-// native scrolling abilities, such as TextView, TreeView or Iconview, it can
-// be added to a ScrolledWindow with ContainerAdd. If a widget does
-// not, you must first add the widget to a Viewport, then add the viewport to
-// the scrolled window. The convenience function
-// ScrolledWindowAddWithViewport does exactly this, so you can
-// ignore the presence of the viewport.
+// native scrolling abilities, such as TextView, TreeView IconView, it can
+// be added to a ScrolledWindow with Container.Add. If a widget does not, you
+// must first add the widget to a Viewport, then add the viewport to the
+// scrolled window. The convenience function ScrolledWindow.AddWithViewport does
+// exactly this, so you can ignore the presence of the viewport.
 type Viewport interface {
 	Bin
 
@@ -45,10 +45,10 @@ type Viewport interface {
 	GetViewWindow() (value Window)
 }
 
-// The CViewport structure implements the Viewport interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Viewport objects
+// The CViewport structure implements the Viewport interface and is exported
+// to facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Viewport objects.
 type CViewport struct {
 	CBin
 
@@ -56,11 +56,12 @@ type CViewport struct {
 	vAdjustment *CAdjustment
 }
 
-// Default constructor for Viewport objects
+// MakeViewport is used by the Buildable system to construct a new Viewport.
 func MakeViewport() *CViewport {
 	return NewViewport(nil, nil)
 }
 
+// NewViewport is the constructor for new Viewport instances.
 func NewViewport(hAdjustment, vAdjustment *CAdjustment) *CViewport {
 	v := new(CViewport)
 	v.hAdjustment = hAdjustment
@@ -69,10 +70,12 @@ func NewViewport(hAdjustment, vAdjustment *CAdjustment) *CViewport {
 	return v
 }
 
-// Viewport object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Viewport instance
+// Init initializes a Viewport object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Viewport instance. Init is used in the
+// NewViewport constructor and only necessary when implementing a derivative
+// Viewport type.
 func (v *CViewport) Init() (already bool) {
 	if v.InitTypeItem(TypeViewport, v) {
 		return true
@@ -95,10 +98,8 @@ func (v *CViewport) Init() (already bool) {
 	return false
 }
 
-// Returns the horizontal adjustment of the viewport.
-// Returns:
-// 	the horizontal adjustment of viewport .
-// 	[transfer none]
+// GetHAdjustment returns the horizontal adjustment of the viewport.
+// See: SetHAdjustment()
 func (v *CViewport) GetHAdjustment() (adjustment *CAdjustment) {
 	var ok bool
 	if value, err := v.GetStructProperty(PropertyHAdjustment); err != nil {
@@ -109,10 +110,18 @@ func (v *CViewport) GetHAdjustment() (adjustment *CAdjustment) {
 	return
 }
 
-// Returns the vertical adjustment of the viewport.
-// Returns:
-// 	the vertical adjustment of viewport .
-// 	[transfer none]
+// SetHAdjustment replaces the horizontal adjustment of the viewport with the
+// given adjustment.
+func (v *CViewport) SetHAdjustment(adjustment *CAdjustment) {
+	if err := v.SetStructProperty(PropertyHAdjustment, adjustment); err != nil {
+		v.LogErr(err)
+	} else {
+		v.hAdjustment = adjustment
+	}
+}
+
+// GetVAdjustment returns the vertical adjustment of the viewport.
+// See: SetVAdjustment()
 func (v *CViewport) GetVAdjustment() (adjustment *CAdjustment) {
 	var ok bool
 	if value, err := v.GetStructProperty(PropertyVAdjustment); err != nil {
@@ -123,20 +132,8 @@ func (v *CViewport) GetVAdjustment() (adjustment *CAdjustment) {
 	return
 }
 
-// Sets the horizontal adjustment of the viewport.
-// Parameters:
-// 	adjustment	a Adjustment.
-func (v *CViewport) SetHAdjustment(adjustment *CAdjustment) {
-	if err := v.SetStructProperty(PropertyHAdjustment, adjustment); err != nil {
-		v.LogErr(err)
-	} else {
-		v.hAdjustment = adjustment
-	}
-}
-
-// Sets the vertical adjustment of the viewport.
-// Parameters:
-// 	adjustment	a Adjustment.
+// SetHAdjustment replaces the horizontal adjustment of the viewport with the
+// given adjustment.
 func (v *CViewport) SetVAdjustment(adjustment *CAdjustment) {
 	if err := v.SetStructProperty(PropertyVAdjustment, adjustment); err != nil {
 		v.LogErr(err)
@@ -145,19 +142,10 @@ func (v *CViewport) SetVAdjustment(adjustment *CAdjustment) {
 	}
 }
 
-// Sets the shadow type of the viewport.
-// Parameters:
-// 	type	the new shadow type.
-func (v *CViewport) SetShadowType(shadowType ShadowType) {
-	if err := v.SetStructProperty(PropertyViewportShadowType, shadowType); err != nil {
-		v.LogErr(err)
-	}
-}
-
-// Gets the shadow type of the Viewport. See
-// SetShadowType.
-// Returns:
-// 	the shadow type
+// GetShadowType returns the shadow type of the Viewport.
+// See: SetShadowType()
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (v *CViewport) GetShadowType() (shadowType ShadowType) {
 	var ok bool
 	if value, err := v.GetStructProperty(PropertyViewportShadowType); err != nil {
@@ -168,19 +156,26 @@ func (v *CViewport) GetShadowType() (shadowType ShadowType) {
 	return
 }
 
-// Gets the bin window of the Viewport.
-// Returns:
-// 	a Window.
-// 	[transfer none]
+// SetShadowType updates the shadow type of the viewport.
+//
+// Note that usage of this within CTK is unimplemented at this time
+func (v *CViewport) SetShadowType(shadowType ShadowType) {
+	if err := v.SetStructProperty(PropertyViewportShadowType, shadowType); err != nil {
+		v.LogErr(err)
+	}
+}
+
+// GetBinWindow returns the bin window of the Viewport.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (v *CViewport) GetBinWindow() (value Window) {
-	v.LogError("method unimplemented")
+	v.LogWarn("method unimplemented")
 	return nil
 }
 
-// Gets the view window of the Viewport.
-// Returns:
-// 	a Window.
-// 	[transfer none]
+// GetViewWindow returns the view window of the Viewport.
+//
+// Note that usage of this within CTK is unimplemented at this time
 func (v *CViewport) GetViewWindow() (value Window) {
 	v.LogError("method unimplemented")
 	return nil
@@ -328,5 +323,7 @@ const PropertyViewportVAdjustment cdk.Property = "vadjustment"
 const SignalSetScrollAdjustments cdk.Signal = "set-scroll-adjustments"
 
 const ViewportInvalidateHandle = "viewport-invalidate-handler"
+
 const ViewportResizeHandle = "viewport-resize-handler"
+
 const ViewportDrawHandle = "viewport-draw-handler"
