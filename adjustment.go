@@ -5,7 +5,6 @@ import (
 	"github.com/go-curses/cdk/lib/enums"
 )
 
-// CDK type-tag for Adjustment objects
 const TypeAdjustment cdk.CTypeTag = "ctk-adjustment"
 
 func init() {
@@ -15,6 +14,7 @@ func init() {
 // Adjustment Hierarchy:
 //	Object
 //	  +- Adjustment
+//
 // The Adjustment CTK object is a means of managing the state of multiple
 // widgets concurrently. By sharing the same Adjustment instance, one or more
 // widgets can ensure that all related User Interface elements are reflecting
@@ -48,16 +48,17 @@ type Adjustment interface {
 // The CAdjustment structure implements the Adjustment interface and is
 // exported to facilitate type embedding with custom implementations. No member
 // variables are exported as the interface methods are the only intended means
-// of interacting with Adjustment objects
+// of interacting with Adjustment objects.
 type CAdjustment struct {
 	CObject
 }
 
+// MakeAdjustment is used by the Buildable system to construct a new Adjustment.
 func MakeAdjustment() *CAdjustment {
 	return NewAdjustment(0, 0, 0, 0, 0, 0)
 }
 
-// Factory method for convenient construction of new Adjustment objects
+// NewAdjustment is the constructor for new Adjustment instances.
 func NewAdjustment(value, lower, upper, stepIncrement, pageIncrement, pageSize int) *CAdjustment {
 	a := new(CAdjustment)
 	a.Init()
@@ -65,10 +66,12 @@ func NewAdjustment(value, lower, upper, stepIncrement, pageIncrement, pageSize i
 	return a
 }
 
-// Adjustment object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Adjustment instance
+// Init initializes an Adjustment object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Adjustment instance. Init is used in the
+// NewAdjustment constructor and only necessary when implementing a derivative
+// Adjustment type.
 func (a *CAdjustment) Init() bool {
 	if a.InitTypeItem(TypeAdjustment, a) {
 		return true
@@ -83,9 +86,8 @@ func (a *CAdjustment) Init() bool {
 	return false
 }
 
-// Gets the current value of the adjustment. See SetValue.
-// Returns:
-// 	The current value of the adjustment.
+// GetValue returns the current value of the adjustment.
+// See: SetValue()
 func (a *CAdjustment) GetValue() (value int) {
 	var err error
 	if value, err = a.GetIntProperty(PropertyValue); err != nil {
@@ -94,11 +96,9 @@ func (a *CAdjustment) GetValue() (value int) {
 	return
 }
 
-// Sets the current value of the Adjustment. This method emits a set-value
-// signal initially and if the listeners return an EVENT_PASS then the new value
-// is applied and a call to ValueChanged() is made
-//
-// Emits: SignalSetValue, Argv=[Adjustment instance, current value, new value]
+// SetValue updates the current value of the Adjustment. This method emits a
+// set-value signal initially and if the listeners return an EVENT_PASS then the
+// new value is applied and a call to ValueChanged() is made.
 func (a *CAdjustment) SetValue(value int) {
 	if err := a.SetIntProperty(PropertyValue, value); err != nil {
 		a.LogErr(err)
@@ -107,12 +107,10 @@ func (a *CAdjustment) SetValue(value int) {
 	}
 }
 
-// Convenience method to set both the upper and lower bounds without emitting
-// multiple changed signals. This method emits a clamp-page signal initially and
-// if the listeners return an EVENT_PASS then the new upper and lower bounds are
-// applied and a call to Changed() is made
-//
-// Emits: SignalClampPage, Argv=[Adjustment instance, given upper, given lower]
+// ClampPage is a convenience method to set both the upper and lower bounds
+// without emitting multiple changed signals. This method emits a clamp-page
+// signal initially and if the listeners return an EVENT_PASS then the new upper
+// and lower bounds are applied and a call to Changed() is made.
 func (a *CAdjustment) ClampPage(upper, lower int) {
 	var up, lo int
 	up, _ = a.GetIntProperty(PropertyUpper)
@@ -130,42 +128,37 @@ func (a *CAdjustment) ClampPage(upper, lower int) {
 	}
 }
 
-// Cause a changed signal to be emitted. The changed signal reflects that one
-// or more of the configurable aspects have changed, excluding the actual value
-// of the Adjustment. See ValueChanged()
-//
-// Emits: SignalChanged, Argv=[Adjustment instance]
-// Returns: emission result EventFlag
+// Changed emits a changed signal. The changed signal reflects that one or more
+// of the configurable aspects have changed, excluding the actual value of the
+// Adjustment.
+// See: ValueChanged()
 func (a *CAdjustment) Changed() enums.EventFlag {
 	return a.Emit(SignalChanged, a)
 }
 
-// Cause a value-changed signal to be emitted. The value-changed signal reflects
-// that the actual value of the Adjustment has changed
-//
-// Emits: SignalValueChanged, Argv=[Adjustment instance]
-// Returns: emission result EventFlag
+// ValueChanged emits a value-changed signal. The value-changed signal reflects
+// that the actual value of the Adjustment has changed.
 func (a *CAdjustment) ValueChanged() enums.EventFlag {
 	return a.Emit(SignalValueChanged, a)
 }
 
-// Convenience method to retrieve all the configurable Adjustment values in one
-// statement
+// Settings is a convenience method to retrieve all the configurable Adjustment
+// values in one statement.
 func (a *CAdjustment) Settings() (value, lower, upper, stepIncrement, pageIncrement, pageSize int) {
 	value, lower, upper = a.GetValue(), a.GetLower(), a.GetUpper()
 	stepIncrement, pageIncrement, pageSize = a.GetStepIncrement(), a.GetPageIncrement(), a.GetPageSize()
 	return
 }
 
-// Set all of the configurable aspects of an Adjustment while emitting only a
-// single changed and/or value-changed signal. The method emits a configure
-// signal initially and if the listeners return an EVENT_PASS then applies all
-// of the changes and calls Changed() and/or ValueChanged() accordingly. The
-// same effect of this method can be achieved by passing the changed and
-// value-changed signal emissions for the Adjustment instance, making all the
-// individual calls to the setter methods, resuming the changed and
-// value-changed signals and finally calling the Changed() and/or ValueChanged()
-// methods accordingly
+// Configure updates all the configurable aspects of an Adjustment while
+// emitting only a single changed and/or value-changed signal. The method emits
+// a configure signal initially and if the listeners return an EVENT_PASS then
+// applies all the changes and calls Changed() and/or ValueChanged()
+// accordingly. The same effect of this method can be achieved by passing the
+// changed and value-changed signal emissions for the Adjustment instance,
+// making all the individual calls to the setter methods, resuming the changed
+// and value-changed signals and finally calling the Changed() and/or
+// ValueChanged() methods accordingly.
 //
 // Parameters:
 // 	value	the new value
@@ -174,8 +167,6 @@ func (a *CAdjustment) Settings() (value, lower, upper, stepIncrement, pageIncrem
 // 	stepIncrement	the new step increment
 // 	pageIncrement	the new page increment
 // 	pageSize	the new page size
-//
-// Emits: SignalConfigure, Argv=[Adjustment instance, value, lower, upper, stepIncrement, pageIncrement, pageSize]
 func (a *CAdjustment) Configure(value, lower, upper, stepIncrement, pageIncrement, pageSize int) {
 	a.Freeze()
 	aValue, aLower, aUpper, aStepIncrement, aPageIncrement, aPageSize := a.Settings()
@@ -199,7 +190,7 @@ func (a *CAdjustment) Configure(value, lower, upper, stepIncrement, pageIncremen
 	}
 }
 
-// Returns the current lower bounds of the Adjustment
+// GetLower returns the current lower bounds of the Adjustment.
 func (a *CAdjustment) GetLower() (value int) {
 	var err error
 	if value, err = a.GetIntProperty(PropertyLower); err != nil {
@@ -208,9 +199,9 @@ func (a *CAdjustment) GetLower() (value int) {
 	return
 }
 
-// Sets the lower bounds of the Adjustment. This method emits a set-lower signal
-// initially and if the listeners return an EVENT_PASS then the value is applied
-// and a call to Changed() is made
+// SetLower updates the lower bounds of the Adjustment. This method emits a
+// set-lower signal initially and if the listeners return an EVENT_PASS then the
+// value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetLower(lower int) {
 	if err := a.SetIntProperty(PropertyLower, lower); err != nil {
 		a.LogErr(err)
@@ -219,7 +210,7 @@ func (a *CAdjustment) SetLower(lower int) {
 	}
 }
 
-// Returns the current lower bounds of the Adjustment
+// GetUpper returns the current lower bounds of the Adjustment.
 func (a *CAdjustment) GetUpper() (upper int) {
 	var err error
 	if upper, err = a.GetIntProperty(PropertyUpper); err != nil {
@@ -228,9 +219,9 @@ func (a *CAdjustment) GetUpper() (upper int) {
 	return
 }
 
-// Sets the upper bounds of the Adjustment. This method emits a set-upper signal
-// initially and if the listeners return an EVENT_PASS then the value is applied
-// and a call to Changed() is made
+// SetUpper updates the upper bounds of the Adjustment. This method emits a
+// set-upper signal initially and if the listeners return an EVENT_PASS then the
+// value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetUpper(upper int) {
 	if err := a.SetIntProperty(PropertyUpper, upper); err != nil {
 		a.LogErr(err)
@@ -239,10 +230,10 @@ func (a *CAdjustment) SetUpper(upper int) {
 	}
 }
 
-// Returns the current step increment of the Adjustment. Adjustment values are
-// intended to be increased or decreased by either a step or page amount. The
-// step increment is the shorter movement such as moving up or down a line of
-// text
+// GetStepIncrement returns the current step increment of the Adjustment.
+// Adjustment values are intended to be increased or decreased by either a step
+// or page amount. The step increment is the shorter movement such as moving up
+// or down a line of text.
 func (a *CAdjustment) GetStepIncrement() (stepIncrement int) {
 	var err error
 	if stepIncrement, err = a.GetIntProperty(PropertyStepIncrement); err != nil {
@@ -251,9 +242,9 @@ func (a *CAdjustment) GetStepIncrement() (stepIncrement int) {
 	return
 }
 
-// Sets the step increment of the Adjustment. This method emits a set-step
-// signal initially and if the listeners return an EVENT_PASS then the value is
-// applied and a call to Changed() is made
+// SetStepIncrement updates the step increment of the Adjustment. This method
+// emits a set-step-increment signal initially and if the listeners return an
+// EVENT_PASS then the value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetStepIncrement(stepIncrement int) {
 	if err := a.SetIntProperty(PropertyStepIncrement, stepIncrement); err != nil {
 		a.LogErr(err)
@@ -262,10 +253,10 @@ func (a *CAdjustment) SetStepIncrement(stepIncrement int) {
 	}
 }
 
-// Returns the current page increment of the Adjustment. Adjustment values are
-// intended to be increased or decreased by either a step or page amount. The
-// page increment is the longer movement such as moving up or down half a page
-// of text
+// GetPageIncrement returns the current page increment of the Adjustment.
+// Adjustment values are intended to be increased or decreased by either a step
+// or page amount. The page increment is the longer movement such as moving up
+// or down half a page of text.
 func (a *CAdjustment) GetPageIncrement() (pageIncrement int) {
 	var err error
 	if pageIncrement, err = a.GetIntProperty(PropertyPageIncrement); err != nil {
@@ -274,9 +265,9 @@ func (a *CAdjustment) GetPageIncrement() (pageIncrement int) {
 	return
 }
 
-// Sets the page increment of the Adjustment. This method emits a set-step
-// signal initially and if the listeners return an EVENT_PASS then the value is
-// applied and a call to Changed() is made
+// SetPageIncrement updates the page increment of the Adjustment. This method
+// emits a set-page-increment signal initially and if the listeners return an
+// EVENT_PASS then the value is applied and a call to Changed() is made.
 func (a *CAdjustment) SetPageIncrement(pageIncrement int) {
 	if err := a.SetIntProperty(PropertyPageIncrement, pageIncrement); err != nil {
 		a.LogErr(err)
@@ -285,11 +276,12 @@ func (a *CAdjustment) SetPageIncrement(pageIncrement int) {
 	}
 }
 
-// Gets the page size of the Adjustment. Adjustment values are intended to be
-// increased or decreased by either a step or page amount and having a separate
-// Adjustment variable to track the end-user facing page size is beneficial.
-// This value does not have to be the same as the page increment, however the
-// page increment is in effect clamped to the page size of the Adjustment
+// GetPageSize returns the page size of the Adjustment. Adjustment values are
+// intended to be increased or decreased by either a step or page amount and
+// having a separate Adjustment variable to track the end-user facing page size
+// is beneficial. This value does not have to be the same as the page increment,
+// however the page increment is in effect clamped to the page size of the
+// Adjustment.
 func (a *CAdjustment) GetPageSize() (pageSize int) {
 	var err error
 	if pageSize, err = a.GetIntProperty(PropertyPageSize); err != nil {
@@ -298,9 +290,9 @@ func (a *CAdjustment) GetPageSize() (pageSize int) {
 	return
 }
 
-// Sets the page size of the Adjustment. This method emits a set-page-size
-// signal initially and if the listeners return an EVENT_PASS then the value is
-// applied and a call to Changed() is made
+// SetPageSize updates the page size of the Adjustment. This method emits a
+// set-page-size signal initially and if the listeners return an EVENT_PASS then the value is
+// applied and a call to Changed() is made.
 func (a *CAdjustment) SetPageSize(pageSize int) {
 	if err := a.SetIntProperty(PropertyPageSize, pageSize); err != nil {
 		a.LogErr(err)
@@ -309,20 +301,20 @@ func (a *CAdjustment) SetPageSize(pageSize int) {
 	}
 }
 
-// This method determines if the Adjustment object is in a "moot" state in which
-// the values are irrelevant because the upper bounds is set to zero. Given an
-// upper bounds of zero, the value and lower bounds are also clamped to zero and
-// so on. Thus, this convenience method enables a human readable understanding
-// of why the upper bounds is being checked for a zero value (eliminates a
-// useful magic value)
+// Moot is a convenience method to return TRUE if the Adjustment object is in a
+// "moot" state in which the values are irrelevant because the upper bounds is
+// set to zero. Given an upper bounds of zero, the value and lower bounds are
+// also clamped to zero and so on. Thus, this convenience method enables a Human
+// readable understanding of why the upper bounds is being checked for a zero
+// value (eliminates a useful magic value).
 func (a *CAdjustment) Moot() bool {
 	return a.GetUpper() == 0 || a.GetLower() == a.GetUpper()
 }
 
-// Convenience method that given a Policy, determine if the Adjustment should
-// be rendered or otherwise used to an end-user-facing effect. This method is
-// primarily used by other Widgets as a convenient way to determine if they
-// should show or hide their presence
+// ShowByPolicy is a convenience method that given a PolicyType, determines if
+// the Widget using the Adjustment should be rendered or otherwise used to an
+// end-user-facing effect. This method is primarily used by other Widgets as a
+// convenient way to determine if they should show or hide their presence.
 func (a *CAdjustment) ShowByPolicy(policy PolicyType) bool {
 	switch policy {
 	case PolicyNever:

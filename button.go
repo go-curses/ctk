@@ -115,7 +115,7 @@ func MakeButton() *CButton {
 	return b
 }
 
-// NewButton is a constructor for new Box instances without any pre-set label.
+// NewButton is a constructor for new Button instances without a label Widget.
 func NewButton() *CButton {
 	b := new(CButton)
 	b.Init()
@@ -178,7 +178,7 @@ func NewButtonFromStock(stockId StockID) (value *CButton) {
 	return b
 }
 
-// NewbuttonWithWidget creates a NewButton with the given Widget as the Button's
+// NewButtonWithWidget creates a NewButton with the given Widget as the Button's
 // child.
 func NewButtonWithWidget(w Widget) *CButton {
 	b := NewButton()

@@ -9,15 +9,8 @@ import (
 //	CInterface
 //	  +- Activatable
 type Activatable interface {
-	/* Base Interface */
-
-	// emit the Activate signal, use Clicked() to programmatically trigger
-	// the activation of an Activatable Widget
 	Activate() (value bool)
-	// the Activatable Widget has been pressed and now released
 	Clicked() enums.EventFlag
-	// set the related-action of a Widget?
-	// can grab focus
 	GrabFocus()
 }
 

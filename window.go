@@ -52,7 +52,6 @@ type Window interface {
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
 	SetTitle(title string)
-	SetWmClass(wmClassName string, wmClassClass string)
 	SetResizable(resizable bool)
 	GetResizable() (value bool)
 	AddAccelGroup(accelGroup AccelGroup)
@@ -137,10 +136,10 @@ type Window interface {
 	Invalidate() enums.EventFlag
 }
 
-// The CWindow structure implements the Window interface and is
-// exported to facilitate type embedding with custom implementations. No member
-// variables are exported as the interface methods are the only intended means
-// of interacting with Window objects
+// The CWindow structure implements the Window interface and is exported to
+// facilitate type embedding with custom implementations. No member variables
+// are exported as the interface methods are the only intended means of
+// interacting with Window objects.
 type CWindow struct {
 	CBin
 
@@ -160,29 +159,32 @@ type mnemonicEntry struct {
 	target interface{}
 }
 
-// Default constructor for Window objects
+// MakeWindow is used by the Buildable system to construct a new Window.
 func MakeWindow() *CWindow {
 	return NewWindow()
 }
 
-// Constructor for Window objects
+// NewWindow is a constructor for new Window instances.
 func NewWindow() (w *CWindow) {
 	w = new(CWindow)
 	w.Init()
 	return
 }
 
-// Constructor for Window objects
+// NewWindowWithTitle is a constructor for new Window instances that also sets
+// the Window title to the string given.
 func NewWindowWithTitle(title string) (w *CWindow) {
 	w = NewWindow()
 	w.SetTitle(title)
 	return
 }
 
-// Window object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the Window instance
+// Init initializes a Window object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the Window instance. Init is used in the
+// NewWindow constructor and only necessary when implementing a derivative
+// Window type.
 func (w *CWindow) Init() (already bool) {
 	if w.InitTypeItem(TypeWindow, w) {
 		return true
@@ -237,6 +239,7 @@ func (w *CWindow) Init() (already bool) {
 	return false
 }
 
+// Build provides customizations to the Buildable system for Window Widgets.
 func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 	w.Freeze()
 	defer w.Thaw()
@@ -272,36 +275,25 @@ func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-// Sets the title of the Window. The title of a window will be displayed
-// in its title bar; on the X Window System, the title bar is rendered by the
-// window manager, so exactly how the title appears to users may vary
+// SetTitle updates the title of the Window. The title of a window will be
+// displayed in its title bar; on the X Window System, the title bar is rendered
+// by the window manager, so exactly how the title appears to users may vary
 // according to a user's exact configuration. The title should help a user
 // distinguish this window from other windows they may have open. A good
 // title might include the application name and current document filename,
 // for example.
+//
 // Parameters:
-// 	title	title of the window
+// 	title	text for the title of the window
 func (w *CWindow) SetTitle(title string) {
 	if err := w.SetStringProperty(PropertyTitle, title); err != nil {
 		w.LogErr(err)
 	}
 }
 
-// Don't use this function. It sets the X Window System "class" and "name"
-// hints for a window. According to the ICCCM, you should always set these to
-// the same value for all windows in an application, and CTK sets them to
-// that value by default, so calling this function is sort of pointless.
-// However, you may want to call SetRole on each window in your
-// application, for the benefit of the session manager. Setting the role
-// allows the window manager to restore window positions when loading a saved
-// session.
-// Parameters:
-// 	wmclassName	window name hint
-// 	wmclassClass	window class hint
-func (w *CWindow) SetWmClass(wmClassName string, wmClassClass string) {}
-
-// Sets whether the user can resize a window. Windows are user resizable by
-// default.
+// SetResizable updates whether the user can resize a window. Windows are user
+// resizable by default.
+//
 // Parameters:
 // 	resizable	TRUE if the user can resize this window
 func (w *CWindow) SetResizable(resizable bool) {
@@ -310,9 +302,7 @@ func (w *CWindow) SetResizable(resizable bool) {
 	}
 }
 
-// Gets the value set by SetResizable.
-// Returns:
-// 	TRUE if the user can resize the window
+// GetResizable returns the value set by SetResizable.
 func (w *CWindow) GetResizable() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyResizable); err != nil {
