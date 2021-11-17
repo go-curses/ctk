@@ -393,10 +393,11 @@ func (b *CButton) GetUseMarkup() (enabled bool) {
 func (b *CButton) SetUseMarkup(enabled bool) {
 	if err := b.SetBoolProperty(PropertyUseUnderline, enabled); err != nil {
 		b.LogErr(err)
-	}
-	if child := b.GetChild(); child != nil {
-		if label, ok := child.(Label); ok {
-			label.SetUseMarkup(enabled)
+	} else {
+		if child := b.GetChild(); child != nil {
+			if label, ok := child.(Label); ok {
+				label.SetUseMarkup(enabled)
+			}
 		}
 	}
 }
@@ -527,6 +528,8 @@ func (b *CButton) SetImagePosition(position PositionType) {
 
 // GetPressed returns TRUE if the Button is currently pressed, FALSE otherwise.
 func (b *CButton) GetPressed() bool {
+	b.RLock()
+	defer b.RUnlock()
 	return b.pressed
 }
 
@@ -534,12 +537,20 @@ func (b *CButton) GetPressed() bool {
 // Button is flagged as pressed and a SignalPressed is emitted. If FALSE, the
 // Button is flagged as not being pressed and a SignalReleased is emitted.
 func (b *CButton) SetPressed(pressed bool) {
+	b.Lock()
 	b.pressed = pressed
+	b.Unlock()
 	if pressed {
 		b.SetState(StateActive)
+		if child := b.GetChild(); child != nil {
+			child.SetState(StateActive)
+		}
 		b.Emit(SignalPressed)
 	} else {
 		b.UnsetState(StateActive)
+		if child := b.GetChild(); child != nil {
+			child.UnsetState(StateActive)
+		}
 		b.Emit(SignalReleased)
 	}
 	b.Invalidate()
