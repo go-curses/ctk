@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/go-curses/cdk"
+	cbits "github.com/go-curses/cdk/lib/bits"
 	"github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
@@ -56,6 +57,8 @@ type Widget interface {
 	GrabDefault()
 	SetState(state StateType)
 	SetSensitive(sensitive bool)
+	CssFullPath() (path string)
+	CssState() (state StateType)
 	SetParent(parent Container)
 	SetParentWindow(parentWindow Window)
 	GetParentWindow() (value Window)
@@ -126,6 +129,7 @@ type Widget interface {
 	SetWindow(window Window)
 	SetReceivesDefault(receivesDefault bool)
 	GetReceivesDefault() (value bool)
+	GetTheme() (theme paint.Theme)
 	GetThemeRequest() (theme paint.Theme)
 	SetTheme(theme paint.Theme)
 	HasState(s StateType) bool
@@ -193,11 +197,71 @@ func (w *CWidget) Init() (already bool) {
 	_ = w.InstallProperty(PropertyVisible, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyWidthRequest, cdk.IntProperty, true, -1)
 	_ = w.InstallProperty(PropertyWindow, cdk.StructProperty, true, nil)
+	getDefContentColors := func(state StateType) (fg, bg paint.Color) {
+		switch state {
+		case StateNormal:
+			fg, bg, _ = paint.DefaultColorTheme.Content.Normal.Decompose()
+		case StateActive:
+			fg, bg, _ = paint.DefaultColorTheme.Content.Active.Decompose()
+		case StatePrelight:
+			fg, bg, _ = paint.DefaultColorTheme.Content.Prelight.Decompose()
+		case StateSelected:
+			fg, bg, _ = paint.DefaultColorTheme.Content.Selected.Decompose()
+		case StateInsensitive:
+			fg, bg, _ = paint.DefaultColorTheme.Content.Insensitive.Decompose()
+		}
+		return
+	}
+	getDefBorderColors := func(state StateType) (fg, bg paint.Color) {
+		switch state {
+		case StateNormal:
+			fg, bg, _ = paint.DefaultColorTheme.Border.Normal.Decompose()
+		case StateActive:
+			fg, bg, _ = paint.DefaultColorTheme.Border.Active.Decompose()
+		case StatePrelight:
+			fg, bg, _ = paint.DefaultColorTheme.Border.Prelight.Decompose()
+		case StateSelected:
+			fg, bg, _ = paint.DefaultColorTheme.Border.Selected.Decompose()
+		case StateInsensitive:
+			fg, bg, _ = paint.DefaultColorTheme.Border.Insensitive.Decompose()
+		}
+		return
+	}
+	for _, state := range []StateType{StateNormal, StateActive, StatePrelight, StateSelected, StateInsensitive} {
+		_ = w.InstallCssProperty(CssPropertyClass, state, cdk.StringProperty, true, "")
+		_ = w.InstallCssProperty(CssPropertyWidth, state, cdk.IntProperty, true, -1)
+		_ = w.InstallCssProperty(CssPropertyHeight, state, cdk.IntProperty, true, -1)
+		fg, bg := getDefContentColors(state)
+		_ = w.InstallCssProperty(CssPropertyColor, state, cdk.ColorProperty, true, fg)
+		_ = w.InstallCssProperty(CssPropertyBackgroundColor, state, cdk.ColorProperty, true, bg)
+		_ = w.InstallCssProperty(CssPropertyBackgroundFillContent, state, cdk.StringProperty, true, " ")
+		_ = w.InstallCssProperty(CssPropertyBorder, state, cdk.BoolProperty, true, false)
+		fg, bg = getDefBorderColors(state)
+		_ = w.InstallCssProperty(CssPropertyBorderColor, state, cdk.ColorProperty, true, fg)
+		_ = w.InstallCssProperty(CssPropertyBorderBackgroundColor, state, cdk.ColorProperty, true, bg)
+		_ = w.InstallCssProperty(CssPropertyBold, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyBlink, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyReverse, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyUnderline, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyDim, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyItalic, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
+		_ = w.InstallCssProperty(CssPropertyBorderTopLeftContent, state, cdk.StringProperty, true, string(paint.RuneULCorner))
+		_ = w.InstallCssProperty(CssPropertyBorderTopContent, state, cdk.StringProperty, true, string(paint.RuneHLine))
+		_ = w.InstallCssProperty(CssPropertyBorderTopRightContent, state, cdk.StringProperty, true, string(paint.RuneURCorner))
+		_ = w.InstallCssProperty(CssPropertyBorderLeftContent, state, cdk.StringProperty, true, string(paint.RuneVLine))
+		_ = w.InstallCssProperty(CssPropertyBorderRightContent, state, cdk.StringProperty, true, string(paint.RuneVLine))
+		_ = w.InstallCssProperty(CssPropertyBorderBottomLeftContent, state, cdk.StringProperty, true, string(paint.RuneLLCorner))
+		_ = w.InstallCssProperty(CssPropertyBorderBottomContent, state, cdk.StringProperty, true, string(paint.RuneHLine))
+		_ = w.InstallCssProperty(CssPropertyBorderBottomRightContent, state, cdk.StringProperty, true, string(paint.RuneLRCorner))
+	}
 	w.flagsLock = &sync.RWMutex{}
 	w.state = StateNormal
 	w.flags = NULL_WIDGET_FLAG
 	w.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
 	w.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
+	w.Connect(SignalEnter, WidgetEnterHandle, w.enter)
+	w.Connect(SignalLeave, WidgetLeaveHandle, w.leave)
 	// TODO: widget register surface tied to APP_PAINTABLE somehow
 	if err := memphis.RegisterSurface(w.ObjectID(), ptypes.Point2I{}, ptypes.Rectangle{}, w.GetTheme().Content.Normal); err != nil {
 		w.LogErr(err)
@@ -216,6 +280,7 @@ func (w *CWidget) Init() (already bool) {
 // (windows) require explicit destruction, because when you destroy a
 // toplevel its children will be destroyed as well.
 func (w *CWidget) Destroy() {
+	w.Hide()
 	if err := w.DestroyObject(); err != nil {
 		w.LogErr(err)
 	}
@@ -404,29 +469,24 @@ func (w *CWidget) IsFocus() (value bool) {
 // Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
 // Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
 func (w *CWidget) GrabFocus() {
-	if w.CanFocus() {
+	if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
 		if r := w.Emit(SignalGrabFocus, w); r == enums.EVENT_PASS {
-			tl := w.GetWindow()
-			if tl != nil {
-				var fw Widget
-				focused := tl.GetFocus()
+			if tl := w.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if fw, ok := focused.(Widget); ok && fw.ObjectID() != w.ObjectID() {
+						fw.Emit(SignalLostFocus)
+						fw.UnsetState(StateSelected)
+						fw.LogDebug("has lost focus")
+					}
+				}
 				tl.SetFocus(w)
-				if focused != nil {
-					var ok bool
-					if fw, ok = focused.(Widget); ok && fw.ObjectID() != w.ObjectID() {
-						if f := fw.Emit(SignalLostFocus, focused); f == enums.EVENT_STOP {
-							fw = nil
-						}
-					}
-				}
-				if f := w.Emit(SignalGainedFocus, w, focused); f == enums.EVENT_STOP {
-					if fw != nil {
-						tl.SetFocus(focused)
-					}
-				}
+				w.Emit(SignalGainedFocus)
+				w.SetState(StateSelected)
 				w.LogDebug("has taken focus")
 			}
 		}
+	} else {
+		w.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
@@ -455,6 +515,43 @@ func (w *CWidget) SetSensitive(sensitive bool) {
 			w.LogErr(err)
 		}
 	}
+}
+
+// CssFullPath returns a CSS selector rule for the Widget which includes the
+// parent hierarchy in type form.
+func (w *CWidget) CssFullPath() (selector string) {
+	selector = w.CObject.CssSelector()
+	p := w.GetParent()
+	for {
+		if p != nil {
+			selector = p.CssSelector() + " > " + selector
+			np := p.GetParent()
+			if np != nil && np.ObjectID() == p.ObjectID() {
+				break
+			}
+			p = np
+		} else {
+			break
+		}
+	}
+	return
+}
+
+func (w *CWidget) CssState() (state StateType) {
+	flag := uint64(w.state)
+	if w.IsDrawable() && w.IsVisible() {
+		if w.IsSensitive() {
+			if w.IsFocus() {
+				flag = cbits.Set(flag, uint64(StateSelected))
+			} else {
+				flag = cbits.Set(flag, uint64(StateNormal))
+			}
+		} else {
+			flag = cbits.Set(flag, uint64(StateInsensitive))
+		}
+	}
+	state = StateType(flag)
+	return
 }
 
 // This function is useful only when implementing subclasses of Container.
@@ -796,13 +893,13 @@ func (w *CWidget) SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjus
 // canvas
 //
 // Emits: SignalDraw, Argv=[Object instance, canvas]
-func (o *CWidget) Draw() enums.EventFlag {
-	if surface, err := memphis.GetSurface(o.ObjectID()); err != nil {
-		o.LogErr(err)
-	} else if o.IsDrawable() {
-		return o.Emit(SignalDraw, o, surface)
+func (w *CWidget) Draw() enums.EventFlag {
+	if surface, err := memphis.GetSurface(w.ObjectID()); err != nil {
+		w.LogErr(err)
+	} else if w.IsDrawable() {
+		return w.Emit(SignalDraw, w, surface)
 	}
-	return o.Emit(SignalDraw, o, nil)
+	return w.Emit(SignalDraw, w, nil)
 }
 
 // Emits the mnemonic-activate signal. The default handler for this
@@ -812,9 +909,8 @@ func (o *CWidget) Draw() enums.EventFlag {
 // 	groupCycling	TRUE if there are other widgets with the same mnemonic
 // Returns:
 // 	TRUE if the signal has been handled
-// func (w *CWidget) MnemonicActivate(groupCycling bool) (value bool) {
-// 	return false
-// }
+func (w *CWidget) MnemonicActivate(groupCycling bool) (value bool) {
+	return false
 }
 
 // Very rarely-used function. This function is used to emit an expose event
@@ -909,6 +1005,7 @@ func (w *CWidget) GetParent() (value Container) {
 		var ok bool
 		if value, ok = v.(Container); !ok && v != nil {
 			w.LogError("value stored in %v property is not a Container type: %v (%T)", PropertyParent, v, v)
+			value = nil
 		}
 	}
 	return
@@ -1317,8 +1414,13 @@ func (w *CWidget) SetCanFocus(canFocus bool) {
 // SetHasWindow.
 // Returns:
 // 	TRUE if widget has a window, FALSE otherwise
-func (w *CWidget) GetHasWindow() (value bool) {
-	return false
+func (w *CWidget) GetHasWindow() (ok bool) {
+	if value, err := w.GetStructProperty(PropertyWindow); err == nil && value != nil {
+		_, ok = value.(Window)
+	} else if err != nil {
+		w.LogErr(err)
+	}
+	return
 }
 
 // Returns the widget's sensitivity (in the sense of returning the value that
@@ -1437,6 +1539,8 @@ func (w *CWidget) SetWindow(window Window) {
 	if f := w.Emit(SignalSetWindow, w, window); f == enums.EVENT_PASS {
 		if err := w.SetStructProperty(PropertyWindow, window); err != nil {
 			w.LogErr(err)
+		} else if window != nil {
+			window.ApplyStylesTo(w)
 		}
 	}
 }
@@ -1493,6 +1597,50 @@ func (w *CWidget) GetMapped() (value bool) {
 	return false
 }
 
+func (w *CWidget) GetTheme() (theme paint.Theme) {
+	theme = w.CObject.GetTheme()
+	// apply the css properties?
+	apply := func(state StateType, content, border paint.Style) (paint.Style, paint.Style) {
+		var wColor, wBackgroundColor paint.Color
+		var wBorderColor, wBorderBackgroundColor paint.Color
+		var wBold, wBlink, wReverse, wUnderline, wDim, wItalic, wStrike bool
+		wColor, _ = w.GetCssColor(CssPropertyColor, state)
+		wBackgroundColor, _ = w.GetCssColor(CssPropertyBackgroundColor, state)
+		wBorderColor, _ = w.GetCssColor(CssPropertyBorderColor, state)
+		wBorderBackgroundColor, _ = w.GetCssColor(CssPropertyBorderBackgroundColor, state)
+		wBold, _ = w.GetCssBool(CssPropertyBold, state)
+		wBlink, _ = w.GetCssBool(CssPropertyBlink, state)
+		wReverse, _ = w.GetCssBool(CssPropertyReverse, state)
+		wUnderline, _ = w.GetCssBool(CssPropertyUnderline, state)
+		wDim, _ = w.GetCssBool(CssPropertyDim, state)
+		wItalic, _ = w.GetCssBool(CssPropertyItalic, state)
+		wStrike, _ = w.GetCssBool(CssPropertyStrike, state)
+		modContent := content.Foreground(wColor).Background(wBackgroundColor).Bold(wBold).Blink(wBlink).Reverse(wReverse).Underline(wUnderline).Dim(wDim).Italic(wItalic).Strike(wStrike)
+		modBorder := border.Foreground(wBorderColor).Background(wBorderBackgroundColor).Bold(wBold).Blink(wBlink).Reverse(wReverse).Underline(wUnderline).Dim(wDim).Italic(wItalic).Strike(wStrike)
+		return modContent, modBorder
+	}
+	theme.Content.Normal, theme.Border.Normal = apply(StateNormal, theme.Content.Normal, theme.Border.Normal)
+	theme.Content.Active, theme.Border.Active = apply(StateActive, theme.Content.Active, theme.Border.Active)
+	theme.Content.Selected, theme.Border.Selected = apply(StateSelected, theme.Content.Selected, theme.Border.Selected)
+	theme.Content.Prelight, theme.Border.Prelight = apply(StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
+	theme.Content.Insensitive, theme.Border.Insensitive = apply(StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
+
+	// var wBorder bool
+	// var wBorderTopLeftContent, wBorderTopContent, wBorderTopRightContent string
+	// var wBorderLeftContent, wBackgroundFillContent, wBorderRightContent string
+	// var wBorderBottomLeftContent, wBorderBottomContent, wBorderBottomRightContent string
+	// wBorder, _ = w.GetCssBool(CssPropertyBorder)
+	// wBorderTopLeftContent, _ = w.GetCssString(CssPropertyBorderTopLeftContent)
+	// wBorderTopContent, _ = w.GetCssString(CssPropertyBorderTopContent)
+	// wBorderTopRightContent, _ = w.GetCssString(CssPropertyBorderTopRightContent)
+	// wBorderLeftContent, _ = w.GetCssString(CssPropertyBorderLeftContent)
+	// wBackgroundFillContent, _ = w.GetCssString(CssPropertyBackgroundFillContent)
+	// wBorderRightContent, _ = w.GetCssString(CssPropertyBorderRightContent)
+	// wBorderBottomLeftContent, _ = w.GetCssString(CssPropertyBorderBottomLeftContent)
+	// wBorderBottomContent, _ = w.GetCssString(CssPropertyBorderBottomContent)
+	// wBorderBottomRightContent, _ = w.GetCssString(CssPropertyBorderBottomRightContent)
+	return
+}
 
 // GetThemeRequest returns the current theme, adjusted for Widget state and
 // accounting for any PARENT_SENSITIVE conditions. This method is primarily
@@ -1505,9 +1653,26 @@ func (w *CWidget) GetMapped() (value bool) {
 // mentioned above.
 func (w *CWidget) GetThemeRequest() (theme paint.Theme) {
 	theme = w.GetTheme()
-	if (w.CanFocus() && w.IsFocused()) || w.IsParentFocused() {
-		theme.Content.Normal = theme.Content.Focused
-		theme.Border.Normal = theme.Border.Focused
+	instance := &theme
+	modified := theme
+	if w.IsDrawable() && w.IsVisible() {
+		if w.HasState(StateInsensitive) {
+			modified.Content.Normal = modified.Content.Insensitive
+			modified.Border.Normal = modified.Border.Insensitive
+		} else if w.HasState(StateActive) {
+			modified.Content.Normal = modified.Content.Active
+			modified.Border.Normal = modified.Border.Active
+		} else if w.HasState(StateSelected) {
+			modified.Content.Normal = modified.Content.Selected
+			modified.Border.Normal = modified.Border.Selected
+		} else if w.HasState(StatePrelight) {
+			modified.Content.Normal = modified.Content.Prelight
+			modified.Border.Normal = modified.Border.Prelight
+		}
+		if f := w.Emit(SignalGetThemeRequest, instance, modified); f == enums.EVENT_PASS {
+			theme = modified
+			w.LogTrace("get-theme-request changes applied")
+		}
 	}
 	return
 }
@@ -1522,14 +1687,110 @@ func (w *CWidget) SetTheme(theme paint.Theme) {
 	if theme.String() != w.GetTheme().String() {
 		if f := w.Emit(SignalSetTheme, w, theme); f == enums.EVENT_PASS {
 			w.CObject.SetTheme(theme)
+			apply := func(state StateType, cs, bs paint.Style) {
+				fg, bg, attr := cs.Decompose()
+				if prop := w.GetCssProperty(CssPropertyColor, state); prop != nil {
+					if err := prop.Set(fg); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyBackgroundColor, state); prop != nil {
+					if err := prop.Set(bg); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyBold, state); prop != nil {
+					if err := prop.Set(attr.IsBold()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyBlink, state); prop != nil {
+					if err := prop.Set(attr.IsBlink()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyReverse, state); prop != nil {
+					if err := prop.Set(attr.IsReverse()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyUnderline, state); prop != nil {
+					if err := prop.Set(attr.IsUnderline()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyDim, state); prop != nil {
+					if err := prop.Set(attr.IsDim()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyItalic, state); prop != nil {
+					if err := prop.Set(attr.IsItalic()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyStrike, state); prop != nil {
+					if err := prop.Set(attr.IsStrike()); err != nil {
+						w.LogErr(err)
+					}
+				}
+				fg, bg, _ = bs.Decompose()
+				if prop := w.GetCssProperty(CssPropertyBorderColor, state); prop != nil {
+					if err := prop.Set(fg); err != nil {
+						w.LogErr(err)
+					}
+				}
+				if prop := w.GetCssProperty(CssPropertyBorderBackgroundColor, state); prop != nil {
+					if err := prop.Set(bg); err != nil {
+						w.LogErr(err)
+					}
+				}
+				return
+			}
+			// Normal
+			apply(StateNormal, theme.Content.Normal, theme.Border.Normal)
+			apply(StateActive, theme.Content.Active, theme.Border.Active)
+			apply(StateSelected, theme.Content.Selected, theme.Border.Selected)
+			apply(StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
+			apply(StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
 			w.Invalidate()
 		}
 	}
 }
 
+// Returns the widget's state. See SetState.
+// Returns:
+// 	the state of the widget.
+func (w *CWidget) GetState() (value StateType) {
+	w.flagsLock.RLock()
+	defer w.flagsLock.RUnlock()
+	return w.state
+}
+
+// This function is for use in widget implementations. Sets the state of a
+// widget (insensitive, prelighted, etc.) Usually you should set the state
+// using wrapper functions such as SetSensitive.
+// Parameters:
+// 	state	new state for widget
+//
+// Adds the given state bitmask to the Widget instance. This method emits a
+// set-state signal initially and if the listeners return EVENT_PASS, the change
+// is applied
+//
+// Emit: SignalSetState, Argv=[Widget instance, given state to set]
+func (w *CWidget) SetState(state StateType) {
+	if f := w.Emit(SignalSetState, w, state); f == enums.EVENT_PASS {
+		w.flagsLock.Lock()
+		defer w.flagsLock.Unlock()
+		w.state = StateType(cbits.Set(uint64(w.state), uint64(state)))
+	}
+}
+
 // Returns TRUE if the Widget has the given StateType, FALSE otherwise
 func (w *CWidget) HasState(s StateType) bool {
-	return w.state&s != 0
+	w.flagsLock.RLock()
+	defer w.flagsLock.RUnlock()
+	return w.state.HasBit(s)
 }
 
 // Removes the given state bitmask from the Widget instance. This method emits
@@ -1537,14 +1798,18 @@ func (w *CWidget) HasState(s StateType) bool {
 // change is applied
 //
 // Emit: SignalUnsetState, Argv=[Widget instance, given state to unset]
-func (w *CWidget) UnsetState(v StateType) {
-	if f := w.Emit(SignalUnsetState, w, v); f == enums.EVENT_PASS {
-		w.state = w.state &^ v
+func (w *CWidget) UnsetState(state StateType) {
+	if f := w.Emit(SignalUnsetState, w, state); f == enums.EVENT_PASS {
+		w.flagsLock.Lock()
+		defer w.flagsLock.Unlock()
+		w.state = StateType(cbits.Clear(uint64(w.state), uint64(state)))
 	}
 }
 
 // Returns the current flags for the Widget instance
 func (w *CWidget) GetFlags() WidgetFlags {
+	w.flagsLock.RLock()
+	defer w.flagsLock.RUnlock()
 	return w.flags
 }
 
@@ -1564,7 +1829,7 @@ func (w *CWidget) UnsetFlags(v WidgetFlags) {
 	if f := w.Emit(SignalUnsetFlags, w, v); f == enums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		w.flags = w.flags &^ v
+		w.flags = WidgetFlags(cbits.Clear(uint64(w.flags), uint64(v)))
 	}
 }
 
@@ -1577,7 +1842,7 @@ func (w *CWidget) SetFlags(v WidgetFlags) {
 	if f := w.Emit(SignalSetFlags, w, w.flags, v); f == enums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		w.flags = w.flags | v
+		w.flags = WidgetFlags(cbits.Set(uint64(w.flags), uint64(v)))
 	}
 }
 
@@ -1712,18 +1977,46 @@ func (w *CWidget) GetWidgetAt(p *ptypes.Point2I) Widget {
 }
 
 func (w *CWidget) lostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	theme := w.GetTheme()
-	w.SetThemeRequest(theme)
-	w.Invalidate()
+	if w.IsDrawable() && w.IsVisible() && w.IsSensitive() {
+		w.LogDebug("lost focus")
+		if w.HasState(StateSelected) {
+			w.UnsetState(StateSelected)
+			w.Invalidate()
+			return enums.EVENT_STOP
+		}
+	}
 	return enums.EVENT_PASS
 }
 
 func (w *CWidget) gainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	theme := w.GetTheme()
-	theme.Content.Normal = theme.Content.Focused
-	theme.Border.Normal = theme.Border.Focused
-	w.SetThemeRequest(theme)
-	w.Invalidate()
+	if w.IsDrawable() && w.IsVisible() && w.IsSensitive() {
+		w.LogDebug("gained focus")
+		if !w.HasState(StateSelected) {
+			w.SetState(StateSelected)
+			w.Invalidate()
+			return enums.EVENT_STOP
+		}
+	}
+	return enums.EVENT_PASS
+}
+
+func (w *CWidget) enter(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	if w.IsDrawable() && w.IsVisible() {
+		if !w.HasState(StatePrelight) {
+			w.SetState(StatePrelight)
+			return enums.EVENT_STOP
+		}
+	}
+	return enums.EVENT_PASS
+}
+
+func (w *CWidget) leave(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	if w.IsDrawable() && w.IsVisible() {
+		if w.HasState(StatePrelight) {
+			w.UnsetState(StatePrelight)
+			return enums.EVENT_STOP
+		}
+	}
 	return enums.EVENT_PASS
 }
 
@@ -2252,6 +2545,62 @@ const SignalVisibilityNotifyEvent cdk.Signal = "visibility-notify-event"
 // mask. GDK will enable this mask automatically for all new windows.
 const SignalWindowStateEvent cdk.Signal = "window-state-event"
 
+const SignalGetThemeRequest = "get-theme-request"
+
 const WidgetLostFocusHandle = "widget-lost-focus-handler"
 
 const WidgetGainedFocusHandle = "widget-gained-focus-handler"
+
+const WidgetEnterHandle = "widget-enter-handler"
+
+const WidgetLeaveHandle = "widget-leave-handler"
+
+const WidgetActivateHandle = "widget-activate-handler"
+
+const CssPropertyClass cdk.Property = "class"
+
+const CssPropertyWidth cdk.Property = "width"
+
+const CssPropertyHeight cdk.Property = "height"
+
+const CssPropertyColor cdk.Property = "color"
+
+const CssPropertyBackgroundColor cdk.Property = "background-color"
+
+const CssPropertyBackgroundFillContent cdk.Property = "background-fill-content"
+
+const CssPropertyBorder cdk.Property = "border"
+
+const CssPropertyBorderColor cdk.Property = "border-color"
+
+const CssPropertyBorderBackgroundColor cdk.Property = "border-background-color"
+
+const CssPropertyBold cdk.Property = "bold"
+
+const CssPropertyBlink cdk.Property = "blink"
+
+const CssPropertyReverse cdk.Property = "reverse"
+
+const CssPropertyUnderline cdk.Property = "underline"
+
+const CssPropertyDim cdk.Property = "dim"
+
+const CssPropertyItalic cdk.Property = "italic"
+
+const CssPropertyStrike cdk.Property = "strike"
+
+const CssPropertyBorderTopLeftContent cdk.Property = "border-top-left-content"
+
+const CssPropertyBorderTopContent cdk.Property = "border-top-content"
+
+const CssPropertyBorderTopRightContent cdk.Property = "border-top-right-content"
+
+const CssPropertyBorderBottomLeftContent cdk.Property = "border-bottom-left-content"
+
+const CssPropertyBorderBottomRightContent cdk.Property = "border-bottom-right-content"
+
+const CssPropertyBorderLeftContent cdk.Property = "border-left-content"
+
+const CssPropertyBorderRightContent cdk.Property = "border-right-content"
+
+const CssPropertyBorderBottomContent cdk.Property = "border-bottom-content"
