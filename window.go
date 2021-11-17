@@ -1,6 +1,7 @@
 package ctk
 
 import (
+	_ "embed"
 	"fmt"
 
 	"github.com/go-curses/cdk"
@@ -30,6 +31,9 @@ func init() {
 	}
 }
 
+//go:embed ctk.default.styles
+var DefaultStyles string
+
 // Window Hierarchy:
 //	Object
 //	  +- Widget
@@ -51,6 +55,9 @@ type Window interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
+	AddStylesFromString(css string) (err error)
+	ReplaceStylesFromString(css string) (err error)
+	ApplyStylesTo(widget Widget)
 	SetTitle(title string)
 	SetResizable(resizable bool)
 	GetResizable() (value bool)
@@ -117,7 +124,6 @@ type Window interface {
 	Move(x int, y int)
 	ParseGeometry(geometry string) (value bool)
 	ReshowWithInitialSize()
-	Resize() enums.EventFlag
 	SetAutoStartupNotification(setting bool)
 	GetOpacity() (value float64)
 	SetOpacity(opacity float64)
@@ -132,8 +138,6 @@ type Window interface {
 	FocusPrevious() enums.EventFlag
 	GetEventFocus() (o interface{})
 	SetEventFocus(o interface{})
-	GetThemeRequest() (theme paint.Theme)
-	Invalidate() enums.EventFlag
 }
 
 // The CWindow structure implements the Window interface and is exported to
@@ -152,6 +156,8 @@ type CWindow struct {
 	accelGroups    []*CAccelGroup
 	mnemonics      []*mnemonicEntry
 	mnemonicMod    cdk.ModMask
+
+	styleSheet *cStyleSheet
 }
 
 type mnemonicEntry struct {
@@ -199,8 +205,6 @@ func (w *CWindow) Init() (already bool) {
 	w.origin.X = 0
 	w.origin.Y = 0
 	w.SetTheme(paint.DefaultColorTheme)
-	w.SetParent(w)
-	w.SetWindow(w)
 	w.accelGroups = make([]*CAccelGroup, 0)
 	w.mnemonics = make([]*mnemonicEntry, 0)
 	w.mnemonicMod = cdk.ModAlt
@@ -231,11 +235,24 @@ func (w *CWindow) Init() (already bool) {
 	_ = w.InstallProperty(PropertyTypeHint, cdk.StructProperty, true, WindowTypeHintNormal)
 	_ = w.InstallProperty(PropertyUrgencyHint, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyWindowPosition, cdk.StructProperty, true, WinPosNone)
-	_ = w.GetVBox()
 	w.hoverFocus = nil
-	w.Invalidate()
+	var err error
+	if w.styleSheet, err = newStyleSheetFromString(DefaultStyles); err != nil {
+		w.LogErr(err)
+	} else {
+		w.styleSheet = newStyleSheet()
+	}
 	w.Connect(SignalCdkEvent, WindowEventHandle, w.event)
+	w.Connect(SignalInvalidate, WindowInvalidateHandle, w.invalidate)
+	w.Connect(SignalResize, WindowResizeHandle, w.resize)
 	w.Connect(SignalDraw, WindowDrawHandle, w.draw)
+	w.Invalidate()
+	w.SetParent(w)
+	w.SetWindow(w)
+	if err := w.SetProperty(PropertyWindow, w); err != nil {
+		w.LogErr(err)
+	}
+	_ = w.GetVBox()
 	return false
 }
 
@@ -273,6 +290,27 @@ func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 		}
 	}
 	return nil
+}
+
+func (w *CWindow) AddStylesFromString(css string) (err error) {
+	if err = w.styleSheet.ParseString(css); err != nil {
+		w.LogErr(err)
+	}
+	return
+}
+
+func (w *CWindow) ReplaceStylesFromString(css string) (err error) {
+	var ss *cStyleSheet
+	if ss, err = newStyleSheetFromString(DefaultStyles); err != nil {
+		w.LogErr(err)
+	} else {
+		w.styleSheet = ss
+	}
+	return
+}
+
+func (w *CWindow) ApplyStylesTo(widget Widget) {
+	w.styleSheet.ApplyStylesTo(widget)
 }
 
 // SetTitle updates the title of the Window. The title of a window will be
@@ -642,7 +680,7 @@ func (w *CWindow) GetFocus() (focus interface{}) {
 // Parameters:
 // 	focus	widget to be the new focus widget, or NULL to unset
 func (w *CWindow) SetFocus(focus interface{}) {
-	if fw, ok := focus.(Sensitive); ok && fw.CanFocus() && fw.IsVisible() {
+	if fw, ok := focus.(Sensitive); ok && fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
 		w.focused = focus
 	} else {
 		w.focused = nil
@@ -1279,40 +1317,6 @@ func (w *CWindow) ParseGeometry(geometry string) (value bool) {
 // the window. Used by GUI builders only.
 func (w *CWindow) ReshowWithInitialSize() {}
 
-// Resizes the window as if the user had done so, obeying geometry
-// constraints. The default geometry constraint is that windows may not be
-// smaller than their size request; to override this constraint, call
-// WidgetSetSizeRequest to set the window's request to a smaller
-// value. If Resize is called before showing a window for the
-// first time, it overrides any default size set with
-// SetDefaultSize. Windows may not be resized smaller than 1
-// by 1 pixels.
-// Parameters:
-// 	width	width in pixels to resize the window to
-// 	height	height in pixels to resize the window to
-func (w *CWindow) Resize() enums.EventFlag {
-	size := w.GetAllocation()
-	if f := w.Emit(SignalResize, w, size.W, size.H); f == enums.EVENT_PASS {
-		if child := w.GetChild(); child != nil {
-			if size.W < 1 && size.H < 1 {
-				size.Set(0, 0)
-			} else if size.W >= 3 && size.H >= 3 {
-				child.SetOrigin(1, 1)
-				size.Sub(2, 2) // borders
-			}
-			child.SetAllocation(size)
-			childOrigin := child.GetOrigin()
-			childOrigin.SubPoint(w.GetOrigin())
-			if err := memphis.ConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
-				child.LogErr(err)
-			}
-			child.Resize()
-			w.Invalidate()
-		}
-	}
-	return enums.EVENT_STOP
-}
-
 // By default, after showing the first Window, CTK calls
 // NotifyStartupComplete. Call this function to disable the automatic
 // startup notification. You might do this if your first window is a splash
@@ -1454,36 +1458,34 @@ func (w *CWindow) GetPreviousFocus() (previous interface{}) {
 }
 
 func (w *CWindow) FocusNext() enums.EventFlag {
-	focused := w.GetFocus()
-	if focused != nil {
-		if next := w.GetNextFocus(); next != nil {
-			if fw, ok := focused.(Widget); ok {
-				fw.Emit(SignalLostFocus, w)
-			}
-			if nw, ok := next.(Sensitive); ok {
-				nw.GrabFocus()
-			}
+	if focused := w.GetFocus(); focused != nil {
+		if fw, ok := focused.(Widget); ok {
+			fw.Emit(SignalLostFocus)
+		}
+	}
+	if next := w.GetNextFocus(); next != nil {
+		if nw, ok := next.(Sensitive); ok {
+			nw.GrabFocus()
 			return enums.EVENT_STOP
 		}
 	}
-	w.LogInfo("empty focus chain")
+	w.LogError("no widgets to focus next")
 	return enums.EVENT_PASS
 }
 
 func (w *CWindow) FocusPrevious() enums.EventFlag {
-	focused := w.GetFocus()
-	if focused != nil {
-		if prev := w.GetPreviousFocus(); prev != nil {
-			if fw, ok := focused.(Widget); ok {
-				fw.Emit(SignalLostFocus, w)
-			}
-			if pw, ok := prev.(Sensitive); ok {
-				pw.GrabFocus()
-			}
+	if focused := w.GetFocus(); focused != nil {
+		if fw, ok := focused.(Widget); ok {
+			fw.Emit(SignalLostFocus)
+		}
+	}
+	if prev := w.GetPreviousFocus(); prev != nil {
+		if pw, ok := prev.(Sensitive); ok {
+			pw.GrabFocus()
 			return enums.EVENT_STOP
 		}
 	}
-	w.LogInfo("empty focus chain")
+	w.LogError("no widgets to focus previous")
 	return enums.EVENT_PASS
 }
 
@@ -1520,7 +1522,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 				}
 				// check focused
 				if fi := w.GetFocus(); fi != nil {
-					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
+					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
 						sw.LogDebug("ProcessEvent(EventKey): %v", evt)
 						if f := sw.ProcessEvent(evt); f == enums.EVENT_STOP {
 							return enums.EVENT_STOP
@@ -1532,19 +1534,16 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 				case cdk.KeyBacktab:
 					w.LogDebug("shift+tab key caught")
 					if e.Modifiers().Has(cdk.ModShift) {
-						w.LogDebug("tab key focus next: %v", w.GetNextFocus())
 						w.FocusNext()
 					} else {
-						w.LogDebug("tab key focus previous: %v", w.GetNextFocus())
 						w.FocusPrevious()
 					}
 					return enums.EVENT_STOP
 				case cdk.KeyTab:
+					w.LogDebug("tab key caught")
 					if e.Modifiers().Has(cdk.ModShift) {
-						w.LogDebug("tab key focus previous: %v", w.GetNextFocus())
 						w.FocusPrevious()
 					} else {
-						w.LogDebug("tab key focus next: %v", w.GetNextFocus())
 						w.FocusNext()
 					}
 					return enums.EVENT_STOP
@@ -1556,11 +1555,22 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 				if mw := w.GetWidgetAt(ptypes.NewPoint2I(e.Position())); mw != nil {
 					if w.hoverFocus != nil {
 						if w.hoverFocus.ObjectID() != mw.ObjectID() {
-							w.hoverFocus.Emit(SignalLeave)
+							var wantRefresh bool
+							if f := w.hoverFocus.Emit(SignalLeave); f == enums.EVENT_STOP {
+								wantRefresh = true
+							}
 							w.hoverFocus.LogDebug("signal leave")
-							mw.Emit(SignalEnter)
+							if f := mw.Emit(SignalEnter); f == enums.EVENT_STOP {
+								wantRefresh = true
+							}
 							mw.LogDebug("signal enter")
 							w.hoverFocus = mw
+							if wantRefresh {
+								if d := w.GetDisplay(); d != nil {
+									d.RequestDraw()
+									d.RequestShow()
+								}
+							}
 						}
 					} else {
 						w.hoverFocus = mw
@@ -1590,15 +1600,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 	return enums.EVENT_PASS
 }
 
-func (w *CWindow) GetThemeRequest() (theme paint.Theme) {
-	// CWindow implements both cdk.Window and ctk.Widget, both have differing
-	// implementations of GetThemeRequest(), this method coerces the request
-	// to the CWidget.GetThemeRequest() for consistency
-	theme = w.CWidget.GetThemeRequest()
-	return
-}
-
-func (w *CWindow) Invalidate() enums.EventFlag {
+func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
 	// w.rebuildFocusChain()
 	origin := w.GetOrigin()
 	alloc := w.GetAllocation()
@@ -1613,7 +1615,29 @@ func (w *CWindow) Invalidate() enums.EventFlag {
 			child.LogErr(err)
 		}
 	}
-	return w.Emit(SignalInvalidate, w)
+	// return w.Emit(SignalInvalidate, w)
+	return enums.EVENT_PASS
+}
+
+func (w *CWindow) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+	size := w.GetAllocation()
+	if child := w.GetChild(); child != nil {
+		if size.W < 1 && size.H < 1 {
+			size.Set(0, 0)
+		} else if size.W >= 3 && size.H >= 3 {
+			child.SetOrigin(1, 1)
+			size.Sub(2, 2) // borders
+		}
+		child.SetAllocation(size)
+		childOrigin := child.GetOrigin()
+		childOrigin.SubPoint(w.GetOrigin())
+		if err := memphis.ConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
+			child.LogErr(err)
+		}
+		child.Resize()
+	}
+	w.Invalidate()
+	return enums.EVENT_STOP
 }
 
 func (w *CWindow) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
@@ -1808,5 +1832,9 @@ const SignalSetFocus cdk.Signal = "set-focus"
 var ErrFallthrough = fmt.Errorf("fallthrough")
 
 const WindowEventHandle = "window-event-handler"
+
+const WindowInvalidateHandle = "window-invalidate-handler"
+
+const WindowResizeHandle = "window-resize-handler"
 
 const WindowDrawHandle = "window-draw-handler"
