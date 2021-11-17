@@ -170,6 +170,7 @@ func switchPage(id int) {
 		buttonPrev.SetLabel("Back")
 		buttonPrev.Hide()
 		if numKnownPages > 1 {
+			buttonNext.GrabFocus()
 			buttonNext.SetLabel("Next")
 			buttonNext.Show()
 		} else {
