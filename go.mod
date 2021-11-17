@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/go-curses/cdk v0.1.3
+	github.com/go-curses/cdk v0.1.5
 	github.com/gobuffalo/helpers v0.6.3 // indirect
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gobuffalo/tags v2.1.7+incompatible // indirect
