@@ -99,7 +99,6 @@ type Label interface {
 	GetCurrentUri() (value string)
 	SetTrackVisitedLinks(trackLinks bool)
 	GetTrackVisitedLinks() (value bool)
-	SetTheme(theme paint.Theme)
 	GetClearText() (text string)
 	GetPlainText() (text string)
 	GetCleanText() (text string)
@@ -704,22 +703,6 @@ func (l *CLabel) GetTrackVisitedLinks() (value bool) {
 	return
 }
 
-// SetTheme updates the theme for the Widget instance. This will also refresh
-// the requested theme. A request theme is a transient theme, based on the
-// actually set theme and adjusted for focus. If the given theme is equivalent
-// to the current theme then no action is taken. After verifying that the given
-// theme is different, this method emits a set-theme signal and if the listeners
-// return EVENT_PASS, the changes are applied and the Widget.Invalidate() method
-// is called.
-func (l *CLabel) SetTheme(theme paint.Theme) {
-	if theme.String() != l.GetTheme().String() {
-		if f := l.Emit(SignalSetTheme, l, theme); f == enums.EVENT_PASS {
-			l.CObject.SetTheme(theme)
-			l.Invalidate()
-		}
-	}
-}
-
 // GetClearText returns the Label's text, stripped of markup.
 func (l *CLabel) GetClearText() (text string) {
 	if l.tbuffer == nil {
@@ -888,14 +871,9 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 	local := ptypes.MakePoint2I(0, 0)
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
 
-	// req := l.CWidget.SizeRequest()
 	xPad, _ := l.GetPadding()
 	local.X += xPad
-	// if req.W > -1 {
-	// 	_, size.H = l.GetPlainTextInfoAtWidth(req.W)
-	// } else {
 	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
-	// }
 
 	_, yAlign := l.GetAlignment()
 	if size.H < alloc.H {
@@ -912,10 +890,10 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 }
 
 func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
-	style := l.getStyleRequest()
+	theme := l.GetTheme()
+	style := theme.Content.Normal
 	_ = l.refreshBufferWithStyle(style)
 	l.refreshMnemonics()
-	theme := l.GetThemeRequest()
 	// theme.Content.FillRune = ' '
 	theme.Content.FillRune = rune(0)
 	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
