@@ -205,7 +205,7 @@ func (c *CContainer) ShowAll() {
 func (c *CContainer) Add(w Widget) {
 	// TODO: if can default and no default yet, set
 	if f := c.Emit(SignalAdd, c, w); f == enums.EVENT_PASS {
-		log.DebugDF(1, "Container.Add(%v)", w)
+		log.DebugDF(1, "child=%v", w.ObjectName())
 		w.SetParent(c)
 		if wc, ok := w.(Container); ok {
 			wc.SetWindow(c.GetWindow())
