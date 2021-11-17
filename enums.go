@@ -458,7 +458,7 @@ type ModifierType uint64
 
 const (
 	NullModMask ModifierType = 0
-	ShiftMask   ModifierType = iota
+	ShiftMask   ModifierType = 1 << iota
 	LockMask
 	ControlMask
 	Mod1Mask
@@ -479,7 +479,7 @@ const (
 )
 
 func (m ModifierType) HasBit(b ModifierType) bool {
-	return cbits.HasBit(uint64(m), uint64(b))
+	return cbits.Has(uint64(m), uint64(b))
 }
 
 func (m ModifierType) String() string {
@@ -697,16 +697,59 @@ const (
 	SHADOW_ETCHED_OUT
 )
 
-/* State type */
 type StateType uint64
 
 const (
-	StateNormal StateType = iota
+	StateNormal StateType = 1 << iota
 	StateActive
 	StatePrelight
 	StateSelected
 	StateInsensitive
 )
+
+// StateTypeFromString returns the StateType equivalent for the given named
+// string. If the name given is not a valid name, returns StateNormal.
+func StateTypeFromString(name string) (state StateType) {
+	switch strings.ToLower(name) {
+	case "active":
+		return StateActive
+	case "prelight":
+		return StatePrelight
+	case "selected":
+		return StateSelected
+	case "insensitive":
+		return StateInsensitive
+	case "normal":
+		fallthrough
+	default:
+		return StateNormal
+	}
+}
+
+func (s StateType) HasBit(state StateType) bool {
+	return cbits.Has(uint64(s), uint64(state))
+}
+
+func (s StateType) String() (label string) {
+	label = ""
+	update := func(state StateType, name string) {
+		if s.HasBit(state) {
+			if len(label) > 0 {
+				label += " | "
+			}
+			label += name
+		}
+	}
+	update(StateNormal, "normal")
+	update(StateActive, "active")
+	update(StatePrelight, "prelight")
+	update(StateInsensitive, "insensitive")
+	update(StateSelected, "selected")
+	if label == "" {
+		label = "unknown"
+	}
+	return
+}
 
 /* Submenu direction */
 type SubmenuDirection uint64
@@ -1536,7 +1579,7 @@ const (
 type WidgetFlags uint64
 
 func (f WidgetFlags) HasBit(flag WidgetFlags) bool {
-	return cbits.HasBit(uint64(f), uint64(flag))
+	return cbits.Has(uint64(f), uint64(flag))
 }
 
 const (
