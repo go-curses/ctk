@@ -234,10 +234,11 @@ func (l *CLabel) Build(builder Builder, element *CBuilderElement) error {
 // 	text	the text you want to set
 func (l *CLabel) SetText(text string) {
 	l.Lock()
-	defer l.Unlock()
-	l.SetUseMarkup(false)
+	if err := l.SetBoolProperty(PropertyUseMarkup, false); err != nil {
+		l.LogErr(err)
+	}
 	l.text = text
-	l.tbuffer = memphis.NewTextBuffer(text, l.GetTheme().Content.Normal, l.GetUseUnderline())
+	l.Unlock()
 	l.Invalidate()
 }
 
@@ -258,16 +259,18 @@ func (l *CLabel) SetAttributes(attrs paint.Style) {
 // 	text	a markup string (see Tango markup format)
 func (l *CLabel) SetMarkup(text string) (parseError error) {
 	l.Lock()
-	defer l.Unlock()
-	var m memphis.Tango
-	if m, parseError = memphis.NewMarkup(text, l.GetTheme().Content.Normal); parseError != nil {
-		return parseError
-	}
-	l.SetUseMarkup(true)
 	l.text = text
-	l.tbuffer = m.TextBuffer(l.GetUseUnderline())
-	l.Invalidate()
-	return nil
+	if err := l.SetBoolProperty(PropertyUseMarkup, true); err != nil {
+		l.LogErr(err)
+	}
+	l.Unlock()
+	// Invalidate will call refreshTextBuffer again, we do this once before to
+	// see if there's any errors generated because we can't return any errors
+	// encountered in signal handlers (beyond the logging).
+	if parseError = l.refreshTextBuffer(); parseError == nil {
+		l.Invalidate()
+	}
+	return
 }
 
 // SetMarkupWithMnemonic parses str which is marked up with the Tango text
@@ -806,22 +809,6 @@ func (l *CLabel) getMaxCharsRequest() (maxWidth int) {
 	return
 }
 
-func (l *CLabel) refreshBufferWithStyle(style paint.Style) error {
-	if l.tbStyle.String() != style.String() {
-		l.tbStyle = style
-		if l.GetUseMarkup() {
-			if m, err := memphis.NewMarkup(l.text, style); err != nil {
-				return err
-			} else {
-				l.tbuffer = m.TextBuffer(l.GetUseUnderline())
-			}
-		} else if l.tbuffer != nil {
-			l.tbuffer = memphis.NewTextBuffer(l.text, style, l.GetUseUnderline())
-		}
-	}
-	return nil
-}
-
 func (l *CLabel) refreshMnemonics() {
 	if w := l.GetWindow(); w != nil {
 		if widget := l.GetMnemonicWidget(); widget != nil {
@@ -849,12 +836,33 @@ func (l *CLabel) refreshMnemonics() {
 	}
 }
 
+func (l *CLabel) refreshTextBuffer() (err error) {
+	l.Lock()
+	var markup bool
+	if markup, err = l.GetBoolProperty(PropertyUseMarkup); err != nil {
+	} else if markup {
+		var m memphis.Tango
+		if m, err = memphis.NewMarkup(l.text, l.GetThemeRequest().Content.Normal); err != nil {
+			// tbuffer must always be valid
+			l.tbuffer = memphis.NewTextBuffer(l.text, l.GetThemeRequest().Content.Normal, l.GetUseUnderline())
+		} else {
+			// get the markup tbuffer
+			l.tbuffer = m.TextBuffer(l.GetUseUnderline())
+		}
+	} else {
+		// plain text tbuffer
+		l.tbuffer = memphis.NewTextBuffer(l.text, l.GetThemeRequest().Content.Normal, l.GetUseUnderline())
+	}
+	l.Unlock()
+	return
+}
+
 func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	l.Lock()
-	defer l.Unlock()
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 		l.LogTrace("not visible, zero width or zero height")
+		l.Unlock()
 		return enums.EVENT_PASS
 	}
 
@@ -882,14 +890,18 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 		l.LogErr(err)
 	}
 
+	l.Unlock()
 	l.Invalidate()
 	return enums.EVENT_STOP
 }
 
 func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
 	theme := l.GetThemeRequest()
-	_ = l.refreshBufferWithStyle(theme.Content.Normal)
+	if err := l.refreshTextBuffer(); err != nil {
+		l.LogErr(err)
+	}
 	l.refreshMnemonics()
+	l.Lock()
 	theme.Content.FillRune = rune(0)
 	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
 		l.LogErr(err)
@@ -897,6 +909,7 @@ func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.Event
 	if err := memphis.FillSurface(l.tid, theme); err != nil {
 		l.LogErr(err)
 	}
+	l.Unlock()
 	return enums.EVENT_STOP
 }
 
