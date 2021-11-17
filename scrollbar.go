@@ -22,8 +22,10 @@ var (
 		// slider
 		Content: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorDarkGray).Background(paint.ColorSilver).Dim(true).Bold(false),
-			Focused:     paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
+			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false),
+			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
 			ArrowRunes:  paint.DefaultArrowRune,
@@ -32,8 +34,10 @@ var (
 		// trough
 		Border: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(true).Bold(false),
-			Focused:     paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkGray).Dim(false).Bold(true),
+			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkGray).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false).Bold(true),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(false),
+			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
 			ArrowRunes:  paint.DefaultArrowRune,
@@ -73,12 +77,13 @@ type Scrollbar interface {
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	ValueChanged()
 	Changed()
-	GrabFocus()
 	CancelEvent()
 	GetAllStepperRegions() (fwd, bwd, sFwd, sBwd ptypes.Region)
 	GetStepperRegions() (start, end ptypes.Region)
 	GetTroughRegion() (region ptypes.Region)
 	GetSliderRegion() (region ptypes.Region)
+	GrabFocus()
+	GrabEventFocus()
 }
 
 // The CScrollbar structure implements the Scrollbar interface and is exported
@@ -299,42 +304,6 @@ func (s *CScrollbar) Changed() {
 	s.Emit(SignalChanged, s)
 }
 
-// If the Widget instance CanFocus() then take the focus of the associated
-// Window. Any previously focused Widget will emit a lost-focus signal and the
-// newly focused Widget will emit a gained-focus signal. This method emits a
-// grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied
-//
-// Emits: SignalGrabFocus, Argv=[Widget instance]
-// Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
-// Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
-func (s *CScrollbar) GrabFocus() {
-	if s.CanFocus() {
-		if r := s.Emit(SignalGrabFocus, s); r == enums.EVENT_PASS {
-			tl := s.GetWindow()
-			if tl != nil {
-				var fw Widget
-				focused := tl.GetFocus()
-				tl.SetFocus(s)
-				if focused != nil {
-					var ok bool
-					if fw, ok = focused.(Widget); ok && fw.ObjectID() != s.ObjectID() {
-						if f := fw.Emit(SignalLostFocus, fw); f == enums.EVENT_STOP {
-							fw = nil
-						}
-					}
-				}
-				if f := s.Emit(SignalGainedFocus, s, fw); f == enums.EVENT_STOP {
-					if fw != nil {
-						tl.SetFocus(fw)
-					}
-				}
-				s.LogDebug("has taken focus")
-			}
-		}
-	}
-}
-
 func (s *CScrollbar) CancelEvent() {
 	if s.HasEventFocus() {
 		s.ReleaseEventFocus()
@@ -513,6 +482,56 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	return
 }
 
+// GrabFocus will take the focus of the associated Window if the Widget instance
+// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
+// the newly focused Widget will emit a gained-focus signal. This method emits a
+// grab-focus signal initially and if the listeners return EVENT_PASS, the
+// changes are applied.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
+func (s *CScrollbar) GrabFocus() {
+	if s.CanFocus() && s.IsVisible() && s.IsSensitive() {
+		if r := s.Emit(SignalGrabFocus, s); r == enums.EVENT_PASS {
+			if tl := s.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if fw, ok := focused.(Widget); ok && fw.ObjectID() != s.ObjectID() {
+						fw.Emit(SignalLostFocus)
+						fw.UnsetState(StateSelected)
+						fw.LogDebug("has lost focus")
+					}
+				}
+				tl.SetFocus(s)
+				s.Emit(SignalGainedFocus)
+				s.SetState(StateSelected)
+				s.LogDebug("has taken focus")
+			}
+		}
+	} else {
+		s.LogError("cannot grab focus: can't focus, invisible or insensitive")
+	}
+}
+
+// GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
+// return enums.EVENT_PASS will set the Button instance as the Window event
+// focus handler.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
+func (s *CScrollbar) GrabEventFocus() {
+	if window := s.GetWindow(); window != nil {
+		if f := s.Emit(SignalGrabEventFocus, s, window); f == enums.EVENT_PASS {
+			window.SetEventFocus(s)
+		}
+	} else {
+		s.LogError("cannot grab focus: can't focus, invisible or insensitive")
+	}
+}
+
 func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) enums.EventFlag {
 	// me := NewMouseEvent(e)
 	slider := s.GetSliderRegion()
@@ -521,8 +540,6 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 		if w := s.GetWidgetAt(p); w != nil && w.IsVisible() {
 			if w.ObjectID() != s.ObjectID() {
 				if wb, ok := w.(*CButton); ok {
-					// s.GrabFocus()
-					// s.GrabEventFocus()
 					wb.SetPressed(true)
 					s.focusedButton = wb
 					return enums.EVENT_STOP
@@ -532,8 +549,6 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 				s.prevSliderPos = p
 				s.sliderMoving = true
 				s.focusedButton = nil
-				// s.GrabFocus()
-				// s.GrabEventFocus()
 				return enums.EVENT_STOP
 			}
 		}
@@ -541,8 +556,6 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 		if !s.sliderMoving {
 			s.focusedButton = nil
 			s.sliderMoving = true
-			// s.GrabFocus()
-			// s.GrabEventFocus()
 		}
 		fallthrough
 	case cdk.DRAG_MOVE:
