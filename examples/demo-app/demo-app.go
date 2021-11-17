@@ -184,6 +184,23 @@ func setupUi(manager cdk.Display) error {
 		// dialog.GetVBox().SetBoolProperty(Property, true)
 		// }
 		dialog.SetDefaultResponse(ctk.ResponseHelp)
+
+		label.Connect(ctk.SignalGetThemeRequest, "test-theme-request", func(data []interface{}, argv ...interface{}) enums.EventFlag {
+			if theme, ok := argv[0].(*paint.Theme); ok {
+				if modified, ok := argv[1].(paint.Theme); ok {
+					theme.Content.ArrowRunes = modified.Content.ArrowRunes
+					theme.Content.BorderRunes = modified.Content.BorderRunes
+					theme.Content.Selected = modified.Content.Selected.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
+					theme.Content.Active = modified.Content.Active.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
+					theme.Content.Normal = modified.Content.Normal.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
+					return enums.EVENT_STOP
+				}
+			} else {
+				label.LogError("argv[0] is not a theme: %v", argv)
+			}
+			return enums.EVENT_PASS
+		})
+
 		response := dialog.Run()
 		gls.Go(func() {
 			select {
