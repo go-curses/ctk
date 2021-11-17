@@ -69,6 +69,8 @@ func main() {
 			w.ShowAll()
 			// tell CDK that this window is the foreground window
 			d.SetActiveWindow(w)
+			// now that the button is visible, grab the focus
+			button.GrabFocus()
 			// add a quit handler to say goodbye when the program exits
 			d.AddQuitHandler(
 				"hello-world-quit-handler",
