@@ -57,7 +57,6 @@ type ScrolledViewport interface {
 	GetShadowType() (value ShadowType)
 	VerticalShowByPolicy() (show bool)
 	HorizontalShowByPolicy() (show bool)
-	SetTheme(theme paint.Theme)
 	Add(w Widget)
 	Remove(w Widget)
 	GetChild() Widget
@@ -65,10 +64,11 @@ type ScrolledViewport interface {
 	GetVScrollbar() *CVScrollbar
 	Show()
 	Hide()
-	GrabFocus()
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	CancelEvent()
 	GetRegions() (c, h, v ptypes.Region)
+	GrabFocus()
+	GrabEventFocus()
 }
 
 type CScrolledViewport struct {
@@ -99,7 +99,7 @@ func (s *CScrolledViewport) Init() (already bool) {
 	_ = s.InstallProperty(PropertyVScrollbarPolicy, cdk.StructProperty, true, PolicyAlways)
 	_ = s.InstallProperty(PropertyWindowPlacement, cdk.StructProperty, true, GravityNorthWest)
 	_ = s.InstallProperty(PropertyWindowPlacementSet, cdk.BoolProperty, true, false)
-	s.CViewport.SetTheme(paint.DefaultColorTheme)
+	s.SetTheme(paint.DefaultColorTheme)
 	s.SetPolicy(PolicyAlways, PolicyAlways)
 	// hScrollbar
 	s.CContainer.Add(NewHScrollbar())
@@ -118,8 +118,6 @@ func (s *CScrolledViewport) Init() (already bool) {
 		vs.UnsetFlags(CAN_FOCUS)
 	}
 	s.Connect(SignalCdkEvent, ScrolledViewportEventHandle, s.event)
-	s.Connect(SignalLostFocus, ScrolledViewportLostFocusHandle, s.lostFocus)
-	s.Connect(SignalGainedFocus, ScrolledViewportGainedFocusHandle, s.gainedFocus)
 	s.Connect(SignalInvalidate, ScrolledViewportDrawHandle, s.invalidate)
 	s.Connect(SignalResize, ScrolledViewportDrawHandle, s.resize)
 	s.Connect(SignalDraw, ScrolledViewportDrawHandle, s.draw)
@@ -169,7 +167,6 @@ func (s *CScrolledViewport) Build(builder Builder, element *CBuilderElement) err
 // functionality.
 // Returns:
 //      the horizontal Adjustment.
-//      [transfer none]
 func (s *CScrolledViewport) GetHAdjustment() (value Adjustment) {
 	var ok bool
 	if v, err := s.GetStructProperty(PropertyHAdjustment); err != nil {
@@ -184,7 +181,6 @@ func (s *CScrolledViewport) GetHAdjustment() (value Adjustment) {
 // scrollbar to the child widget's vertical scroll functionality.
 // Returns:
 //      the vertical Adjustment.
-//      [transfer none]
 func (s *CScrolledViewport) GetVAdjustment() (value Adjustment) {
 	var ok bool
 	if v, err := s.GetStructProperty(PropertyVAdjustment); err != nil {
@@ -365,11 +361,6 @@ func (s *CScrolledViewport) HorizontalShowByPolicy() (show bool) {
 	return
 }
 
-func (s *CScrolledViewport) SetTheme(theme paint.Theme) {
-	s.CViewport.SetTheme(theme)
-	s.Invalidate()
-}
-
 func (s *CScrolledViewport) Add(w Widget) {
 	if len(s.children) < 3 {
 		s.CContainer.Add(w)
@@ -439,44 +430,6 @@ func (s *CScrolledViewport) Hide() {
 	s.Invalidate()
 }
 
-// If the Widget instance CanFocus() then take the focus of the associated
-// Window. Any previously focused Widget will emit a lost-focus signal and the
-// newly focused Widget will emit a gained-focus signal. This method emits a
-// grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied
-//
-// Emits: SignalGrabFocus, Argv=[Widget instance]
-// Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
-// Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
-func (s *CScrolledViewport) GrabFocus() {
-	if s.CanFocus() {
-		if r := s.Emit(SignalGrabFocus, s); r == enums.EVENT_PASS {
-			tl := s.GetWindow()
-			if tl != nil {
-				var fw Widget
-				focused := tl.GetFocus()
-				tl.SetFocus(s)
-				if focused != nil {
-					var ok bool
-					if fw, ok = focused.(Widget); ok && fw.ObjectID() != s.ObjectID() {
-						if f := fw.Emit(SignalLostFocus, fw); f == enums.EVENT_STOP {
-							fw = nil
-						}
-					} else if ok {
-						// already the focus, nothing to do
-						return
-					}
-				}
-				if f := s.Emit(SignalGainedFocus, s, fw); f == enums.EVENT_STOP {
-					if fw != nil {
-						tl.SetFocus(fw)
-					}
-				}
-			}
-		}
-	}
-}
-
 func (s *CScrolledViewport) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if s.HasPoint(p) && s.IsVisible() {
 		return s
@@ -519,6 +472,56 @@ func (s *CScrolledViewport) CancelEvent() {
 		hs.CancelEvent()
 	}
 	s.Invalidate()
+}
+
+// GrabFocus will take the focus of the associated Window if the Widget instance
+// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
+// the newly focused Widget will emit a gained-focus signal. This method emits a
+// grab-focus signal initially and if the listeners return EVENT_PASS, the
+// changes are applied.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
+func (s *CScrolledViewport) GrabFocus() {
+	if s.CanFocus() && s.IsVisible() && s.IsSensitive() {
+		if r := s.Emit(SignalGrabFocus, s); r == enums.EVENT_PASS {
+			if tl := s.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if fw, ok := focused.(Widget); ok && fw.ObjectID() != s.ObjectID() {
+						fw.Emit(SignalLostFocus)
+						fw.UnsetState(StateSelected)
+						fw.LogDebug("has lost focus")
+					}
+				}
+				tl.SetFocus(s)
+				s.Emit(SignalGainedFocus)
+				s.SetState(StateSelected)
+				s.LogDebug("has taken focus")
+			}
+		}
+	} else {
+		s.LogError("cannot grab focus: can't focus, invisible or insensitive")
+	}
+}
+
+// GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
+// return enums.EVENT_PASS will set the Button instance as the Window event
+// focus handler.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
+func (b *CScrolledViewport) GrabEventFocus() {
+	if window := b.GetWindow(); window != nil {
+		if f := b.Emit(SignalGrabEventFocus, b, window); f == enums.EVENT_PASS {
+			window.SetEventFocus(b)
+		}
+	} else {
+		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
+	}
 }
 
 func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums.EventFlag {
@@ -830,12 +833,11 @@ func (s *CScrolledViewport) resizeScrollbars() enums.EventFlag {
 		}
 		hs.SetOrigin(o.X, o.Y)
 		hs.SetAllocation(a)
-		theme := hs.GetTheme()
 		if s.IsFocused() {
-			theme.Content.Normal = theme.Content.Focused
-			theme.Border.Normal = theme.Border.Focused
+			hs.SetState(StateSelected)
+		} else {
+			hs.UnsetState(StateSelected)
 		}
-		hs.SetThemeRequest(theme)
 		hs.Resize()
 	}
 	if vs := s.GetVScrollbar(); vs != nil {
@@ -846,12 +848,11 @@ func (s *CScrolledViewport) resizeScrollbars() enums.EventFlag {
 		}
 		vs.SetOrigin(o.X, o.Y)
 		vs.SetAllocation(a)
-		theme := vs.GetTheme()
 		if s.IsFocused() {
-			theme.Content.Normal = theme.Content.Focused
-			theme.Border.Normal = theme.Border.Focused
+			vs.SetState(StateSelected)
+		} else {
+			vs.UnsetState(StateSelected)
 		}
-		vs.SetThemeRequest(theme)
 		vs.Resize()
 	}
 	return enums.EVENT_STOP
