@@ -3,6 +3,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/cdk/lib/paint"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk"
@@ -41,6 +43,9 @@ var (
 	Debug                     = false
 )
 
+//go:embed demo-app.styles
+var demoAppStyles string
+
 func init() {
 	cdk.Build.Profiling = cstrings.IsTrue(IncludeProfiling)
 	cdk.Build.LogFile = cstrings.IsTrue(IncludeLogFile)
@@ -54,6 +59,7 @@ func init() {
 }
 
 func main() {
+	cdk.Init()
 	app := cdk.NewApp(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty", setupUi)
 	app.AddFlag(&cli.BoolFlag{
 		Name:    "debug",
@@ -86,6 +92,9 @@ func setupUi(manager cdk.Display) error {
 	w := ctk.NewWindowWithTitle(APP_TITLE)
 	w.Show()
 	w.SetSensitive(true)
+	if err := w.AddStylesFromString(demoAppStyles); err != nil {
+		w.LogErr(err)
+	}
 	manager.SetActiveWindow(w)
 	vbox := w.GetVBox()
 	vbox.SetHomogeneous(true)
@@ -113,7 +122,6 @@ func setupUi(manager cdk.Display) error {
 	frame.SetLabelAlign(0.5, 0.5)
 	frame.Show()
 	hbox2.PackStart(frame, false, false, 0)
-	// frame.SetLabelAlign(0.0, 0.5)
 	if Debug {
 		frame.SetBoolProperty("debug", true)
 	}
@@ -148,9 +156,11 @@ func setupUi(manager cdk.Display) error {
 		return enums.EVENT_STOP
 	})
 	b2.Show()
+	b2.SetSensitive(false)
 	hbox3.PackStart(b2, true, true, 0)
 
-	b4 := newButton("curses", "Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) enums.EventFlag {
+	var b4 ctk.Button
+	b4 = newButton("curses", "Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) enums.EventFlag {
 		log.InfoF("pressed Curses!")
 		dialog := ctk.NewDialogWithButtons(
 			"dialog title", w,
@@ -159,6 +169,7 @@ func setupUi(manager cdk.Display) error {
 			ctk.StockCancel, ctk.ResponseCancel,
 		)
 		help := ctk.NewButtonFromStock(ctk.StockHelp)
+		help.SetName("help")
 		help.Show()
 		dialog.AddSecondaryActionWidget(help, ctk.ResponseHelp)
 		dialog.SetSizeRequest(40, 10)
@@ -178,7 +189,9 @@ func setupUi(manager cdk.Display) error {
 			select {
 			case r := <-response:
 				dialog.Destroy()
-				_ = dialog.DestroyObject()
+				if err := dialog.DestroyObject(); err != nil {
+					log.Error(err)
+				}
 				log.DebugF("dialog response: %v", r)
 			}
 		})
