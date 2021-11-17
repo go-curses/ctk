@@ -13,5 +13,5 @@ type StyleSheetProperty struct {
 }
 
 func (e StyleSheetProperty) String() string {
-	return fmt.Sprintf("%v:%v (%v);", e.Key, e.Value, e.Type)
+	return fmt.Sprintf("%v: %v;", e.Key, e.Value)
 }
