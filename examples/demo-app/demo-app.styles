@@ -1,0 +1,44 @@
+ctk-button#help {
+    color: #ffffff;
+    background-color: green;
+    border-color: #ffffff;
+    border-background-color: green;
+    bold: false;
+    dim: true;
+}
+
+ctk-button#help:active {
+    color: #ffffff;
+    background-color: green;
+    border-color: #ffffff;
+    border-background-color: green;
+    bold: true;
+    dim: false;
+}
+
+ctk-button#help:prelight {
+    color: #ffffff;
+    background-color: green;
+    border-color: #ffffff;
+    border-background-color: green;
+    bold: false;
+    dim: false;
+}
+
+ctk-button#help:selected {
+    color: #ffffff;
+    background-color: green;
+    border-color: #ffffff;
+    border-background-color: green;
+    bold: true;
+    dim: false;
+}
+
+ctk-button#help:insensitive {
+    color: #ffffff;
+    background-color: green;
+    border-color: #ffffff;
+    border-background-color: green;
+    bold: false;
+    dim: true;
+}
