@@ -523,7 +523,7 @@ func (w *CWidget) CssFullPath() (selector string) {
 	selector = w.CObject.CssSelector()
 	p := w.GetParent()
 	for {
-		if p != nil {
+		if p != nil && p.ObjectID() != w.ObjectID() {
 			selector = p.CssSelector() + " > " + selector
 			np := p.GetParent()
 			if np != nil && np.ObjectID() == p.ObjectID() {
