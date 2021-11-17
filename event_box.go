@@ -29,10 +29,11 @@ type EventBox interface {
 	GetAboveChild() (value bool)
 	SetVisibleWindow(visibleWindow bool)
 	GetVisibleWindow() (value bool)
-	GrabFocus()
 	Activate() (value bool)
 	CancelEvent()
 	ProcessEvent(evt cdk.Event) enums.EventFlag
+	GrabFocus()
+	GrabEventFocus()
 }
 
 // The CEventBox structure implements the EventBox interface and is exported
@@ -80,19 +81,19 @@ func (b *CEventBox) Init() (already bool) {
 //
 // Parameters:
 // 	aboveChild	TRUE if the event box window is above the windows of its child
-func (e *CEventBox) SetAboveChild(aboveChild bool) {
-	if err := e.SetBoolProperty(PropertyAboveChild, aboveChild); err != nil {
-		e.LogErr(err)
+func (b *CEventBox) SetAboveChild(aboveChild bool) {
+	if err := b.SetBoolProperty(PropertyAboveChild, aboveChild); err != nil {
+		b.LogErr(err)
 	}
 }
 
 // GetAboveChild returns whether the event box window is above or below the
 // windows of its child.
 // See: SetAboveChild()
-func (e *CEventBox) GetAboveChild() (value bool) {
+func (b *CEventBox) GetAboveChild() (value bool) {
 	var err error
-	if value, err = e.GetBoolProperty(PropertyAboveChild); err != nil {
-		e.LogErr(err)
+	if value, err = b.GetBoolProperty(PropertyAboveChild); err != nil {
+		b.LogErr(err)
 	}
 	return
 }
@@ -110,51 +111,69 @@ func (e *CEventBox) GetAboveChild() (value bool) {
 //
 // Parameters:
 // 	visibleWindow	boolean value
-func (e *CEventBox) SetVisibleWindow(visibleWindow bool) {
-	if err := e.SetBoolProperty(PropertyVisibleWindow, visibleWindow); err != nil {
-		e.LogErr(err)
+func (b *CEventBox) SetVisibleWindow(visibleWindow bool) {
+	if err := b.SetBoolProperty(PropertyVisibleWindow, visibleWindow); err != nil {
+		b.LogErr(err)
 	}
 }
 
 // GetVisibleWindow returns whether the event box has a visible window.
 // See: SetVisibleWindow()
-func (e *CEventBox) GetVisibleWindow() (value bool) {
+func (b *CEventBox) GetVisibleWindow() (value bool) {
 	var err error
-	if value, err = e.GetBoolProperty(PropertyVisibleWindow); err != nil {
-		e.LogErr(err)
+	if value, err = b.GetBoolProperty(PropertyVisibleWindow); err != nil {
+		b.LogErr(err)
 	}
 	return
 }
 
-// GrabFocus will take the focus of the associated Window if it the EventBox
-// CanFocus() (has the CAN_FOCUS flag). Any previously focused Widget will emit
-// a lost-focus signal and the newly focused Widget will emit a gained-focus
-// signal. This method emits a grab-focus signal initially and if the listeners
-// return EVENT_PASS, the changes are applied.
+// GrabFocus will take the focus of the associated Window if the Widget instance
+// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
+// the newly focused Widget will emit a gained-focus signal. This method emits a
+// grab-focus signal initially and if the listeners return EVENT_PASS, the
+// changes are applied.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
 func (b *CEventBox) GrabFocus() {
-	if b.CanFocus() {
+	if b.CanFocus() && b.IsVisible() && b.IsSensitive() {
 		if r := b.Emit(SignalGrabFocus, b); r == enums.EVENT_PASS {
-			tl := b.GetWindow()
-			if tl != nil {
-				var fw Widget
-				focused := tl.GetFocus()
+			if tl := b.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if fw, ok := focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
+						fw.Emit(SignalLostFocus)
+						fw.UnsetState(StateSelected)
+						fw.LogDebug("has lost focus")
+					}
+				}
 				tl.SetFocus(b)
-				if focused != nil {
-					var ok bool
-					if fw, ok = focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
-						if f := fw.Emit(SignalLostFocus, fw); f == enums.EVENT_STOP {
-							fw = nil
-						}
-					}
-				}
-				if f := b.Emit(SignalGainedFocus, b, fw); f == enums.EVENT_STOP {
-					if fw != nil {
-						tl.SetFocus(fw)
-					}
-				}
+				b.Emit(SignalGainedFocus)
+				b.SetState(StateSelected)
 				b.LogDebug("has taken focus")
 			}
 		}
+	} else {
+		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
+	}
+}
+
+// GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
+// return enums.EVENT_PASS will set the Button instance as the Window event
+// focus handler.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
+func (b *CEventBox) GrabEventFocus() {
+	if window := b.GetWindow(); window != nil {
+		if f := b.Emit(SignalGrabEventFocus, b, window); f == enums.EVENT_PASS {
+			window.SetEventFocus(b)
+		}
+	} else {
+		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
