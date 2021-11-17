@@ -3,11 +3,9 @@ package ctk
 import (
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
-	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 )
 
-// CDK type-tag for Style objects
 const TypeStyle cdk.CTypeTag = "ctk-style"
 
 func init() {
@@ -21,12 +19,7 @@ type Style interface {
 	Object
 
 	Init() (already bool)
-	Copy() (value Style)
-	Attach(window Window) (value Style)
-	Detach()
-	ApplyDefaultBackground(window Window, setBg bool, stateType StateType, area ptypes.Rectangle, x int, y int, width int, height int)
-	LookupColor(colorName string, color paint.Color) (value bool)
-	Get(widgetType cdk.CTypeTag, firstPropertyName string, argv ...interface{})
+
 	PaintArrow(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType ArrowType, fill bool, x int, y int, width int, height int)
 	PaintBox(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintBoxGap(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType, gapX int, gapWidth int)
@@ -48,9 +41,6 @@ type Style interface {
 	PaintExpander(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle ExpanderStyle)
 	// PaintLayout(window Window, stateType StateType, useText bool, area ptypes.Rectangle, widget Widget, detail string, x int, y int, layout PangoLayout)
 	PaintResizeGrip(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, edge WindowEdge, x int, y int, width int, height int)
-	BorderNew() (value paint.Border)
-	BorderCopy(border paint.Border) (value paint.Border)
-	BorderFree(border paint.Border)
 }
 
 // The CStyle structure implements the Style interface and is
@@ -84,115 +74,6 @@ func (s *CStyle) Init() (already bool) {
 	s.CObject.Init()
 	return false
 }
-
-// Creates a copy of the passed in Style object.
-// Returns:
-// 	a copy of style .
-// 	[transfer full]
-func (s *CStyle) Copy() (value Style) {
-	return nil
-}
-
-// Attaches a style to a window; this process allocates the colors and
-// creates the GC's for the style - it specializes it to a particular visual
-// and colormap. The process may involve the creation of a new style if the
-// style has already been attached to a window with a different style and
-// colormap. Since this function may return a new object, you have to use it
-// in the following way: style = Attach (style, window)
-// Parameters:
-// 	window	a Window.
-// Returns:
-// 	Either style , or a newly-created Style. If the style is
-// 	newly created, the style parameter will be unref'ed, and the
-// 	new style will have a reference count belonging to the caller.
-func (s *CStyle) Attach(window Window) (value Style) {
-	return nil
-}
-
-// Detaches a style from a window. If the style is not attached to any
-// windows anymore, it is unrealized. See Attach.
-func (s *CStyle) Detach() {}
-
-//
-// Parameters:
-// 	area	.
-func (s *CStyle) ApplyDefaultBackground(window Window, setBg bool, stateType StateType, area ptypes.Rectangle, x int, y int, width int, height int) {
-}
-
-// Looks up color_name in the style's logical color mappings, filling in
-// color and returning TRUE if found, otherwise returning FALSE. Do not cache
-// the found mapping, because it depends on the Style and might change
-// when a theme switch occurs.
-// Parameters:
-// 	colorName	the name of the logical color to look up
-// 	color	the Color to fill in.
-// Returns:
-// 	TRUE if the mapping was found.
-func (s *CStyle) LookupColor(colorName string, color paint.Color) (value bool) {
-	return false
-}
-
-// Looks up stock_id in the icon factories associated with style and the
-// default icon factory, returning an icon set if found, otherwise NULL.
-// Parameters:
-// 	stockId	an icon name
-// Returns:
-// 	icon set of stock_id .
-// 	[transfer none]
-// func (s *CStyle) LookupIconSet(stockId string) (value IconSet) {
-// 	return nil
-// }
-
-// Renders the icon specified by source at the given size according to the
-// given parameters and returns the result in a pixbuf.
-// Parameters:
-// 	source	the IconSource specifying the icon to render
-// 	direction	a text direction
-// 	state	a state
-// 	size	(type int) the size to render the icon at. A size of
-// (IconSize)-1 means render at the size of the source and
-// don't scale.
-// 	widget	the widget.
-// 	detail	a style detail.
-// Returns:
-// 	a newly-created Pixbuf containing the rendered icon.
-// 	[transfer full]
-// func (s *CStyle) RenderIcon(source IconSource, direction TextDirection, state StateType, size IconSize, widget Widget, detail string) (value Pixbuf) {
-// 	return nil
-// }
-
-// Queries the value of a style property corresponding to a widget class is
-// in the given style.
-// Parameters:
-// 	widgetType	the GType of a descendant of Widget
-// 	propertyName	the name of the style property to get
-// 	value	a GValue where the value of the property being
-// queried will be stored
-func (s *CStyle) GetStyleProperty(widgetType cdk.CTypeTag, propertyName string) (value interface{}) {
-	return
-}
-
-// Non-vararg variant of Get. Used primarily by language
-// bindings.
-// Parameters:
-// 	widgetType	the GType of a descendant of Widget
-// 	firstPropertyName	the name of the first style property to get
-// 	varArgs	a va_list of pairs of property names and
-// locations to return the property values, starting with the
-// location for first_property_name
-// .
-// func (s *CStyle) GetValist(widgetType GType, firstPropertyName string, varArgs va_list) {}
-
-// Gets the values of a multiple style properties for widget_type from style
-// .
-// Parameters:
-// 	widgetType	the GType of a descendant of Widget
-// 	firstPropertyName	the name of the first style property to get
-// 	varargs	pairs of property names and locations to
-// return the property values, starting with the location for
-// first_property_name
-// , terminated by NULL.
-// func (s *CStyle) Get(widgetType GType, firstPropertyName string, argv ...interface{}) {}
 
 // Draws an arrow in the given rectangle on window using the given
 // parameters. arrow_type determines the direction of the arrow.
@@ -541,42 +422,3 @@ func (s *CStyle) PaintExpander(window Window, stateType StateType, area ptypes.R
 // 	height	the height of the rectangle in which to draw the resize grip
 func (s *CStyle) PaintResizeGrip(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, edge WindowEdge, x int, y int, width int, height int) {
 }
-
-// // Allocates a new Border structure and initializes its elements to zero.
-// // Returns:
-// // 	a new empty Border. The newly allocated Border should be
-// // 	freed with BorderFree
-// func (s *CStyle) BorderNew() (value Border) {
-// 	return nil
-// }
-//
-// // Copies a Border structure.
-// // Parameters:
-// // 	border	a Border.
-// // 	returns	a copy of border_
-// // .
-// func (s *CStyle) BorderCopy(border paint.Border) (value paint.Border) {
-// 	return nil
-// }
-//
-// // Frees a Border structure.
-// // Parameters:
-// // 	border	a Border.
-// func (s *CStyle) BorderFree(border paint.Border) {}
-//
-// // func (s *CStyle) GtkRcPropertyParser(pspec GParamSpec, rcString GString, propertyValue GValue) (value bool) {
-// // 	return false
-// // }
-
-// Emitted when the style has been initialized for a particular colormap and
-// depth. Connecting to this signal is probably seldom useful since most of
-// the time applications and widgets only deal with styles that have been
-// already realized.
-const SignalStyleRealize cdk.Signal = "realize"
-
-// Emitted when the aspects of the style specific to a particular colormap
-// and depth are being cleaned up. A connection to this signal can be useful
-// if a widget wants to cache objects like a GC as object data on
-// Style. This signal provides a convenient place to free such cached
-// objects.
-const SignalStyleUnrealize cdk.Signal = "unrealize"
