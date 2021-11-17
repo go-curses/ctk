@@ -16,6 +16,7 @@ package ctk
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
@@ -46,19 +47,19 @@ type Object interface {
 	HasPoint(p *ptypes.Point2I) (contains bool)
 	Invalidate() enums.EventFlag
 	ProcessEvent(evt cdk.Event) enums.EventFlag
-	Draw() enums.EventFlag
 	Resize() enums.EventFlag
 	GetTextDirection() (direction TextDirection)
 	SetTextDirection(direction TextDirection)
 	CssSelector() (selector string)
-	InstallCssProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) (err error)
-	GetCssProperty(name cdk.Property) (property *cdk.CProperty)
-	GetCssProperties() (properties []*cdk.CProperty)
-	GetCssBool(name cdk.Property) (value bool, err error)
-	GetCssString(name cdk.Property) (value string, err error)
-	GetCssInt(name cdk.Property) (value int, err error)
-	GetCssFloat(name cdk.Property) (value float64, err error)
-	GetCssColor(name cdk.Property) (value paint.Color, err error)
+	InstallCssProperty(name cdk.Property, state StateType, kind cdk.PropertyType, write bool, def interface{}) (err error)
+	SetCssPropertyFromStyle(key, value string) (err error)
+	GetCssProperty(name cdk.Property, state StateType) (property *CStyleProperty)
+	GetCssProperties() (properties map[StateType][]*CStyleProperty)
+	GetCssBool(name cdk.Property, state StateType) (value bool, err error)
+	GetCssString(name cdk.Property, state StateType) (value string, err error)
+	GetCssInt(name cdk.Property, state StateType) (value int, err error)
+	GetCssFloat(name cdk.Property, state StateType) (value float64, err error)
+	GetCssColor(name cdk.Property, state StateType) (value paint.Color, err error)
 }
 
 // The CObject structure implements the Object interface and is exported
@@ -71,7 +72,7 @@ type CObject struct {
 	origin        *ptypes.Point2I
 	allocation    *ptypes.Rectangle
 	textDirection TextDirection
-	css           map[cdk.Property]*cdk.CProperty
+	css           map[StateType]map[cdk.Property]*CStyleProperty
 }
 
 // Init initializes an Object instance. This must be called at least once to
@@ -87,32 +88,8 @@ func (o *CObject) Init() (already bool) {
 	o.CObject.Init()
 	o.origin = &ptypes.Point2I{}
 	o.allocation = &ptypes.Rectangle{}
-	o.css = make(map[cdk.Property]*cdk.CProperty)
+	o.css = make(map[StateType]map[cdk.Property]*CStyleProperty)
 	_ = o.InstallProperty(PropertyParent, cdk.StructProperty, true, nil)
-	_ = o.InstallCssProperty(PropertyClass, cdk.StringProperty, true, "")
-	_ = o.InstallCssProperty(PropertyWidth, cdk.IntProperty, true, -1)
-	_ = o.InstallCssProperty(PropertyHeight, cdk.IntProperty, true, -1)
-	_ = o.InstallCssProperty(PropertyColor, cdk.ColorProperty, true, "#ffffff")
-	_ = o.InstallCssProperty(PropertyBackgroundColor, cdk.ColorProperty, true, "#000000")
-	_ = o.InstallCssProperty(PropertyBackgroundFillContent, cdk.StringProperty, true, " ")
-	_ = o.InstallCssProperty(PropertyBorder, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyBorderColor, cdk.ColorProperty, true, "#ffffff")
-	_ = o.InstallCssProperty(PropertyBorderBackgroundColor, cdk.ColorProperty, true, "#000000")
-	_ = o.InstallCssProperty(PropertyBold, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyBlink, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyReverse, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyUnderline, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyDim, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyItalic, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyStrike, cdk.BoolProperty, true, false)
-	_ = o.InstallCssProperty(PropertyBorderTopLeftContent, cdk.StringProperty, true, "+")
-	_ = o.InstallCssProperty(PropertyBorderTopContent, cdk.StringProperty, true, "-")
-	_ = o.InstallCssProperty(PropertyBorderTopRightContent, cdk.StringProperty, true, "+")
-	_ = o.InstallCssProperty(PropertyBorderLeftContent, cdk.StringProperty, true, "|")
-	_ = o.InstallCssProperty(PropertyBorderRightContent, cdk.StringProperty, true, "|")
-	_ = o.InstallCssProperty(PropertyBorderBottomLeftContent, cdk.StringProperty, true, "+")
-	_ = o.InstallCssProperty(PropertyBorderBottomContent, cdk.StringProperty, true, "-")
-	_ = o.InstallCssProperty(PropertyBorderBottomRightContent, cdk.StringProperty, true, "+")
 	return false
 }
 
@@ -146,7 +123,7 @@ func (o *CObject) Build(builder Builder, element *CBuilderElement) error {
 }
 
 // ObjectInfo is a convenience method to return a string identifying the Object
-// instance with it's type, unique identifier, name if set (see SetName()), the
+// instance with its type, unique identifier, name if set (see SetName()), the
 // origin point and current size allocation.
 func (o *CObject) ObjectInfo() string {
 	info := fmt.Sprintf("%v %v,%v %v", o.ObjectID(), o.origin, o.GetAllocation(), o.ObjectName())
@@ -198,8 +175,8 @@ func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 	return nil
 }
 
-// HasPoint determines whether or not the given point is within the Object's
-// display space bounds.
+// HasPoint determines whether the given point is within the Object's display
+// space bounds.
 func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 	origin := o.GetOrigin()
 	size := o.GetAllocation()
@@ -224,14 +201,6 @@ func (o *CObject) Invalidate() enums.EventFlag {
 // CObject.
 func (o *CObject) ProcessEvent(evt cdk.Event) enums.EventFlag {
 	return o.Emit(SignalCdkEvent, o, evt)
-}
-
-// Draw emits a draw signal, primarily used to render canvases and cause user
-// facing display updates. Signal listeners can draw to the surface and return
-// EVENT_STOP to cause those changes to be composited upon the larger display
-// surface.
-func (o *CObject) Draw() enums.EventFlag {
-	return o.Emit(SignalDraw, o, nil)
 }
 
 // Resize emits a resize signal, primarily used to make adjustments or otherwise
@@ -273,26 +242,44 @@ func (o *CObject) CssSelector() (selector string) {
 // property list.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) InstallCssProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) (err error) {
+func (o *CObject) InstallCssProperty(name cdk.Property, state StateType, kind cdk.PropertyType, write bool, def interface{}) (err error) {
 	switch kind {
 	case cdk.BoolProperty, cdk.StringProperty, cdk.IntProperty, cdk.FloatProperty, cdk.ColorProperty:
 	default:
 		return fmt.Errorf("unsupported css property type: %v", kind)
 	}
-	if existing := o.GetCssProperty(name); existing != nil {
+	if existing := o.GetCssProperty(name, state); existing != nil {
 		return fmt.Errorf("property exists: %v", name)
 	}
-	o.css[name] = cdk.NewProperty(name, kind, write, false, def)
+	if _, ok := o.css[state]; !ok {
+		o.css[state] = make(map[cdk.Property]*CStyleProperty)
+	}
+	o.css[state][name] = NewStyleProperty(name, state, kind, write, false, def)
 	return nil
+}
+
+func (o *CObject) SetCssPropertyFromStyle(key, value string) (err error) {
+	state := StateNormal
+	if strings.Contains(key, ":") {
+		parts := strings.Split(key, ":")
+		state = StateTypeFromString(parts[1])
+		key = parts[0]
+	}
+	if property, ok := o.css[state][cdk.Property(key)]; ok {
+		err = property.SetFromString(value)
+	} else {
+		err = fmt.Errorf("css property not found: %v", key)
+	}
+	return
 }
 
 // GetCssProperty returns the cdk.Property instance of the property found with
 // the name given, returning `nil` if no property by the name given is found.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssProperty(name cdk.Property) (property *cdk.CProperty) {
+func (o *CObject) GetCssProperty(name cdk.Property, state StateType) (property *CStyleProperty) {
 	var ok bool
-	if property, ok = o.css[name]; !ok {
+	if property, ok = o.css[state][name]; !ok {
 		property = nil
 	}
 	return
@@ -301,9 +288,13 @@ func (o *CObject) GetCssProperty(name cdk.Property) (property *cdk.CProperty) {
 // GetCssProperties returns all the installed CSS properties for the Object.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssProperties() (properties []*cdk.CProperty) {
-	for _, v := range o.css {
-		properties = append(properties, v)
+func (o *CObject) GetCssProperties() (properties map[StateType][]*CStyleProperty) {
+	properties = make(map[StateType][]*CStyleProperty)
+	for s, _ := range o.css {
+		properties[s] = make([]*CStyleProperty, len(o.css[s]))
+		for _, v := range o.css[s] {
+			properties[s] = append(properties[s], v)
+		}
 	}
 	return
 }
@@ -312,8 +303,8 @@ func (o *CObject) GetCssProperties() (properties []*cdk.CProperty) {
 // given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssValue(name cdk.Property) (value interface{}) {
-	if v, ok := o.css[name]; ok {
+func (o *CObject) GetCssValue(name cdk.Property, state StateType) (value interface{}) {
+	if v, ok := o.css[state][name]; ok {
 		value = v.Value()
 	}
 	return
@@ -323,8 +314,8 @@ func (o *CObject) GetCssValue(name cdk.Property) (value interface{}) {
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssBool(name cdk.Property) (value bool, err error) {
-	if prop := o.GetCssProperty(name); prop != nil {
+func (o *CObject) GetCssBool(name cdk.Property, state StateType) (value bool, err error) {
+	if prop := o.GetCssProperty(name, state); prop != nil {
 		if prop.Type() == cdk.BoolProperty {
 			if v, ok := prop.Value().(bool); ok {
 				return v, nil
@@ -344,8 +335,8 @@ func (o *CObject) GetCssBool(name cdk.Property) (value bool, err error) {
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssString(name cdk.Property) (value string, err error) {
-	if prop := o.GetCssProperty(name); prop != nil {
+func (o *CObject) GetCssString(name cdk.Property, state StateType) (value string, err error) {
+	if prop := o.GetCssProperty(name, state); prop != nil {
 		if prop.Type() == cdk.StringProperty {
 			if v, ok := prop.Value().(string); ok {
 				return v, nil
@@ -365,8 +356,8 @@ func (o *CObject) GetCssString(name cdk.Property) (value string, err error) {
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssInt(name cdk.Property) (value int, err error) {
-	if prop := o.GetCssProperty(name); prop != nil {
+func (o *CObject) GetCssInt(name cdk.Property, state StateType) (value int, err error) {
+	if prop := o.GetCssProperty(name, state); prop != nil {
 		if prop.Type() == cdk.IntProperty {
 			if v, ok := prop.Value().(int); ok {
 				return v, nil
@@ -386,8 +377,8 @@ func (o *CObject) GetCssInt(name cdk.Property) (value int, err error) {
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssFloat(name cdk.Property) (value float64, err error) {
-	if prop := o.GetCssProperty(name); prop != nil {
+func (o *CObject) GetCssFloat(name cdk.Property, state StateType) (value float64, err error) {
+	if prop := o.GetCssProperty(name, state); prop != nil {
 		if prop.Type() == cdk.FloatProperty {
 			if v, ok := prop.Value().(float64); ok {
 				return v, nil
@@ -407,8 +398,8 @@ func (o *CObject) GetCssFloat(name cdk.Property) (value float64, err error) {
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssColor(name cdk.Property) (value paint.Color, err error) {
-	if prop := o.GetCssProperty(name); prop != nil {
+func (o *CObject) GetCssColor(name cdk.Property, state StateType) (value paint.Color, err error) {
+	if prop := o.GetCssProperty(name, state); prop != nil {
 		if prop.Type() == cdk.ColorProperty {
 			if v, ok := prop.Value().(paint.Color); ok {
 				return v, nil
@@ -424,33 +415,4 @@ func (o *CObject) GetCssColor(name cdk.Property) (value paint.Color, err error) 
 	return
 }
 
-// grouping label
-const PropertyClass cdk.Property = "class"
-
-// convenience wrapper for cdk.PropertyDebug
 const PropertyDebug cdk.Property = cdk.PropertyDebug
-
-// css properties
-const PropertyWidth cdk.Property = "width"
-const PropertyHeight cdk.Property = "height"
-const PropertyColor cdk.Property = "color"
-const PropertyBackgroundColor cdk.Property = "background-color"
-const PropertyBackgroundFillContent cdk.Property = "background-fill-content"
-const PropertyBorder cdk.Property = "border"
-const PropertyBorderColor cdk.Property = "border-color"
-const PropertyBorderBackgroundColor cdk.Property = "border-background-color"
-const PropertyBold cdk.Property = "bold"
-const PropertyBlink cdk.Property = "blink"
-const PropertyReverse cdk.Property = "reverse"
-const PropertyUnderline cdk.Property = "underline"
-const PropertyDim cdk.Property = "dim"
-const PropertyItalic cdk.Property = "italic"
-const PropertyStrike cdk.Property = "strike"
-const PropertyBorderTopLeftContent cdk.Property = "border-top-left-content"
-const PropertyBorderTopContent cdk.Property = "border-top-content"
-const PropertyBorderTopRightContent cdk.Property = "border-top-right-content"
-const PropertyBorderBottomLeftContent cdk.Property = "border-bottom-left-content"
-const PropertyBorderBottomRightContent cdk.Property = "border-bottom-right-content"
-const PropertyBorderLeftContent cdk.Property = "border-left-content"
-const PropertyBorderRightContent cdk.Property = "border-right-content"
-const PropertyBorderBottomContent cdk.Property = "border-bottom-content"
