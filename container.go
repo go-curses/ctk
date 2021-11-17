@@ -499,7 +499,7 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitly
 	}
 	for _, child := range c.children {
 		if cc, ok := child.(Container); ok {
-			if cc.CanFocus() && cc.IsVisible() {
+			if cc.CanFocus() && cc.IsVisible() && cc.IsSensitive() {
 				focusableWidgets = append(focusableWidgets, child)
 				continue
 			}
@@ -507,7 +507,7 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitly
 			for _, cChild := range fc {
 				focusableWidgets = append(focusableWidgets, cChild)
 			}
-		} else if child.CanFocus() && child.IsVisible() {
+		} else if child.CanFocus() && child.IsVisible() && cc.IsSensitive() {
 			focusableWidgets = append(focusableWidgets, child)
 		}
 	}
