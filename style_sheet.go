@@ -5,7 +5,6 @@ package ctk
 import (
 	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/tdewolff/parse/v2"
 	tcss "github.com/tdewolff/parse/v2/css"
@@ -46,7 +45,7 @@ func (s cStyleSheet) String() string {
 }
 
 func (s *cStyleSheet) ApplyStylesTo(w Widget) {
-	selector := w.CssSelector()
+	selector := w.CssFullPath()
 	styles := s.SelectProperties(selector)
 	for s, _ := range styles {
 		for k, v := range styles[s] {
@@ -58,24 +57,19 @@ func (s *cStyleSheet) ApplyStylesTo(w Widget) {
 }
 
 func (s *cStyleSheet) SelectProperties(path string) (properties map[string]map[string]*StyleSheetProperty) {
-	// TODO: figure out how to resolve CSS selectors with parents (" " and ">")
-	if index := strings.Index(path, ">"); index > -1 {
-		path = path[index:]
-	}
 	properties = make(map[string]map[string]*StyleSheetProperty)
 	selector := newStyleSheetSelectorFromPath(path)
 	for _, rule := range s.Rules {
 		rSelect := rule.Selector
-		if index := strings.Index(rSelect, ">"); index > -1 {
-			rSelect = rSelect[index:]
-		}
-		partSelector := newStyleSheetSelectorFromPath(rSelect)
-		if selector.Match(partSelector) {
-			for _, elem := range rule.Properties {
-				if _, ok := properties[partSelector.State]; !ok {
-					properties[partSelector.State] = make(map[string]*StyleSheetProperty)
+		grouped := parseStyleSheetSelectorGroup(rSelect)
+		for _, gSelector := range grouped {
+			if selector.Match(gSelector) {
+				for _, elem := range rule.Properties {
+					if _, ok := properties[gSelector.State]; !ok {
+						properties[gSelector.State] = make(map[string]*StyleSheetProperty)
+					}
+					properties[gSelector.State][elem.Key] = elem
 				}
-				properties[partSelector.State][elem.Key] = elem
 			}
 		}
 	}
@@ -170,10 +164,15 @@ func (s *cStyleSheet) recurseRule(tt tcss.TokenType, data []byte) (cssRule *Styl
 		case tcss.RightBraceToken:
 			return // end of rule block
 		case tcss.WhitespaceToken:
+			cssRule.Selector += " "
 			tt, data = s.Lexer.Next()
 			continue // nop
 		case tcss.LeftBracketToken, tcss.RightBracketToken, tcss.CommentToken, tcss.DelimToken, tcss.HashToken, tcss.ColonToken, tcss.NumberToken, tcss.IdentToken:
 			cssRule.Selector += string(data)
+			tt, data = s.Lexer.Next()
+			continue // key / value parsing
+		case tcss.CommaToken:
+			cssRule.Selector += ","
 			tt, data = s.Lexer.Next()
 			continue // key / value parsing
 		default:
