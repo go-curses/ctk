@@ -21,8 +21,10 @@ var (
 	DefaultButtonTheme = paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick).Dim(true).Bold(false),
-			Focused:     paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
+			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true).Reverse(true),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false),
+			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorRosyBrown).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
 			ArrowRunes:  paint.DefaultArrowRune,
@@ -30,8 +32,10 @@ var (
 		},
 		Border: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick).Dim(true).Bold(false),
-			Focused:     paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
+			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true).Reverse(true),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false),
+			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorRosyBrown).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
 			ArrowRunes:  paint.DefaultArrowRune,
@@ -90,12 +94,11 @@ type Button interface {
 	GetPressed() bool
 	SetPressed(pressed bool)
 	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
-	GrabFocus()
-	GrabEventFocus()
 	CancelEvent()
 	GetWidgetAt(p *ptypes.Point2I) Widget
-	GetThemeRequest() (theme paint.Theme)
 	GetSizeRequest() (width, height int)
+	GrabFocus()
+	GrabEventFocus()
 }
 
 // The CButton structure implements the Button interface and is exported to
@@ -209,8 +212,6 @@ func (b *CButton) Init() (already bool) {
 	_ = b.InstallBuildableProperty(PropertyXAlign, cdk.FloatProperty, true, 0.5)
 	_ = b.InstallBuildableProperty(PropertyYAlign, cdk.FloatProperty, true, 0.5)
 	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)
-	b.Connect(SignalLostFocus, ButtonLostFocusHandle, b.lostFocus)
-	b.Connect(SignalGainedFocus, ButtonGainedFocusHandle, b.gainedFocus)
 	b.Connect(SignalCdkEvent, ButtonCdkEventHandle, b.event)
 	b.Connect(SignalInvalidate, ButtonInvalidateHandle, b.invalidate)
 	b.Connect(SignalResize, ButtonResizeHandle, b.resize)
@@ -534,12 +535,14 @@ func (b *CButton) GetPressed() bool {
 // Button is flagged as not being pressed and a SignalReleased is emitted.
 func (b *CButton) SetPressed(pressed bool) {
 	b.pressed = pressed
-	b.Invalidate()
 	if pressed {
+		b.SetState(StateActive)
 		b.Emit(SignalPressed)
 	} else {
+		b.UnsetState(StateActive)
 		b.Emit(SignalReleased)
 	}
+	b.Invalidate()
 }
 
 // GetFocusChain overloads the Container.GetFocusChain to always return the
@@ -554,41 +557,50 @@ func (b *CButton) GetFocusChain() (focusableWidgets []interface{}, explicitlySet
 // the newly focused Widget will emit a gained-focus signal. This method emits a
 // grab-focus signal initially and if the listeners return EVENT_PASS, the
 // changes are applied.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
 func (b *CButton) GrabFocus() {
-	if b.CanFocus() {
+	if b.CanFocus() && b.IsVisible() && b.IsSensitive() {
 		if r := b.Emit(SignalGrabFocus, b); r == enums.EVENT_PASS {
-			tl := b.GetWindow()
-			if tl != nil {
-				var fw Widget
-				focused := tl.GetFocus()
+			if tl := b.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if fw, ok := focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
+						fw.Emit(SignalLostFocus)
+						fw.UnsetState(StateSelected)
+						fw.Invalidate()
+						fw.LogDebug("has lost focus")
+					}
+				}
 				tl.SetFocus(b)
-				if focused != nil {
-					var ok bool
-					if fw, ok = focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
-						if f := fw.Emit(SignalLostFocus, fw); f == enums.EVENT_STOP {
-							fw = nil
-						}
-					}
-				}
-				if f := b.Emit(SignalGainedFocus, b, fw); f == enums.EVENT_STOP {
-					if fw != nil {
-						tl.SetFocus(fw)
-					}
-				}
+				b.Emit(SignalGainedFocus)
+				b.SetState(StateSelected)
+				b.Invalidate()
 				b.LogDebug("has taken focus")
 			}
 		}
+	} else {
+		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
 // GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
 // return enums.EVENT_PASS will set the Button instance as the Window event
 // focus handler.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
 func (b *CButton) GrabEventFocus() {
 	if window := b.GetWindow(); window != nil {
 		if f := b.Emit(SignalGrabEventFocus, b, window); f == enums.EVENT_PASS {
 			window.SetEventFocus(b)
 		}
+	} else {
+		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
@@ -610,23 +622,6 @@ func (b *CButton) GetWidgetAt(p *ptypes.Point2I) Widget {
 		return b
 	}
 	return nil
-}
-
-// GetThemeRequest returns the current theme for the Button, reflecting the
-// pressed state of the Button. This method is only to be used within draw
-// signal handlers to render the current state of the Button.
-func (b *CButton) GetThemeRequest() (theme paint.Theme) {
-	theme = b.CWidget.GetThemeRequest()
-	if b.GetPressed() {
-		theme.Content.Normal = theme.Content.Active
-		theme.Content.Focused = theme.Content.Active
-		theme.Border.Normal = theme.Border.Active
-		theme.Border.Focused = theme.Border.Active
-	} else if b.IsFocused() {
-		theme.Content.Normal = theme.Content.Focused
-		theme.Border.Normal = theme.Border.Focused
-	}
-	return
 }
 
 // GetSizeRequest returns the requested size of the Drawable Widget. This method
@@ -757,6 +752,7 @@ func (b *CButton) invalidate(data []interface{}, argv ...interface{}) enums.Even
 	if child := b.GetChild(); child != nil {
 		theme := b.GetThemeRequest()
 		child.SetTheme(theme)
+		child.Invalidate()
 	}
 	return enums.EVENT_STOP
 }
@@ -811,7 +807,7 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		defer b.Unlock()
 		size := b.GetAllocation()
 		if !b.IsVisible() || size.W <= 0 || size.H <= 0 {
-			b.LogTrace("Draw(%v): not visible, zero width or zero height", surface)
+			b.LogTrace("not visible, zero width or zero height", surface)
 			surface.Fill(b.GetTheme())
 			return enums.EVENT_STOP
 		}
@@ -918,6 +914,18 @@ const PropertyUseUnderline cdk.Property = "use-underline"
 // connect to this signal, but use the clicked signal.
 // const SignalActivate cdk.Signal = "activate"
 
+// The ::button-press-event signal will be emitted when a button (typically
+// from a mouse) is pressed. To receive this signal, the Window associated
+// to the widget needs to enable the GDK_BUTTON_PRESS_MASK mask. This signal
+// will be sent to the grab widget if there is one.
+const SignalButtonPressEvent cdk.Signal = "button-press-event"
+
+// The ::button-release-event signal will be emitted when a button (typically
+// from a mouse) is released. To receive this signal, the Window
+// associated to the widget needs to enable the GDK_BUTTON_RELEASE_MASK mask.
+// This signal will be sent to the grab widget if there is one.
+const SignalButtonReleaseEvent cdk.Signal = "button-release-event"
+
 // Emitted when the button has been activated (pressed and released).
 const SignalClicked cdk.Signal = "clicked"
 
@@ -934,10 +942,6 @@ const SignalPressed cdk.Signal = "pressed"
 const SignalReleased cdk.Signal = "released"
 
 const ButtonSetPropertyHandle = "button-set-property-handler"
-
-const ButtonLostFocusHandle = "button-lost-focus-handler"
-
-const ButtonGainedFocusHandle = "button-gained-focus-handler"
 
 const ButtonCdkEventHandle = "button-cdk-event-handler"
 
