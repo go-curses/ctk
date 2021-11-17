@@ -2,21 +2,42 @@ package ctk
 
 import (
 	"regexp"
+	"strings"
 )
 
 type StyleSheetSelector struct {
-	Name  string
-	Type  string
-	Class string
-	State string
+	Name    string
+	Type    string
+	Class   string
+	State   string
+	Parents []string
+}
+
+func parseStyleSheetSelectorGroup(path string) (selectors []*StyleSheetSelector) {
+	if rxSelectorGroup.MatchString(path) {
+		parts := rxSelectorGroup.Split(path, -1)
+		for _, part := range parts {
+			selectors = append(selectors, newStyleSheetSelectorFromPath(part))
+		}
+	} else {
+		selectors = append(selectors, newStyleSheetSelectorFromPath(path))
+	}
+	return
 }
 
 func newStyleSheetSelectorFromPath(path string) (selector *StyleSheetSelector) {
 	selector = &StyleSheetSelector{
-		Name:  "",
-		Type:  "",
-		Class: "",
-		State: "normal",
+		Name:    "",
+		Type:    "",
+		Class:   "",
+		State:   "normal",
+		Parents: []string{},
+	}
+	path = strings.TrimSpace(path)
+	parts := rxSelectorParents.Split(path, -1)
+	if num := len(parts); num > 1 {
+		path = parts[num-1]
+		selector.Parents = append(selector.Parents, parts[:num-1]...)
 	}
 	altered := path
 	if rxSelectorName.MatchString(path) {
@@ -96,11 +117,35 @@ func (s StyleSheetSelector) Match(selector *StyleSheetSelector) (match bool) {
 			return false
 		}
 	}
+	if wantNum := len(selector.Parents); wantNum > 0 {
+		if haveNum := len(s.Parents); haveNum > 0 {
+			if wantNum > haveNum {
+				// more wanted than have
+				return false
+			}
+			for i := wantNum - 1; i >= 0; i-- {
+				check := selector.Parents[i]
+				ok := false
+				for j := haveNum - 1; j >= 0; j-- {
+					if s.Parents[j] == check {
+						ok = true
+						break
+					}
+				}
+				if !ok {
+					// missing at least one parent
+					return false
+				}
+			}
+		}
+	}
 	return (!wClass || (wClass && mClass)) && (!wType || (wType && mType)) && (!wName || (wName && mName))
 }
 
 var (
-	rxSelectorName  = regexp.MustCompile(`#([a-zA-Z][-_a-zA-Z0-9]+)`)
-	rxSelectorClass = regexp.MustCompile(`\.([a-zA-Z][-_a-zA-Z0-9]+)`)
-	rxSelectorState = regexp.MustCompile(`:([a-zA-Z][-_a-zA-Z0-9]+)`)
+	rxSelectorName    = regexp.MustCompile(`#([a-zA-Z][-_a-zA-Z0-9]+)`)
+	rxSelectorClass   = regexp.MustCompile(`\.([a-zA-Z][-_a-zA-Z0-9]+)`)
+	rxSelectorState   = regexp.MustCompile(`:([a-zA-Z][-_a-zA-Z0-9]+)`)
+	rxSelectorGroup   = regexp.MustCompile(`\s*,\s*`)
+	rxSelectorParents = regexp.MustCompile(`\s*[\s>]+\s*`)
 )
