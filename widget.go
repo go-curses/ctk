@@ -10,7 +10,6 @@ import (
 	"github.com/go-curses/cdk/memphis"
 )
 
-// CDK type-tag for Widget objects
 const TypeWidget cdk.CTypeTag = "ctk-widget"
 
 func init() {
@@ -36,24 +35,7 @@ func init() {
 //	    +- Progress
 //
 // Widget is the base class all widgets in CTK derive from. It manages the
-// widget lifecycle, states and style. Widget introduces style properties -
-// these are basically object properties that are stored not on the object, but
-// in the style object associated to the widget. Style properties are set in
-// resource files. This mechanism is used for configuring such things as the
-// location of the scrollbar arrows through the theme, giving theme authors more
-// control over the look of applications without the need to write a theme
-// engine. Use InstallStyleProperty to install style properties for a Widget,
-// FindStyleProperty or ListStyleProperties to get information about existing
-// style properties and Style.GetProperty() or Style.Get() to obtain the value
-// of a style property. The Widget implementation of the Buildable interface
-// supports a custom <accelerator> element, which has attributes named key,
-// modifiers and signal and allows developers to specify accelerators.
-//
-// Note that usage of Style mentioned above is unimplemented at this time, the
-// comment is left here as a reminder of what it should be doing. Currently,
-// the ctk.Style is not used at all and instead, the paint.Style and paint.Theme
-// from CDK are used throughout. To change the style of a Widget, construct a
-// new paint.Theme structure and apply it to the Widget with SetTheme().
+// widget lifecycle, states and style.
 type Widget interface {
 	Object
 
@@ -63,22 +45,15 @@ type Widget interface {
 	Show()
 	Hide()
 	ShowAll()
-	Map()
-	Unmap()
-	Realize()
-	Unrealize()
 	AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods ModifierType, accelFlags AccelFlags)
 	RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods ModifierType) (value bool)
 	SetAccelPath(accelPath string, accelGroup AccelGroup)
 	CanActivateAccel(signalId int) (value bool)
 	Activate() (value bool)
 	Reparent(parent Container)
-	Intersect(area ptypes.Rectangle, intersection ptypes.Rectangle) (value bool)
 	IsFocus() (value bool)
 	GrabFocus()
 	GrabDefault()
-	SetName(name string)
-	GetName() (value string)
 	SetState(state StateType)
 	SetSensitive(sensitive bool)
 	SetParent(parent Container)
@@ -92,12 +67,6 @@ type Widget interface {
 	GetPointer(x int, y int)
 	IsAncestor(ancestor Widget) (value bool)
 	TranslateCoordinates(destWidget Widget, srcX int, srcY int, destX int, destY int) (value bool)
-	HideOnDelete() (value bool)
-	SetStyle(style Style)
-	EnsureStyle()
-	GetStyle() (value Style)
-	ResetRcStyles()
-	GetDefaultStyle() (value Style)
 	SetDirection(dir TextDirection)
 	GetDirection() (value TextDirection)
 	SetDefaultDirection(dir TextDirection)
@@ -105,18 +74,9 @@ type Widget interface {
 	Path() (path string)
 	ClassPath(pathLength int, path string, pathReversed string)
 	GetCompositeName() (value string)
-	ModifyStyle(style RcStyle)
-	GetModifierStyle() (value RcStyle)
-	ModifyFg(state StateType, color paint.Color)
-	ModifyBg(state StateType, color paint.Color)
-	ModifyText(state StateType, color paint.Color)
-	ModifyBase(state StateType, color paint.Color)
 	SetAppPaintable(appPaintable bool)
-	SetDoubleBuffered(doubleBuffered bool)
-	SetRedrawOnAllocate(redrawOnAllocate bool)
 	SetCompositeName(name string)
 	SetScrollAdjustments(hAdjustment Adjustment, vAdjustment Adjustment) (value bool)
-	RegionIntersect(region ptypes.Region) (value ptypes.Region)
 	SendExpose(event cdk.Event) (value int)
 	SendFocusChange(event cdk.Event) (value bool)
 	ChildFocus(direction DirectionType) (value bool)
@@ -130,14 +90,11 @@ type Widget interface {
 	HasScreen() (value bool)
 	GetSizeRequest() (width, height int)
 	SizeRequest() ptypes.Rectangle
-	SetChildVisible(isVisible bool)
 	SetSizeRequest(width, height int)
-	ThawChildNotify()
 	SetNoShowAll(noShowAll bool)
 	GetNoShowAll() (value bool)
 	AddMnemonicLabel(label Widget)
 	RemoveMnemonicLabel(label Widget)
-	IsComposited() (value bool)
 	ErrorBell()
 	KeynavFailed(direction DirectionType) (value bool)
 	GetTooltipMarkup() (value string)
@@ -155,9 +112,7 @@ type Widget interface {
 	SetCanDefault(canDefault bool)
 	GetCanFocus() (value bool)
 	SetCanFocus(canFocus bool)
-	GetDoubleBuffered() (value bool)
 	GetHasWindow() (value bool)
-	SetHasWindow(hasWindow bool)
 	GetSensitive() (value bool)
 	IsSensitive() bool
 	GetState() (value StateType)
@@ -166,16 +121,11 @@ type Widget interface {
 	HasDefault() (value bool)
 	HasFocus() (value bool)
 	HasGrab() (value bool)
-	HasRcStyle() (value bool)
 	IsDrawable() (value bool)
 	IsToplevel() (value bool)
 	SetWindow(window Window)
 	SetReceivesDefault(receivesDefault bool)
 	GetReceivesDefault() (value bool)
-	SetRealized(realized bool)
-	GetRealized() (value bool)
-	SetMapped(mapped bool)
-	GetMapped() (value bool)
 	GetThemeRequest() (theme paint.Theme)
 	SetTheme(theme paint.Theme)
 	HasState(s StateType) bool
@@ -229,7 +179,6 @@ func (w *CWidget) Init() (already bool) {
 	_ = w.InstallProperty(PropertyCompositeChild, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyDoubleBuffered, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyEvents, cdk.StructProperty, true, cdk.EVENT_MASK_NONE)
-	// _ = w.InstallProperty(PropertyExtensionEvents, cdk.StructProperty, true, nil)
 	_ = w.InstallProperty(PropertyHasDefault, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyHasFocus, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyHasTooltip, cdk.BoolProperty, true, false)
@@ -239,7 +188,6 @@ func (w *CWidget) Init() (already bool) {
 	_ = w.InstallProperty(PropertyParent, cdk.StructProperty, true, nil)
 	_ = w.InstallProperty(PropertyReceivesDefault, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertySensitive, cdk.BoolProperty, true, true)
-	_ = w.InstallProperty(PropertyStyle, cdk.StructProperty, true, &CStyle{})
 	_ = w.InstallProperty(PropertyTooltipMarkup, cdk.StringProperty, true, "")
 	_ = w.InstallProperty(PropertyTooltipText, cdk.StringProperty, true, "")
 	_ = w.InstallProperty(PropertyVisible, cdk.BoolProperty, true, false)
@@ -319,35 +267,6 @@ func (w *CWidget) Hide() {
 func (w *CWidget) ShowAll() {
 	w.Show()
 }
-
-// This function is only for use in widget implementations. Causes a widget
-// to be mapped if it isn't already.
-//
-func (w *CWidget) Map() {}
-
-// This function is only for use in widget implementations. Causes a widget
-// to be unmapped if it's currently mapped.
-func (w *CWidget) Unmap() {}
-
-// Creates the GDK (windowing system) resources associated with a widget. For
-// example, widget->window will be created when a widget is realized.
-// Normally realization happens implicitly; if you show a widget and all its
-// parent containers, then the widget will be realized and mapped
-// automatically. Realizing a widget requires all the widget's parent widgets
-// to be realized; calling Realize realizes the widget's parents
-// in addition to widget itself. If a widget is not yet inside a toplevel
-// window when you realize it, bad things will happen. This function is
-// primarily used in widget implementations, and isn't very useful otherwise.
-// Many times when you think you might need it, a better approach is to
-// connect to a signal that will be called after the widget is realized
-// automatically, such as Widget::expose-event. Or simply
-// g_signal_connect to the Widget::realize signal.
-func (w *CWidget) Realize() {}
-
-// This function is only useful in widget implementations. Causes a widget to
-// be unrealized (frees all GDK resources associated with the widget, such as
-// widget->window ).
-func (w *CWidget) Unrealize() {}
 
 // Installs an accelerator for this widget in accel_group that causes
 // accel_signal to be emitted if the accelerator is activated. The
@@ -445,21 +364,6 @@ func (w *CWidget) Reparent(parent Container) {
 	}
 }
 
-// Computes the intersection of a widget 's area and area , storing the
-// intersection in intersection , and returns TRUE if there was an
-// intersection. intersection may be NULL if you're only interested in
-// whether there was an intersection.
-// Parameters:
-// 	area	a rectangle
-// 	intersection	rectangle to store intersection of widget
-// and area
-//
-// Returns:
-// 	TRUE if there was an intersection
-func (w *CWidget) Intersect(area ptypes.Rectangle, intersection ptypes.Rectangle) (value bool) {
-	return false
-}
-
 // Determines if the widget is the focus widget within its toplevel. (This
 // does not mean that the HAS_FOCUS flag is necessarily set; HAS_FOCUS will
 // only be set if the toplevel widget additionally has the global input
@@ -533,49 +437,6 @@ func (w *CWidget) GrabFocus() {
 // activatable, that is, Activate should affect them.
 func (w *CWidget) GrabDefault() {}
 
-// Widgets can be named, which allows you to refer to them from a gtkrc file.
-// You can apply a style to widgets with a particular name in the gtkrc file.
-// See the documentation for gtkrc files (on the same page as the docs for
-// RcStyle). Note that widget names are separated by periods in paths (see
-// Path), so names with embedded periods may cause confusion.
-// Parameters:
-// 	name	name for the widget
-func (w *CWidget) SetName(name string) {
-	if err := w.SetStringProperty(PropertyName, name); err != nil {
-		w.LogErr(err)
-	}
-}
-
-// Retrieves the name of a widget. See SetName for the
-// significance of widget names.
-// Returns:
-// 	name of the widget. This string is owned by CTK and should not
-// 	be modified or freed
-func (w *CWidget) GetName() (value string) {
-	var err error
-	if value, err = w.GetStringProperty(PropertyName); err != nil {
-		w.LogErr(err)
-	}
-	return
-}
-
-// This function is for use in widget implementations. Sets the state of a
-// widget (insensitive, prelighted, etc.) Usually you should set the state
-// using wrapper functions such as SetSensitive.
-// Parameters:
-// 	state	new state for widget
-//
-// Adds the given state bitmask to the Widget instance. This method emits a
-// set-state signal initially and if the listeners return EVENT_PASS, the change
-// is applied
-//
-// Emit: SignalSetState, Argv=[Widget instance, given state to set]
-func (w *CWidget) SetState(state StateType) {
-	if f := w.Emit(SignalSetState, w, state); f == enums.EVENT_PASS {
-		w.state = w.state | state
-	}
-}
-
 // Sets the sensitivity of a widget. A widget is sensitive if the user can
 // interact with it. Insensitive widgets are "grayed out" and the user can't
 // interact with them. Insensitive widgets are known as "inactive",
@@ -626,10 +487,9 @@ func (w *CWidget) SetParent(parent Container) {
 // 	parentWindow	the new parent window.
 func (w *CWidget) SetParentWindow(parentWindow Window) {}
 
-// Gets widget 's parent window.
+// Gets widget's parent window.
 // Returns:
-// 	the parent window of widget .
-// 	[transfer none]
+// 	the parent window of widget.
 func (w *CWidget) GetParentWindow() (value Window) {
 	return nil
 }
@@ -672,7 +532,6 @@ func (w *CWidget) AddEvents(events cdk.EventMask) {}
 // Returns:
 // 	the topmost ancestor of widget , or widget itself if there's no
 // 	ancestor.
-// 	[transfer none]
 func (w *CWidget) GetToplevel() (value Widget) {
 	return nil
 }
@@ -688,7 +547,6 @@ func (w *CWidget) GetToplevel() (value Widget) {
 // 	widgetType	ancestor type
 // Returns:
 // 	the ancestor widget, or NULL if not found.
-// 	[transfer none]
 func (w *CWidget) GetAncestor(widgetType cdk.CTypeTag) (value Widget) {
 	return nil
 }
@@ -762,51 +620,6 @@ func (w *CWidget) HideOnDelete() (value bool) {
 	return false
 }
 
-// Sets the Style for a widget (widget->style ). You probably don't want
-// to use this function; it interacts badly with themes, because themes work
-// by replacing the Style. Instead, use ModifyStyle.
-// Parameters:
-// 	style	a Style, or NULL to remove the effect of a previous
-// SetStyle and go back to the default style.
-func (w *CWidget) SetStyle(style Style) {
-	if err := w.SetStructProperty(PropertyStyle, style); err != nil {
-		w.LogErr(err)
-	}
-}
-
-// Ensures that widget has a style (widget->style ). Not a very useful
-// function; most of the time, if you want the style, the widget is realized,
-// and realized widgets are guaranteed to have a style already.
-func (w *CWidget) EnsureStyle() {}
-
-// Simply an accessor function that returns widget->style .
-// Returns:
-// 	the widget's Style.
-// 	[transfer none]
-func (w *CWidget) GetStyle() (value Style) {
-	var ok bool
-	if v, err := w.GetStructProperty(PropertyStyle); err != nil {
-		w.LogErr(err)
-	} else if value, ok = v.(Style); !ok {
-		w.LogError("value stored in %v property is not of Style type: %v (%T)", PropertyStyle, v, v)
-	}
-	return
-}
-
-// Reset the styles of widget and all descendents, so when they are looked up
-// again, they get the correct values for the currently loaded RC file
-// settings. This function is not useful for applications.
-func (w *CWidget) ResetRcStyles() {}
-
-// Returns the default style used by all widgets initially.
-// Returns:
-// 	the default style. This Style object is owned by CTK and
-// 	should not be modified or freed.
-// 	[transfer none]
-func (w *CWidget) GetDefaultStyle() (value Style) {
-	return nil
-}
-
 // Sets the reading direction on a particular widget. This direction controls
 // the primary direction for widgets containing text, and also the direction
 // in which the children of a container are packed. The ability to set the
@@ -843,27 +656,6 @@ func (w *CWidget) SetDefaultDirection(dir TextDirection) {}
 func (w *CWidget) GetDefaultDirection() (value TextDirection) {
 	return TextDirLtr
 }
-
-// Sets a shape for this widget's GDK window. This allows for transparent
-// windows etc., see WindowShapeCombineMask for more information.
-// Parameters:
-// 	shapeMask	shape to be added, or NULL to remove an existing shape.
-// 	offsetX	X position of shape mask with respect to window
-//
-// 	offsetY	Y position of shape mask with respect to window
-//
-// func (w *CWidget) ShapeCombineMask(shapeMask Bitmap, offsetX int, offsetY int) {}
-
-// Sets an input shape for this widget's GDK window. This allows for windows
-// which react to mouse click in a nonrectangular region, see
-// WindowInputShapeCombineMask for more information.
-// Parameters:
-// 	shapeMask	shape to be added, or NULL to remove an existing shape.
-// 	offsetX	X position of shape mask with respect to window
-//
-// 	offsetY	Y position of shape mask with respect to window
-//
-// func (w *CWidget) InputShapeCombineMask(shapeMask Bitmap, offsetX int, offsetY int) {}
 
 // Obtains the full path to widget . The path is simply the name of a widget
 // and all its parents in the container hierarchy, separated by periods. The
@@ -916,103 +708,9 @@ func (w *CWidget) Path() (path string) {
 func (w *CWidget) ClassPath(pathLength int, path string, pathReversed string) {}
 
 // Obtains the composite name of a widget.
-// Returns:
-// 	the composite name of widget , or NULL if widget is not a
-// 	composite child. The string should be freed when it is no
-// 	longer needed.
 func (w *CWidget) GetCompositeName() (value string) {
 	return ""
 }
-
-// Modifies style values on the widget. Modifications made using this
-// technique take precedence over style values set via an RC file, however,
-// they will be overriden if a style is explicitely set on the widget using
-// SetStyle. The RcStyle structure is designed so each field
-// can either be set or unset, so it is possible, using this function, to
-// modify some style values and leave the others unchanged. Note that
-// modifications made with this function are not cumulative with previous
-// calls to ModifyStyle or with such functions as
-// ModifyFg. If you wish to retain previous values, you must
-// first call GetModifierStyle, make your modifications to the
-// returned style, then call ModifyStyle with that style. On
-// the other hand, if you first call ModifyStyle, subsequent
-// calls to such functions ModifyFg will have a cumulative
-// effect with the initial modifications.
-// Parameters:
-// 	style	the RcStyle holding the style modifications
-func (w *CWidget) ModifyStyle(style RcStyle) {}
-
-// Returns the current modifier style for the widget. (As set by
-// ModifyStyle.) If no style has previously set, a new
-// RcStyle will be created with all values unset, and set as the modifier
-// style for the widget. If you make changes to this rc style, you must call
-// ModifyStyle, passing in the returned rc style, to make sure
-// that your changes take effect. Caution: passing the style back to
-// ModifyStyle will normally end up destroying it, because
-// ModifyStyle copies the passed-in style and sets the copy as
-// the new modifier style, thus dropping any reference to the old modifier
-// style. Add a reference to the modifier style if you want to keep it alive.
-// Returns:
-// 	the modifier style for the widget. This rc style is owned by
-// 	the widget. If you want to keep a pointer to value this around,
-// 	you must add a refcount using g_object_ref.
-// 	[transfer none]
-func (w *CWidget) GetModifierStyle() (value RcStyle) {
-	return nil
-}
-
-// Sets the foreground color for a widget in a particular state. All other
-// style values are left untouched. See also ModifyStyle.
-// Parameters:
-// 	state	the state for which to set the foreground color
-// 	color	the color to assign (does not need to be allocated),
-// or NULL to undo the effect of previous calls to
-// of ModifyFg.
-func (w *CWidget) ModifyFg(state StateType, color paint.Color) {}
-
-// Sets the background color for a widget in a particular state. All other
-// style values are left untouched. See also ModifyStyle. Note
-// that "no window" widgets (which have the GTK_NO_WINDOW flag set) draw on
-// their parent container's window and thus may not draw any background
-// themselves. This is the case for e.g. Label. To modify the background
-// of such widgets, you have to set the background color on their parent; if
-// you want to set the background of a rectangular area around a label, try
-// placing the label in a EventBox widget and setting the background color
-// on that.
-// Parameters:
-// 	state	the state for which to set the background color
-// 	color	the color to assign (does not need to be allocated),
-// or NULL to undo the effect of previous calls to
-// of ModifyBg.
-func (w *CWidget) ModifyBg(state StateType, color paint.Color) {}
-
-// Sets the text color for a widget in a particular state. All other style
-// values are left untouched. The text color is the foreground color used
-// along with the base color (see ModifyBase) for widgets such
-// as Entry and TextView. See also ModifyStyle.
-// Parameters:
-// 	state	the state for which to set the text color
-// 	color	the color to assign (does not need to be allocated),
-// or NULL to undo the effect of previous calls to
-// of ModifyText.
-func (w *CWidget) ModifyText(state StateType, color paint.Color) {}
-
-// Sets the base color for a widget in a particular state. All other style
-// values are left untouched. The base color is the background color used
-// along with the text color (see ModifyText) for widgets such
-// as Entry and TextView. See also ModifyStyle. Note that
-// "no window" widgets (which have the GTK_NO_WINDOW flag set) draw on their
-// parent container's window and thus may not draw any background themselves.
-// This is the case for e.g. Label. To modify the background of such
-// widgets, you have to set the base color on their parent; if you want to
-// set the background of a rectangular area around a label, try placing the
-// label in a EventBox widget and setting the base color on that.
-// Parameters:
-// 	state	the state for which to set the base color
-// 	color	the color to assign (does not need to be allocated),
-// or NULL to undo the effect of previous calls to
-// of ModifyBase.
-func (w *CWidget) ModifyBase(state StateType, color paint.Color) {}
 
 // Sets whether the application intends to draw on the widget in an
 // expose-event handler. This is a hint to the widget and does not
@@ -1117,62 +815,6 @@ func (o *CWidget) Draw() enums.EventFlag {
 // func (w *CWidget) MnemonicActivate(groupCycling bool) (value bool) {
 // 	return false
 // }
-
-// Installs a style property on a widget class. The parser for the style
-// property is determined by the value type of pspec .
-// Parameters:
-// 	klass	a WidgetClass
-// 	pspec	the GParamSpec for the property
-// func (w *CWidget) ClassInstallStyleProperty(pspec GParamSpec) {}
-
-// Installs a style property on a widget class.
-// Parameters:
-// 	klass	a WidgetClass
-// 	pspec	the GParamSpec for the style property
-// 	parser	the parser for the style property
-// func (w *CWidget) ClassInstallStylePropertyParser(pspec GParamSpec, parser RcPropertyParser) {}
-
-// Finds a style property of a widget class by name.
-// Parameters:
-// 	klass	a WidgetClass
-// 	propertyName	the name of the style property to find
-// 	returns	the GParamSpec of the style property or
-// NULL if class
-// has no style property with that name.
-// func (w *CWidget) ClassFindStyleProperty(propertyName string) (value GParamSpec) {
-// 	return nil
-// }
-
-// Returns all style properties of a widget class.
-// Parameters:
-// 	klass	a WidgetClass
-// 	nProperties	location to return the number of style properties found
-// 	returns	an newly
-// allocated array of GParamSpec*. The array must be freed with
-// g_free.
-// func (w *CWidget) ClassListStyleProperties(nProperties int) (value GParamSpec) {
-// 	return nil
-// }
-
-// Computes the intersection of a widget 's area and region , returning the
-// intersection. The result may be empty, use RegionEmpty to check.
-// Parameters:
-// 	region	a Region, in the same coordinate system as
-// widget->allocation
-// . That is, relative to widget->window
-// for NO_WINDOW widgets; relative to the parent window
-// of widget->window
-// for widgets with their own window.
-// 	returns	A newly allocated region holding the intersection of widget
-// and region
-// . The coordinates of the return value are
-// relative to widget->window
-// for NO_WINDOW widgets, and
-// relative to the parent window of widget->window
-// for
-// widgets with their own window.
-func (w *CWidget) RegionIntersect(region ptypes.Region) (value ptypes.Region) {
-	return ptypes.Region{}
 }
 
 // Very rarely-used function. This function is used to emit an expose event
@@ -1206,38 +848,6 @@ func (w *CWidget) SendExpose(event cdk.Event) (value int) {
 func (w *CWidget) SendFocusChange(event cdk.Event) (value bool) {
 	return false
 }
-
-// Gets the values of a multiple style properties of widget .
-// Parameters:
-// 	firstPropertyName	the name of the first property to get
-// 	varargs	pairs of property names and locations to
-// return the property values, starting with the location for
-// first_property_name
-// , terminated by NULL.
-// func (w *CWidget) StyleGet(firstPropertyName string, argv ...interface{}) {}
-
-// Gets the value of a style property of widget .
-// Parameters:
-// 	propertyName	the name of a style property
-// 	value	location to return the property value
-// func (w *CWidget) StyleGetProperty(propertyName string, value GValue) {}
-
-// Non-vararg variant of StyleGet. Used primarily by language
-// bindings.
-// Parameters:
-// 	firstPropertyName	the name of the first property to get
-// 	varArgs	a va_list of pairs of property names and
-// locations to return the property values, starting with the location
-// for first_property_name
-// .
-// func (w *CWidget) StyleGetValist(firstPropertyName string, varArgs va_list) {}
-
-// This function attaches the widget's Style to the widget's Window. It
-// is a replacement for and should only ever be called in a derived widget's
-// "realize" implementation which does not chain up to its parent class'
-// "realize" implementation, because one of the parent classes (finally
-// Widget) would attach the style itself.
-// func (w *CWidget) StyleAttach() {}
 
 // This function is used by custom widget implementations; if you're writing
 // an app, you'd use GrabFocus to move the focus to a
@@ -1292,7 +902,6 @@ func (w *CWidget) GetChildVisible() (value bool) {
 // Returns the parent container of widget .
 // Returns:
 // 	the parent container of widget , or NULL.
-// 	[transfer none]
 func (w *CWidget) GetParent() (value Container) {
 	if v, err := w.GetStructProperty(PropertyParent); err != nil {
 		w.LogErr(err)
@@ -1305,16 +914,16 @@ func (w *CWidget) GetParent() (value Container) {
 	return
 }
 
-// Gets the settings object holding the settings (global property settings,
-// RC file information, etc) used for this widget. Note that this function
-// can only be called when the Widget is attached to a toplevel, since the
-// settings object is specific to a particular Screen.
+// Get the Display for the toplevel window associated with this widget.
+// This function can only be called after the widget has been added to a
+// widget hierarchy with a Window at the top. In general, you should only
+// create display specific resources when a widget has been realized, and you
+// should free those resources when the widget is unrealized.
 // Returns:
-// 	the relevant Settings object.
-// 	[transfer none]
-// func (w *CWidget) GetSettings() (value Settings) {
-// 	return nil
-// }
+// 	the Display for the toplevel for this widget.
+func (w *CWidget) GetDisplay() (value cdk.Display) {
+	return w.display
+}
 
 // Returns the clipboard object for the given selection to be used with
 // widget . widget must have a Display associated with it, so must be
@@ -1329,22 +938,9 @@ func (w *CWidget) GetParent() (value Container) {
 // 	the appropriate clipboard object. If no clipboard already
 // 	exists, a new one will be created. Once a clipboard object has
 // 	been created, it is persistent for all time.
-// 	[transfer none]
 // func (w *CWidget) GetClipboard(selection Atom) (value Clipboard) {
 // 	return nil
 // }
-
-// Get the Display for the toplevel window associated with this widget.
-// This function can only be called after the widget has been added to a
-// widget hierarchy with a Window at the top. In general, you should only
-// create display specific resources when a widget has been realized, and you
-// should free those resources when the widget is unrealized.
-// Returns:
-// 	the Display for the toplevel for this widget.
-// 	[transfer none]
-func (w *CWidget) GetDisplay() (value cdk.Display) {
-	return w.display
-}
 
 // Get the root window where this widget is located. This function can only
 // be called after the widget has been added to a widget hierarchy with
@@ -1355,7 +951,6 @@ func (w *CWidget) GetDisplay() (value cdk.Display) {
 // unrealized.
 // Returns:
 // 	the Window root window for the toplevel for this widget.
-// 	[transfer none]
 func (w *CWidget) GetRootWindow() (value Window) {
 	return nil
 }
@@ -1367,7 +962,6 @@ func (w *CWidget) GetRootWindow() (value Window) {
 // should free those resources when the widget is unrealized.
 // Returns:
 // 	the Screen for the toplevel for this widget.
-// 	[transfer none]
 func (w *CWidget) GetScreen() (value cdk.Display) {
 	return nil
 }
@@ -1406,22 +1000,6 @@ func (w *CWidget) SizeRequest() ptypes.Rectangle {
 	return ptypes.MakeRectangle(w.GetSizeRequest())
 }
 
-// Sets whether widget should be mapped along with its when its parent is
-// mapped and widget has been shown with Show. The child
-// visibility can be set for widget before it is added to a container with
-// SetParent, to avoid mapping children unnecessary before
-// immediately unmapping them. However it will be reset to its default state
-// of TRUE when the widget is removed from a container. Note that changing
-// the child visibility of a widget does not queue a resize on the widget.
-// Most of the time, the size of a widget is computed from all visible
-// children, whether or not they are mapped. If this is not the case, the
-// container can queue a resize itself. This function is only useful for
-// container implementations and never should be called by an application.
-// Parameters:
-// 	isVisible	if TRUE, widget
-// should be mapped along with its parent.
-func (w *CWidget) SetChildVisible(isVisible bool) {}
-
 // Sets the minimum size of a widget; that is, the widget's size request will
 // be width by height . You can use this function to force a widget to be
 // either larger or smaller than it normally would be. In most cases,
@@ -1457,10 +1035,6 @@ func (w *CWidget) SetSizeRequest(width, height int) {
 		}
 	}
 }
-
-// Reverts the effect of a previous call to FreezeChildNotify.
-// This causes all queued child-notify signals on widget to be emitted.
-func (w *CWidget) ThawChildNotify() {}
 
 // Sets the no-show-all property, which determines whether calls to
 // ShowAll and HideAll will affect this widget.
@@ -1498,18 +1072,6 @@ func (w *CWidget) AddMnemonicLabel(label Widget) {}
 // ListMnemonicLabels). The widget must have previously been
 // added to the list with AddMnemonicLabel.
 func (w *CWidget) RemoveMnemonicLabel(label Widget) {}
-
-// Whether widget can rely on having its alpha channel drawn correctly. On
-// X11 this function returns whether a compositing manager is running for
-// widget 's screen. Please note that the semantics of this call will change
-// in the future if used on a widget that has a composited window in its
-// hierarchy (as set by WindowSetComposited).
-// Returns:
-// 	TRUE if the widget can rely on its alpha channel being drawn
-// 	correctly.
-func (w *CWidget) IsComposited() (value bool) {
-	return false
-}
 
 // Notifies the user about an input-related error on this widget. If the
 // gtk-error-bell setting is TRUE, it calls WindowBeep,
@@ -1604,7 +1166,6 @@ func (w *CWidget) SetTooltipText(text string) {
 // SetTooltipWindow.
 // Returns:
 // 	The Window of the current tooltip.
-// 	[transfer none]
 func (w *CWidget) GetTooltipWindow() (value Window) {
 	return nil
 }
@@ -1649,7 +1210,6 @@ func (w *CWidget) TriggerTooltipQuery() {}
 // Returns the widget's window if it is realized, NULL otherwise
 // Returns:
 // 	widget 's window.
-// 	[transfer none]
 // Returns the Window instance associated with this Widget instance, nil
 // otherwise
 func (w *CWidget) GetWindow() (window Window) {
@@ -1694,17 +1254,6 @@ func (w *CWidget) GetWindow() (window Window) {
 	}
 	return
 }
-
-// Retrieves the widget's allocation.
-// Parameters:
-// 	allocation	a pointer to a Allocation to copy to.
-// func (w *CWidget) GetAllocation(allocation ptypes.Rectangle) {}
-
-// Sets the widget's allocation. This should not be used directly, but from
-// within a widget's size_allocate method.
-// Parameters:
-// 	allocation	a pointer to a Allocation to copy from
-// func (w *CWidget) SetAllocation(allocation ptypes.Rectangle) {}
 
 // Determines whether the application intends to draw on the widget in an
 // expose-event handler. See SetAppPaintable
@@ -1764,18 +1313,6 @@ func (w *CWidget) SetCanFocus(canFocus bool) {
 	}
 }
 
-// Determines whether the widget is double buffered. See
-// SetDoubleBuffered
-// Returns:
-// 	TRUE if the widget is double buffered
-func (w *CWidget) GetDoubleBuffered() (value bool) {
-	var err error
-	if value, err = w.GetBoolProperty(PropertyDoubleBuffered); err != nil {
-		w.LogErr(err)
-	}
-	return
-}
-
 // Determines whether widget has a Window of its own. See
 // SetHasWindow.
 // Returns:
@@ -1783,19 +1320,6 @@ func (w *CWidget) GetDoubleBuffered() (value bool) {
 func (w *CWidget) GetHasWindow() (value bool) {
 	return false
 }
-
-// Specifies whether widget has a Window of its own. Note that all
-// realized widgets have a non-NULL "window" pointer (GetWindow
-// never returns a NULL window when a widget is realized), but for many of
-// them it's actually the Window of one of its parent widgets. Widgets
-// that do not create a window for themselves in Widget::realize must
-// announce this by calling this function with has_window = FALSE. This
-// function should only be called by widget implementations, and they should
-// call it in their init function.
-// Parameters:
-// 	hasWindow	whether or not widget
-// has a window.
-func (w *CWidget) SetHasWindow(hasWindow bool) {}
 
 // Returns the widget's sensitivity (in the sense of returning the value that
 // has been set using SetSensitive). The effective sensitivity
@@ -1825,13 +1349,6 @@ func (w *CWidget) IsSensitive() bool {
 		}
 	}
 	return true
-}
-
-// Returns the widget's state. See SetState.
-// Returns:
-// 	the state of the widget.
-func (w *CWidget) GetState() (value StateType) {
-	return w.state
 }
 
 // Determines whether the widget is visible. Note that this doesn't take into
@@ -1884,15 +1401,6 @@ func (w *CWidget) HasFocus() (value bool) {
 // Returns:
 // 	TRUE if the widget is in the grab_widgets stack
 func (w *CWidget) HasGrab() (value bool) {
-	return false
-}
-
-// Determines if the widget style has been looked up through the rc
-// mechanism.
-// Returns:
-// 	TRUE if the widget has been looked up through the rc mechanism,
-// 	FALSE otherwise.
-func (w *CWidget) HasRcStyle() (value bool) {
 	return false
 }
 
@@ -1985,33 +1493,16 @@ func (w *CWidget) GetMapped() (value bool) {
 	return false
 }
 
-// Retrieves the widget's requisition. This function should only be used by
-// widget implementations in order to figure whether the widget's requisition
-// has actually changed after some internal state change (so that they can
-// call QueueResize instead of QueueDraw).
-// Normally, SizeRequest should be used.
-// Parameters:
-// 	requisition	a pointer to a Requisition to copy to.
-// func (w *CWidget) GetRequisition(requisition Requisition) {}
 
-// Copies a Requisition.
-// Parameters:
-// 	requisition	a Requisition
-// Returns:
-// 	a copy of requisition
-// func (w *CWidget) RequisitionCopy(requisition Requisition) (value Requisition) {
-// 	return nil
-// }
-
-// Frees a Requisition.
-// Parameters:
-// 	requisition	a Requisition
-// func (w *CWidget) RequisitionFree(requisition Requisition) {}
-
-// Returns the current theme, adjusted for Widget focus and accounting for
-// any PARENT_SENSITIVE conditions. This method is primarily useful in drawable
-// Widget types during the Invalidate() and Draw() stages of the Widget
-// lifecycle
+// GetThemeRequest returns the current theme, adjusted for Widget state and
+// accounting for any PARENT_SENSITIVE conditions. This method is primarily
+// useful in drawable Widget types during Invalidate() and Draw() stages of
+// the Widget lifecycle. This method emits an initial get-theme-request signal
+// with a pointer to the theme instance to be modified as there are no return
+// values for signal listeners. If the signal listeners return EVENT_STOP, the
+// theme instance is returned without modification. If the signal listeners
+// return EVENT_PASS, this method will perform the changes to the theme instance
+// mentioned above.
 func (w *CWidget) GetThemeRequest() (theme paint.Theme) {
 	theme = w.GetTheme()
 	if (w.CanFocus() && w.IsFocused()) || w.IsParentFocused() {
@@ -2162,11 +1653,21 @@ func (w *CWidget) HasEventFocus() bool {
 	return false
 }
 
+// GrabEventFocus will attempt to set the Widget as the Window event focus
+// handler. This method emits a grab-event-focus signal and if the listeners all
+// return EVENT_PASS, the changes are applied.
+//
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
 func (w *CWidget) GrabEventFocus() {
 	if window := w.GetWindow(); window != nil {
 		if f := w.Emit(SignalGrabEventFocus, w, window); f == enums.EVENT_PASS {
 			window.SetEventFocus(w)
 		}
+	} else {
+		w.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
@@ -2359,18 +1860,6 @@ const PropertyWidthRequest cdk.Property = "width-request"
 const PropertyWindow cdk.Property = "window"
 
 const SignalAccelClosuresChanged cdk.Signal = "accel-closures-changed"
-
-// The ::button-press-event signal will be emitted when a button (typically
-// from a mouse) is pressed. To receive this signal, the Window associated
-// to the widget needs to enable the GDK_BUTTON_PRESS_MASK mask. This signal
-// will be sent to the grab widget if there is one.
-const SignalButtonPressEvent cdk.Signal = "button-press-event"
-
-// The ::button-release-event signal will be emitted when a button (typically
-// from a mouse) is released. To receive this signal, the Window
-// associated to the widget needs to enable the GDK_BUTTON_RELEASE_MASK mask.
-// This signal will be sent to the grab widget if there is one.
-const SignalButtonReleaseEvent cdk.Signal = "button-release-event"
 
 // Determines whether an accelerator that activates the signal identified by
 // signal_id can currently be activated. This signal is present to allow
