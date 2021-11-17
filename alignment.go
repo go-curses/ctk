@@ -201,17 +201,11 @@ func (a *CAlignment) Remove(w Widget) {
 }
 
 func (a *CAlignment) childLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	theme := a.GetTheme()
-	a.SetThemeRequest(theme)
 	a.Invalidate()
 	return enums.EVENT_PASS
 }
 
 func (a *CAlignment) childGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	theme := a.GetTheme()
-	theme.Content.Normal = theme.Content.Focused
-	theme.Border.Normal = theme.Border.Focused
-	a.SetThemeRequest(theme)
 	a.Invalidate()
 	return enums.EVENT_PASS
 }
