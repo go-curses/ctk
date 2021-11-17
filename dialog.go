@@ -123,9 +123,9 @@ func NewDialogWithButtons(title string, parent Window, flags DialogFlags, argv .
 	d.dialogFlags = flags
 	d.Init()
 	d.SetTitle(title)
-	// d.SetParent(d)
-	// d.SetWindow(d)
 	d.SetTransientFor(parent)
+	d.SetParent(parent)
+	d.SetWindow(parent)
 	if len(argv) > 0 {
 		d.AddButtons(argv...)
 	}
