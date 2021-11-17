@@ -11,63 +11,13 @@ type StyleSheetSelector struct {
 	State string
 }
 
-func (s StyleSheetSelector) String() string {
-	str := ""
-	if len(s.Type) > 0 {
-		str += s.Type
+func newStyleSheetSelectorFromPath(path string) (selector *StyleSheetSelector) {
+	selector = &StyleSheetSelector{
+		Name:  "",
+		Type:  "",
+		Class: "",
+		State: "normal",
 	}
-	if len(s.Name) > 0 {
-		str += "#" + s.Name
-	}
-	if len(s.Class) > 0 {
-		str += "." + s.Class
-	}
-	if len(s.State) > 0 {
-		str += ":" + s.State
-	}
-	return str
-}
-
-func (s StyleSheetSelector) Match(selector *StyleSheetSelector) (score int) {
-	if len(s.Type) > 0 && len(selector.Type) > 0 {
-		if s.Type == selector.Type {
-			score += 1
-		}
-	}
-	if len(s.Name) > 0 && len(selector.Name) > 0 {
-		if s.Name == selector.Name {
-			score += 1
-		} else {
-			score -= 1
-		}
-	}
-	if len(s.Class) > 0 && len(selector.Class) > 0 {
-		if s.Class == selector.Class {
-			score += 1
-		}
-	}
-	if len(s.State) > 0 && len(selector.State) > 0 {
-		if s.State == selector.State {
-			score += 1
-		} else {
-			score -= 1
-		}
-	} else {
-		if len(s.State) > 0 || len(selector.State) > 0 {
-			score -= 1
-		}
-	}
-	return
-}
-
-var (
-	rxSelectorName  = regexp.MustCompile(`#([a-zA-Z][-_a-zA-Z0-9]+)`)
-	rxSelectorClass = regexp.MustCompile(`\.([a-zA-Z][-_a-zA-Z0-9]+)`)
-	rxSelectorState = regexp.MustCompile(`:([a-zA-Z][-_a-zA-Z0-9]+)`)
-)
-
-func ParseSelector(path string) (selector *StyleSheetSelector) {
-	selector = &StyleSheetSelector{}
 	altered := path
 	if rxSelectorName.MatchString(path) {
 		m := rxSelectorName.FindStringSubmatch(path)
@@ -95,3 +45,62 @@ func ParseSelector(path string) (selector *StyleSheetSelector) {
 	}
 	return
 }
+
+func (s StyleSheetSelector) String() string {
+	str := ""
+	if len(s.Type) > 0 {
+		str += s.Type
+	}
+	if len(s.Name) > 0 {
+		str += "#" + s.Name
+	}
+	if len(s.Class) > 0 {
+		str += "." + s.Class
+	}
+	if len(s.State) > 0 {
+		str += ":" + s.State
+	}
+	return str
+}
+
+func (s StyleSheetSelector) Match(selector *StyleSheetSelector) (match bool) {
+	var wClass, wType, wName bool
+	var mClass, mType, mName bool
+	if len(selector.Class) > 0 {
+		wClass = true
+		if len(s.Class) > 0 {
+			// has classes to compare
+			mClass = s.Class == selector.Class
+		} else if selector.Class == "normal" {
+			// normal class can be omitted
+			mClass = true
+		} else {
+			return false
+		}
+	}
+	if len(selector.Type) > 0 {
+		wType = true
+		if len(s.Type) > 0 {
+			// has types to compare
+			mType = s.Type == selector.Type
+		} else {
+			return false
+		}
+	}
+	if len(selector.Name) > 0 {
+		wName = true
+		if len(s.Name) > 0 {
+			// has names to compare
+			mName = s.Name == selector.Name
+		} else {
+			return false
+		}
+	}
+	return (!wClass || (wClass && mClass)) && (!wType || (wType && mType)) && (!wName || (wName && mName))
+}
+
+var (
+	rxSelectorName  = regexp.MustCompile(`#([a-zA-Z][-_a-zA-Z0-9]+)`)
+	rxSelectorClass = regexp.MustCompile(`\.([a-zA-Z][-_a-zA-Z0-9]+)`)
+	rxSelectorState = regexp.MustCompile(`:([a-zA-Z][-_a-zA-Z0-9]+)`)
+)
