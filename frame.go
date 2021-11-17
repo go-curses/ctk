@@ -300,26 +300,28 @@ func (f *CFrame) GrabFocus() {
 // type, any previous child Widget is removed first.
 func (f *CFrame) Add(w Widget) {
 	f.CBin.Add(w)
-	w.Connect(SignalLostFocus, "frame-child-lost-focus-handler", f.lostFocus)
-	w.Connect(SignalGainedFocus, "frame-child-gained-focus-handler", f.gainedFocus)
+	w.Connect(SignalLostFocus, FrameChildLostFocusHandle, f.lostFocus)
+	w.Connect(SignalGainedFocus, FrameChildGainedFocusHandle, f.gainedFocus)
 	f.Invalidate()
 }
 
 // Remove will remove the given Widget from the Frame.
 func (f *CFrame) Remove(w Widget) {
-	_ = w.Disconnect(SignalLostFocus, "frame-child-lost-focus-handler")
-	_ = w.Disconnect(SignalGainedFocus, "frame-child-gained-focus-handler")
+	_ = w.Disconnect(SignalLostFocus, FrameChildLostFocusHandle)
+	_ = w.Disconnect(SignalGainedFocus, FrameChildGainedFocusHandle)
 	f.CBin.Remove(w)
 	f.Invalidate()
 }
 
-// IsFocus is a convenience method for returning whether or not the child Widget
-// is the focused Widget. If no child Widget exists, or the child Widget cannot
-// be focused itself, then the return value is whether or not the Frame itself
-// is the focused Widget.
+// IsFocus is a convenience method for returning whether the child Widget is the
+// focused Widget. If no child Widget exists, or the child Widget cannot be
+// focused itself, then the return value is whether the Frame itself is the
+// focused Widget.
 func (f *CFrame) IsFocus() bool {
-	if child := f.GetChild(); child != nil && child.CanFocus() {
-		return child.IsFocus()
+	if f.GetFocusWithChild() {
+		if child := f.GetChild(); child != nil && child.CanFocus() {
+			return child.IsFocus()
+		}
 	}
 	return f.CBin.IsFocus()
 }
@@ -356,23 +358,6 @@ func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-// GetThemeRequest returns the current theme, adjusted for Widget focus and
-// accounting for any PARENT_SENSITIVE conditions. This method is primarily
-// useful in drawable Widget types during the Invalidate() and Draw() stages of
-// the Widget lifecycle.
-func (f *CFrame) GetThemeRequest() (theme paint.Theme) {
-	theme = f.GetTheme()
-	var childFocused bool
-	if child := f.GetChild(); child != nil {
-		childFocused = child.IsFocus()
-	}
-	if childFocused || (f.CanFocus() && f.IsFocused()) || f.IsParentFocused() {
-		theme.Content.Normal = theme.Content.Focused
-		theme.Border.Normal = theme.Border.Focused
-	}
-	return
-}
-
 // GetSizeRequest returns the requested size of the Frame, taking into account
 // any children and their size requests.
 func (f *CFrame) GetSizeRequest() (width, height int) {
@@ -398,36 +383,11 @@ func (f *CFrame) GetSizeRequest() (width, height int) {
 }
 
 func (f *CFrame) lostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	// f.Lock()
-	// defer f.Unlock()
-	theme := f.GetTheme()
-	if f.focusWithChild {
-		if child := f.GetChild(); child != nil && child.IsFocus() {
-			theme.Content.Normal = theme.Content.Focused
-			theme.Border.Normal = theme.Border.Focused
-		}
-	} else {
-		// theme defaults to whatever is set
-	}
-	f.SetThemeRequest(theme)
 	f.Invalidate()
 	return enums.EVENT_PASS
 }
 
 func (f *CFrame) gainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	// f.Lock()
-	// defer f.Unlock()
-	theme := f.GetTheme()
-	if f.focusWithChild {
-		if child := f.GetChild(); child != nil && child.IsFocus() {
-			theme.Content.Normal = theme.Content.Focused
-			theme.Border.Normal = theme.Border.Focused
-		}
-	} else {
-		theme.Content.Normal = theme.Content.Focused
-		theme.Border.Normal = theme.Border.Focused
-	}
-	f.SetThemeRequest(theme)
 	f.Invalidate()
 	return enums.EVENT_PASS
 }
@@ -602,6 +562,10 @@ const PropertyShadow cdk.Property = "shadow"
 // Flags: Read / Write
 // Default value: GTK_SHADOW_ETCHED_IN
 const PropertyShadowType cdk.Property = "shadow-type"
+
+const FrameChildLostFocusHandle = "frame-child-lost-focus-handler"
+
+const FrameChildGainedFocusHandle = "frame-child-gained-focus-handler"
 
 const FrameInvalidateHandle = "frame-invalidate-handler"
 
