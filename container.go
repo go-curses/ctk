@@ -129,8 +129,6 @@ func (c *CContainer) Init() (already bool) {
 	c.properties = make([]*cdk.CProperty, 0)
 	c.property = make(map[uuid.UUID][]*cdk.CProperty)
 	c.focusChain = make([]interface{}, 0)
-	c.Connect(SignalLostFocus, ContainerLostFocusHandle, c.lostFocus)
-	c.Connect(SignalGainedFocus, ContainerGainedFocusHandle, c.gainedFocus)
 	return false
 }
 
