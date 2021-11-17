@@ -75,8 +75,8 @@ func main() {
 
 func setup(d cdk.Display) error {
 	theme := paint.DefaultColorTheme
-	theme.Content.Normal = theme.Content.Focused.Dim(false)
-	theme.Border.Normal = theme.Border.Focused.Dim(false)
+	theme.Content.Normal = theme.Content.Selected.Dim(false)
+	theme.Border.Normal = theme.Border.Selected.Dim(false)
 	d.CaptureCtrlC()
 	w := ctk.NewWindowWithTitle(AppTitle)
 	w.SetTheme(theme)
