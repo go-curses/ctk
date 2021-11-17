@@ -806,11 +806,6 @@ func (l *CLabel) getMaxCharsRequest() (maxWidth int) {
 	return
 }
 
-func (l *CLabel) getStyleRequest() (style paint.Style) {
-	style = l.GetThemeRequest().Content.Normal
-	return
-}
-
 func (l *CLabel) refreshBufferWithStyle(style paint.Style) error {
 	if l.tbStyle.String() != style.String() {
 		l.tbStyle = style
@@ -863,8 +858,10 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 		return enums.EVENT_PASS
 	}
 
+	theme := l.GetThemeRequest()
+
 	origin := l.GetOrigin()
-	if err := memphis.ConfigureSurface(l.ObjectID(), origin, alloc, l.getStyleRequest()); err != nil {
+	if err := memphis.ConfigureSurface(l.ObjectID(), origin, alloc, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
 
@@ -881,7 +878,7 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 		local.Y += int(float64(delta) * yAlign)
 	}
 
-	if err := memphis.ConfigureSurface(l.tid, local, *size, l.getStyleRequest()); err != nil {
+	if err := memphis.ConfigureSurface(l.tid, local, *size, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
 
@@ -890,11 +887,9 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 }
 
 func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
-	theme := l.GetTheme()
-	style := theme.Content.Normal
-	_ = l.refreshBufferWithStyle(style)
+	theme := l.GetThemeRequest()
+	_ = l.refreshBufferWithStyle(theme.Content.Normal)
 	l.refreshMnemonics()
-	// theme.Content.FillRune = ' '
 	theme.Content.FillRune = rune(0)
 	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
 		l.LogErr(err)
@@ -920,7 +915,6 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 				l.LogErr(err)
 			} else {
 				if f := l.tbuffer.Draw(tSurface, l.GetSingleLineMode(), l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), enums.ALIGN_TOP); f == enums.EVENT_STOP {
-					// tSurface.DebugBox(paint.ColorSilver, "tbuf")
 					if err := surface.CompositeSurface(tSurface); err != nil {
 						l.LogErr(err)
 					}
