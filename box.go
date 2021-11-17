@@ -256,7 +256,7 @@ func (b *CBox) Remove(w Widget) {
 //           padding pixels are also put between child and the reference edge of
 //           box
 func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
-	b.LogDebug("PackStart(%v,%v,%v,%v)", child, expand, fill, padding)
+	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == enums.EVENT_PASS {
 		child.Connect(SignalShow, BoxChildShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
 			child.LogDebug("signal show, resize: %v", b.ObjectName())
@@ -303,7 +303,7 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 //           padding pixels are also put between child and the reference edge of
 //           box
 func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
-	b.LogDebug("PackEnd(%v,%v,%v,%v)", child, expand, fill, padding)
+	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == enums.EVENT_PASS {
 		child.Connect(SignalShow, BoxChildShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
 			child.LogDebug("signal show, resize: %v", b.ObjectName())
