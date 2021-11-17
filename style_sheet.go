@@ -11,17 +11,30 @@ import (
 	tcss "github.com/tdewolff/parse/v2/css"
 )
 
-type StyleSheet struct {
+type cStyleSheet struct {
 	Lexer      *tcss.Lexer
 	Rules      []*StyleSheetRule
 	MediaRules []*StyleSheetMedia
 }
 
-func NewStyleSheet() *StyleSheet {
-	return &StyleSheet{}
+func newStyleSheet() *cStyleSheet {
+	ss := &cStyleSheet{
+		Lexer:      nil,
+		Rules:      make([]*StyleSheetRule, 0),
+		MediaRules: make([]*StyleSheetMedia, 0),
+	}
+	return ss
 }
 
-func (s StyleSheet) String() string {
+func newStyleSheetFromString(css string) (*cStyleSheet, error) {
+	ss := newStyleSheet()
+	if err := ss.ParseString(css); err != nil {
+		return nil, err
+	}
+	return ss, nil
+}
+
+func (s cStyleSheet) String() string {
 	str := ""
 	for _, r := range s.Rules {
 		str += r.String() + "\n"
@@ -32,28 +45,44 @@ func (s StyleSheet) String() string {
 	return str
 }
 
-func (s StyleSheet) SelectProperties(path string) (properties map[string]*StyleSheetProperty) {
+func (s *cStyleSheet) ApplyStylesTo(w Widget) {
+	selector := w.CssSelector()
+	styles := s.SelectProperties(selector)
+	for s, _ := range styles {
+		for k, v := range styles[s] {
+			if err := w.SetCssPropertyFromStyle(k+":"+s, v.Value); err != nil {
+				w.LogErr(err)
+			}
+		}
+	}
+}
+
+func (s *cStyleSheet) SelectProperties(path string) (properties map[string]map[string]*StyleSheetProperty) {
+	// TODO: figure out how to resolve CSS selectors with parents (" " and ">")
 	if index := strings.Index(path, ">"); index > -1 {
 		path = path[index:]
 	}
-	properties = make(map[string]*StyleSheetProperty)
-	selector := ParseSelector(path)
-	for _, r := range s.Rules {
-		rSelect := r.Selector
+	properties = make(map[string]map[string]*StyleSheetProperty)
+	selector := newStyleSheetSelectorFromPath(path)
+	for _, rule := range s.Rules {
+		rSelect := rule.Selector
 		if index := strings.Index(rSelect, ">"); index > -1 {
 			rSelect = rSelect[index:]
 		}
-		partSelector := ParseSelector(rSelect)
-		if selector.Match(partSelector) > 0 {
-			for _, elem := range r.Properties {
-				properties[elem.Key] = elem
+		partSelector := newStyleSheetSelectorFromPath(rSelect)
+		if selector.Match(partSelector) {
+			for _, elem := range rule.Properties {
+				if _, ok := properties[partSelector.State]; !ok {
+					properties[partSelector.State] = make(map[string]*StyleSheetProperty)
+				}
+				properties[partSelector.State][elem.Key] = elem
 			}
 		}
 	}
 	return
 }
 
-func (s *StyleSheet) ParseString(source string) (err error) {
+func (s *cStyleSheet) ParseString(source string) (err error) {
 	s.Lexer = tcss.NewLexer(parse.NewInput(bytes.NewBufferString(source)))
 	for {
 		tt, data := s.Lexer.Next()
@@ -84,7 +113,7 @@ func (s *StyleSheet) ParseString(source string) (err error) {
 }
 
 // consume up to (and including) the first opening bracket
-func (s *StyleSheet) recurseMedia() (mediaRule *StyleSheetMedia, err error) {
+func (s *cStyleSheet) recurseMedia() (mediaRule *StyleSheetMedia, err error) {
 	mediaRule = &StyleSheetMedia{}
 	var ruleMode bool
 	for {
@@ -123,7 +152,7 @@ func (s *StyleSheet) recurseMedia() (mediaRule *StyleSheetMedia, err error) {
 }
 
 // consume up to (and including) the first opening curly brace
-func (s *StyleSheet) recurseRule(tt tcss.TokenType, data []byte) (cssRule *StyleSheetRule, err error) {
+func (s *cStyleSheet) recurseRule(tt tcss.TokenType, data []byte) (cssRule *StyleSheetRule, err error) {
 	cssRule = &StyleSheetRule{}
 	for {
 		switch tt {
@@ -155,7 +184,7 @@ func (s *StyleSheet) recurseRule(tt tcss.TokenType, data []byte) (cssRule *Style
 
 // consume up to (and including) the first closing curly brace, returning the
 // (unaltered) key/value pairs accumulated
-func (s *StyleSheet) recurseKeyValues() (properties map[string]*StyleSheetProperty, err error) {
+func (s *cStyleSheet) recurseKeyValues() (properties map[string]*StyleSheetProperty, err error) {
 	properties = make(map[string]*StyleSheetProperty)
 	var key, value string
 	var vType tcss.TokenType
