@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
@@ -39,6 +40,8 @@ type CStyleProperty struct {
 	buildable bool
 	def       interface{}
 	value     interface{}
+
+	sync.RWMutex
 }
 
 func NewStyleProperty(name cdk.Property, state StateType, kind cdk.PropertyType, write bool, buildable bool, def interface{}) (property *CStyleProperty) {
@@ -66,30 +69,43 @@ func (p *CStyleProperty) Clone() *CStyleProperty {
 }
 
 func (p *CStyleProperty) Name() cdk.Property {
+	p.RLock()
+	defer p.RUnlock()
 	return p.name
 }
 
 func (p *CStyleProperty) State() StateType {
+	p.RLock()
+	defer p.RUnlock()
 	return p.state
 }
 
 func (p *CStyleProperty) Type() cdk.PropertyType {
+	p.RLock()
+	defer p.RUnlock()
 	return p.kind
 }
 
 func (p *CStyleProperty) ReadOnly() bool {
+	p.RLock()
+	defer p.RUnlock()
 	return !p.write
 }
 
 func (p *CStyleProperty) Buildable() bool {
+	p.RLock()
+	defer p.RUnlock()
 	return p.buildable
 }
 
 func (p *CStyleProperty) Set(value interface{}) error {
-	if !p.write {
+	if p.ReadOnly() {
 		return fmt.Errorf("cannot change read-only property: %v", p.name)
 	}
-	switch p.Type() {
+	t := p.Type()
+	p.Lock()
+	defer p.Unlock()
+	switch t {
 	case cdk.BoolProperty:
 		if _, ok := value.(bool); !ok {
 			return fmt.Errorf("%v value is not of bool type: %v (%T)", p.name, value, value)
@@ -209,11 +225,15 @@ func (p *CStyleProperty) SetFromString(value string) error {
 }
 
 func (p *CStyleProperty) Default() (def interface{}) {
+	p.RLock()
+	defer p.RUnlock()
 	def = p.def
 	return
 }
 
 func (p *CStyleProperty) Value() (value interface{}) {
+	p.RLock()
+	defer p.RUnlock()
 	if p.value == nil {
 		value = p.def
 	} else {
