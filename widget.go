@@ -412,9 +412,10 @@ func (w *CWidget) CanActivateAccel(signalId int) (value bool) {
 // Returns:
 // 	TRUE if the widget was activatable
 func (w *CWidget) Activate() (value bool) {
-	if w.IsSensitive() {
-		w.Emit(SignalActivate, w)
-		value = true
+	if w.IsVisible() && w.IsSensitive() {
+		if f := w.Emit(SignalActivate, w); f == enums.EVENT_STOP {
+			value = true
+		}
 	}
 	return
 }
