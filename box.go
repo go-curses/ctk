@@ -156,7 +156,11 @@ func (b *CBox) Build(builder Builder, element *CBuilderElement) error {
 // GetOrientation is a convenience method for returning the orientation property
 // value.
 // See: SetOrientation()
+//
+// Locking: read
 func (b *CBox) GetOrientation() (orientation enums.Orientation) {
+	b.RLock()
+	defer b.RUnlock()
 	var ok bool
 	if v, err := b.GetStructProperty(PropertyOrientation); err != nil {
 		b.LogErr(err)
@@ -171,17 +175,25 @@ func (b *CBox) GetOrientation() (orientation enums.Orientation) {
 //
 // Parameters:
 //  orientation  the desired enums.Orientation to use
+//
+// Locking: write
 func (b *CBox) SetOrientation(orientation enums.Orientation) {
+	b.Lock()
 	if err := b.SetStructProperty(PropertyOrientation, orientation); err != nil {
 		b.LogErr(err)
 	}
+	b.Unlock()
 	b.Resize()
 }
 
 // GetHomogeneous is a convenience method for returning the homogeneous property
 // value.
 // See: SetHomogeneous()
+//
+// Locking: read
 func (b *CBox) GetHomogeneous() (value bool) {
+	b.RLock()
+	defer b.RUnlock()
 	var err error
 	if value, err = b.GetBoolProperty(PropertyHomogeneous); err != nil {
 		b.LogErr(err)
@@ -195,7 +207,11 @@ func (b *CBox) GetHomogeneous() (value bool) {
 //
 // Parameters:
 // 	homogeneous	 TRUE to create equal allotments, FALSE for variable allotments
+//
+// Locking: write
 func (b *CBox) SetHomogeneous(homogeneous bool) {
+	b.Lock()
+	defer b.Unlock()
 	if err := b.SetBoolProperty(PropertyHomogeneous, homogeneous); err != nil {
 		b.LogErr(err)
 	}
@@ -203,7 +219,11 @@ func (b *CBox) SetHomogeneous(homogeneous bool) {
 
 // GetSpacing is a convenience method for returning the spacing property value.
 // See: SetSpacing()
+//
+// Locking: read
 func (b *CBox) GetSpacing() (value int) {
+	b.RLock()
+	defer b.RUnlock()
 	var err error
 	if value, err = b.GetIntProperty(PropertySpacing); err != nil {
 		b.LogErr(err)
@@ -215,7 +235,11 @@ func (b *CBox) GetSpacing() (value int) {
 //
 // Parameters:
 // 	spacing	 the number of characters to put between children
+//
+// Locking: write
 func (b *CBox) SetSpacing(spacing int) {
+	b.Lock()
+	defer b.Unlock()
 	if err := b.SetIntProperty(PropertySpacing, spacing); err != nil {
 		b.LogErr(err)
 	}
@@ -223,12 +247,16 @@ func (b *CBox) SetSpacing(spacing int) {
 
 // Add the given Widget to the Box using PackStart() with default settings of:
 // expand=false, fill=true and padding=0
+//
+// Locking: write
 func (b *CBox) Add(child Widget) {
 	b.PackStart(child, false, true, 0)
 }
 
 // Remove the given Widget from the Box Container, disconnecting any signal
 // handlers in the process.
+//
+// Locking: write
 func (b *CBox) Remove(w Widget) {
 	_ = b.Disconnect(SignalShow, BoxChildShowHandle)
 	_ = b.Disconnect(SignalHide, BoxChildHideHandle)
@@ -255,21 +283,11 @@ func (b *CBox) Remove(w Widget) {
 //           If child is a widget at one of the reference ends of box , then
 //           padding pixels are also put between child and the reference edge of
 //           box
+//
+// Locking: write
 func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == enums.EVENT_PASS {
-		child.Connect(SignalShow, BoxChildShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
-			child.LogDebug("signal show, resize: %v", b.ObjectName())
-			child.SetFlags(VISIBLE)
-			b.Resize()
-			return enums.EVENT_STOP
-		})
-		child.Connect(SignalHide, BoxChildHideHandle, func([]interface{}, ...interface{}) enums.EventFlag {
-			child.LogDebug("signal hide, resize: %v", b.ObjectName())
-			child.UnsetFlags(VISIBLE)
-			b.Resize()
-			return enums.EVENT_STOP
-		})
 		child.SetParent(b)
 		child.SetWindow(b.GetWindow())
 		b.CContainer.AddWithProperties(child,
@@ -302,21 +320,11 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 //           If child is a widget at one of the reference ends of box, then
 //           padding pixels are also put between child and the reference edge of
 //           box
+//
+// Locking: write
 func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == enums.EVENT_PASS {
-		child.Connect(SignalShow, BoxChildShowHandle, func([]interface{}, ...interface{}) enums.EventFlag {
-			child.LogDebug("signal show, resize: %v", b.ObjectName())
-			child.SetFlags(VISIBLE)
-			b.Resize()
-			return enums.EVENT_STOP
-		})
-		child.Connect(SignalHide, BoxChildHideHandle, func([]interface{}, ...interface{}) enums.EventFlag {
-			child.LogDebug("signal hide, resize: %v", b.ObjectName())
-			child.UnsetFlags(VISIBLE)
-			b.Resize()
-			return enums.EVENT_STOP
-		})
 		child.SetParent(b)
 		child.SetWindow(b.GetWindow())
 		b.CContainer.AddWithProperties(child,
@@ -341,19 +349,27 @@ func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 // Parameters:
 // 	child	    the Widget to move
 // 	position	the new position for child in the list of children of box starting from 0. If negative, indicates the end of the list
+//
+// Locking: write
 func (b *CBox) ReorderChild(child Widget, position int) {
+	childId := child.ObjectID()
+	b.Lock()
 	var children []Widget
 	if position < 0 {
 		position = len(b.children) - 1 + position
 	}
 	for idx, c := range b.children {
+		b.Unlock()
+		cId := c.ObjectID()
+		b.Lock()
 		if idx == position {
 			children = append(children, child)
-		} else if c.ObjectID() != child.ObjectID() {
+		} else if cId != childId {
 			children = append(children, c)
 		}
 	}
 	b.children = children
+	b.Unlock()
 }
 
 // QueryChildPacking obtains information about how the child is packed into the
@@ -362,7 +378,10 @@ func (b *CBox) ReorderChild(child Widget, position int) {
 //
 // Parameters:
 // 	child	the Widget of the child to query
+//
+// Locking: read
 func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType PackType) {
+	b.RLock()
 	if cps, ok := b.property[child.ObjectID()]; ok {
 		for _, cp := range cps {
 			switch cp.Name() {
@@ -387,6 +406,7 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 	} else {
 		b.LogError("%v is not a child of %v", child, b)
 	}
+	b.RUnlock()
 	return
 }
 
@@ -400,8 +420,12 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 // 	fill	the new value of the “fill” child property
 // 	padding	the new value of the “padding” child property
 // 	packType	the new value of the “pack-type” child property
+//
+// Locking: write
 func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType) {
 	if cps, ok := b.property[child.ObjectID()]; ok {
+		b.Lock()
+		defer b.Unlock()
 		for _, cp := range cps {
 			switch cp.Name() {
 			case PropertyBoxChildExpand:
@@ -435,17 +459,24 @@ func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int
 // Returns:
 // 	focusableWidgets	widgets in the focus chain.
 // 	explicitlySet       TRUE if the focus chain has been set explicitly.
+//
+// Locking: read
 func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
+	b.RLock()
 	if b.focusChainSet {
+		b.RUnlock()
 		return b.focusChain, true
 	}
+	b.RUnlock()
+	boxChildren := b.getBoxChildren()
+	b.RLock()
 	var children []interface{}
-	for _, child := range b.getBoxChildren() {
+	for _, child := range boxChildren {
 		if child.packType == PackStart {
 			children = append(children, child.widget)
 		}
 	}
-	for _, child := range b.getBoxChildren() {
+	for _, child := range boxChildren {
 		if child.packType == PackEnd {
 			children = append(children, child.widget)
 		}
@@ -457,28 +488,42 @@ func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bo
 				focusableWidgets = append(focusableWidgets, cChild)
 			}
 		} else if cw, ok := child.(Widget); ok {
-			if cw.CanFocus() && cw.IsVisible() {
+			if cw.CanFocus() && cw.IsVisible() && cw.IsSensitive() {
 				focusableWidgets = append(focusableWidgets, child)
 			}
 		}
 	}
+	b.RUnlock()
 	return
 }
 
 // GetSizeRequest returns the requested size of the Drawable Widget. This method
 // is used by Container Widgets to resolve the surface space allocated for their
 // child Widget instances.
+//
+// Locking: read
 func (b *CBox) GetSizeRequest() (width, height int) {
 	children := b.getBoxChildren()
+
+	b.RLock()
 	nChildren := len(children)
 	if nChildren <= 0 {
+		b.RUnlock()
 		return
 	}
+	b.RUnlock()
+
 	orientation := b.GetOrientation()
-	isVertical := orientation == enums.ORIENTATION_VERTICAL
 	spacing := b.GetSpacing()
+	isHomogeneous := b.GetHomogeneous()
+
+	b.Lock()
+	defer b.Unlock()
+
+	isVertical := orientation == enums.ORIENTATION_VERTICAL
 	var w, h int
-	if b.GetHomogeneous() {
+
+	if isHomogeneous {
 		// get the size of the largest child and request that for all children
 		for _, child := range children {
 			req := ptypes.MakeRectangle(child.widget.GetSizeRequest())
@@ -543,13 +588,16 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 
 func (b *CBox) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
 	origin := b.GetOrigin()
+	style := b.GetThemeRequest().Content.Normal
 	for _, child := range b.getBoxChildren() {
+		b.Lock()
 		local := child.widget.GetOrigin()
 		local.SubPoint(origin)
 		alloc := child.widget.GetAllocation()
-		if err := memphis.ConfigureSurface(child.widget.ObjectID(), local, alloc, b.GetThemeRequest().Content.Normal); err != nil {
+		if err := memphis.ConfigureSurface(child.widget.ObjectID(), local, alloc, style); err != nil {
 			child.widget.LogErr(err)
 		}
+		b.Unlock()
 	}
 	return enums.EVENT_STOP
 }
@@ -566,6 +614,7 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	orientation := b.GetOrientation()
 	isVertical := orientation == enums.ORIENTATION_VERTICAL
 	homogeneous := b.GetHomogeneous()
+	b.Lock()
 	// intermediaries
 	var increment int
 	var gaps []int
@@ -575,6 +624,7 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 		increment, gaps = cmath.SolveSpaceAlloc(numChildren, alloc.W, spacing)
 	}
 	nextPoint := origin.NewClone()
+	b.Unlock()
 	if homogeneous {
 		return b.resizeHomogeneous(isVertical, gaps, increment, numChildren, origin, nextPoint, alloc, children)
 	}
@@ -582,6 +632,10 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 }
 
 func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) enums.EventFlag {
+	style := b.GetThemeRequest().Content.Normal
+	// b.Lock()
+	// defer b.Unlock()
+
 	// assume child.expand == true
 	var consumed int
 	tracking := make([]struct {
@@ -680,7 +734,7 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		nextPoint.Add(local.X, local.Y)
 		x := nextPoint.X - origin.X
 		y := nextPoint.Y - origin.Y
-		if err := memphis.ConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), b.GetTheme().Content.Normal); err != nil {
+		if err := memphis.ConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), style); err != nil {
 			child.widget.LogErr(err)
 		}
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
@@ -704,6 +758,9 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 }
 
 func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) enums.EventFlag {
+	style := b.GetThemeRequest().Content.Normal
+	// b.Lock()
+	// defer b.Unlock()
 	var (
 		extraSpace   int
 		numExpanding int
@@ -860,7 +917,7 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(ptypes.MakeRectangle(track.w, track.h))
 		child.widget.Resize()
-		if err := memphis.ConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(nextPoint.X-origin.X, nextPoint.Y-origin.Y), ptypes.MakeRectangle(track.w, track.h), b.GetTheme().Content.Normal); err != nil {
+		if err := memphis.ConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(nextPoint.X-origin.X, nextPoint.Y-origin.Y), ptypes.MakeRectangle(track.w, track.h), style); err != nil {
 			child.widget.LogErr(err)
 		}
 		if isVertical {
@@ -882,18 +939,21 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 
 func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		b.Lock()
-		defer b.Unlock()
 		alloc := b.GetAllocation()
 		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			b.LogTrace("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
+		b.RLock()
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
+		b.RUnlock()
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
-		surface.Fill(b.GetTheme())
+		theme := b.GetThemeRequest()
+		b.Lock()
+		defer b.Unlock()
+		surface.Fill(theme)
 		for _, child := range children {
 			if child.widget.IsVisible() {
 				if f := child.widget.Draw(); f == enums.EVENT_STOP {
@@ -923,13 +983,16 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 
 func (b *CBox) getBoxChildren() (children []*cBoxChild) {
 	bChildren := b.GetChildren()
+	b.RLock()
 	nChildren := len(bChildren)
 	expand := make([]bool, nChildren)
 	fill := make([]bool, nChildren)
 	padding := make([]int, nChildren)
 	packType := make([]PackType, nChildren)
 	for idx, child := range bChildren {
+		b.RUnlock()
 		expand[idx], fill[idx], padding[idx], packType[idx] = b.QueryChildPacking(child)
+		b.RLock()
 		if child.IsVisible() && packType[idx] == PackStart {
 			children = append(children, &cBoxChild{
 				widget:   child,
@@ -951,6 +1014,7 @@ func (b *CBox) getBoxChildren() (children []*cBoxChild) {
 			})
 		}
 	}
+	b.RUnlock()
 	return
 }
 
