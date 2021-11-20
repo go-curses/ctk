@@ -88,6 +88,8 @@ func (a *CAdjustment) Init() bool {
 
 // GetValue returns the current value of the adjustment.
 // See: SetValue()
+//
+// Locking: read
 func (a *CAdjustment) GetValue() (value int) {
 	var err error
 	if value, err = a.GetIntProperty(PropertyValue); err != nil {
@@ -99,6 +101,8 @@ func (a *CAdjustment) GetValue() (value int) {
 // SetValue updates the current value of the Adjustment. This method emits a
 // set-value signal initially and if the listeners return an EVENT_PASS then the
 // new value is applied and a call to ValueChanged() is made.
+//
+// Locking: write
 func (a *CAdjustment) SetValue(value int) {
 	if f := a.Emit(SignalSetValue, value); f == enums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyValue, value); err != nil {
@@ -113,6 +117,8 @@ func (a *CAdjustment) SetValue(value int) {
 // without emitting multiple changed signals. This method emits a clamp-page
 // signal initially and if the listeners return an EVENT_PASS then the new upper
 // and lower bounds are applied and a call to Changed() is made.
+//
+// Locking: write
 func (a *CAdjustment) ClampPage(upper, lower int) {
 	var up, lo int
 	up, _ = a.GetIntProperty(PropertyUpper)
@@ -148,6 +154,8 @@ func (a *CAdjustment) ValueChanged() enums.EventFlag {
 
 // Settings is a convenience method to retrieve all the configurable Adjustment
 // values in one statement.
+//
+// Locking: read
 func (a *CAdjustment) Settings() (value, lower, upper, stepIncrement, pageIncrement, pageSize int) {
 	value, lower, upper = a.GetValue(), a.GetLower(), a.GetUpper()
 	stepIncrement, pageIncrement, pageSize = a.GetStepIncrement(), a.GetPageIncrement(), a.GetPageSize()
@@ -171,12 +179,15 @@ func (a *CAdjustment) Settings() (value, lower, upper, stepIncrement, pageIncrem
 // 	stepIncrement	the new step increment
 // 	pageIncrement	the new page increment
 // 	pageSize	the new page size
+//
+// Locking: write
 func (a *CAdjustment) Configure(value, lower, upper, stepIncrement, pageIncrement, pageSize int) {
 	if f := a.Emit(SignalConfigure, value, lower, upper, stepIncrement, pageIncrement, pageSize); f == enums.EVENT_PASS {
 		a.Freeze()
 		aValue, aLower, aUpper, aStepIncrement, aPageIncrement, aPageSize := a.Settings()
 		valueChanged := aValue != value
-		changed := aLower != lower || aUpper != upper ||
+		changed := aLower != lower ||
+			aUpper != upper ||
 			aStepIncrement != stepIncrement ||
 			aPageIncrement != pageIncrement ||
 			aPageSize != pageSize
@@ -197,6 +208,8 @@ func (a *CAdjustment) Configure(value, lower, upper, stepIncrement, pageIncremen
 }
 
 // GetLower returns the current lower bounds of the Adjustment.
+//
+// Locking: read
 func (a *CAdjustment) GetLower() (value int) {
 	var err error
 	if value, err = a.GetIntProperty(PropertyLower); err != nil {
@@ -208,6 +221,8 @@ func (a *CAdjustment) GetLower() (value int) {
 // SetLower updates the lower bounds of the Adjustment. This method emits a
 // set-lower signal initially and if the listeners return an EVENT_PASS then the
 // value is applied and a call to Changed() is made.
+//
+// Locking: write
 func (a *CAdjustment) SetLower(lower int) {
 	if f := a.Emit(SignalSetLower, lower); f == enums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyLower, lower); err != nil {
@@ -219,6 +234,8 @@ func (a *CAdjustment) SetLower(lower int) {
 }
 
 // GetUpper returns the current lower bounds of the Adjustment.
+//
+// Locking: read
 func (a *CAdjustment) GetUpper() (upper int) {
 	var err error
 	if upper, err = a.GetIntProperty(PropertyUpper); err != nil {
@@ -230,6 +247,8 @@ func (a *CAdjustment) GetUpper() (upper int) {
 // SetUpper updates the upper bounds of the Adjustment. This method emits a
 // set-upper signal initially and if the listeners return an EVENT_PASS then the
 // value is applied and a call to Changed() is made.
+//
+// Locking: write
 func (a *CAdjustment) SetUpper(upper int) {
 	if f := a.Emit(SignalSetUpper, upper); f == enums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyUpper, upper); err != nil {
@@ -244,6 +263,8 @@ func (a *CAdjustment) SetUpper(upper int) {
 // Adjustment values are intended to be increased or decreased by either a step
 // or page amount. The step increment is the shorter movement such as moving up
 // or down a line of text.
+//
+// Locking: read
 func (a *CAdjustment) GetStepIncrement() (stepIncrement int) {
 	var err error
 	if stepIncrement, err = a.GetIntProperty(PropertyStepIncrement); err != nil {
@@ -255,6 +276,8 @@ func (a *CAdjustment) GetStepIncrement() (stepIncrement int) {
 // SetStepIncrement updates the step increment of the Adjustment. This method
 // emits a set-step-increment signal initially and if the listeners return an
 // EVENT_PASS then the value is applied and a call to Changed() is made.
+//
+// Locking: write
 func (a *CAdjustment) SetStepIncrement(stepIncrement int) {
 	if f := a.Emit(SignalSetStepIncrement, stepIncrement); f == enums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyStepIncrement, stepIncrement); err != nil {
@@ -269,6 +292,8 @@ func (a *CAdjustment) SetStepIncrement(stepIncrement int) {
 // Adjustment values are intended to be increased or decreased by either a step
 // or page amount. The page increment is the longer movement such as moving up
 // or down half a page of text.
+//
+// Locking: read
 func (a *CAdjustment) GetPageIncrement() (pageIncrement int) {
 	var err error
 	if pageIncrement, err = a.GetIntProperty(PropertyPageIncrement); err != nil {
@@ -280,6 +305,8 @@ func (a *CAdjustment) GetPageIncrement() (pageIncrement int) {
 // SetPageIncrement updates the page increment of the Adjustment. This method
 // emits a set-page-increment signal initially and if the listeners return an
 // EVENT_PASS then the value is applied and a call to Changed() is made.
+//
+// Locking: write
 func (a *CAdjustment) SetPageIncrement(pageIncrement int) {
 	if f := a.Emit(SignalSetPageIncrement, pageIncrement); f == enums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyPageIncrement, pageIncrement); err != nil {
@@ -296,6 +323,8 @@ func (a *CAdjustment) SetPageIncrement(pageIncrement int) {
 // is beneficial. This value does not have to be the same as the page increment,
 // however the page increment is in effect clamped to the page size of the
 // Adjustment.
+//
+// Locking: read
 func (a *CAdjustment) GetPageSize() (pageSize int) {
 	var err error
 	if pageSize, err = a.GetIntProperty(PropertyPageSize); err != nil {
@@ -307,6 +336,8 @@ func (a *CAdjustment) GetPageSize() (pageSize int) {
 // SetPageSize updates the page size of the Adjustment. This method emits a
 // set-page-size signal initially and if the listeners return an EVENT_PASS then the value is
 // applied and a call to Changed() is made.
+//
+// Locking: write
 func (a *CAdjustment) SetPageSize(pageSize int) {
 	if f := a.Emit(SignalSetPageSize, pageSize); f == enums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyPageSize, pageSize); err != nil {
@@ -323,6 +354,8 @@ func (a *CAdjustment) SetPageSize(pageSize int) {
 // also clamped to zero and so on. Thus, this convenience method enables a Human
 // readable understanding of why the upper bounds is being checked for a zero
 // value (eliminates a useful magic value).
+//
+// Locking: read
 func (a *CAdjustment) Moot() bool {
 	return a.GetUpper() == 0 || a.GetLower() == a.GetUpper()
 }
@@ -331,6 +364,8 @@ func (a *CAdjustment) Moot() bool {
 // the Widget using the Adjustment should be rendered or otherwise used to an
 // end-user-facing effect. This method is primarily used by other Widgets as a
 // convenient way to determine if they should show or hide their presence.
+//
+// Locking: read
 func (a *CAdjustment) ShowByPolicy(policy PolicyType) bool {
 	switch policy {
 	case PolicyNever:
