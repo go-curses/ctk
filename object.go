@@ -126,7 +126,10 @@ func (o *CObject) Build(builder Builder, element *CBuilderElement) error {
 // instance with its type, unique identifier, name if set (see SetName()), the
 // origin point and current size allocation.
 func (o *CObject) ObjectInfo() string {
-	info := fmt.Sprintf("%v %v,%v %v", o.ObjectID(), o.origin, o.GetAllocation(), o.ObjectName())
+	o.RLock()
+	origin := o.origin
+	o.RUnlock()
+	info := fmt.Sprintf("%v %v,%v %v", o.ObjectID(), origin, o.GetAllocation(), o.ObjectName())
 	return info
 }
 
@@ -137,13 +140,18 @@ func (o *CObject) ObjectInfo() string {
 // Emits: SignalOrigin, Argv=[Object instance, new origin]
 func (o *CObject) SetOrigin(x, y int) {
 	if f := o.Emit(SignalOrigin, o, ptypes.MakePoint2I(x, y)); f == enums.EVENT_PASS {
+		o.Lock()
 		o.origin.Set(x, y)
+		o.Unlock()
 	}
 }
 
 // GetOrigin returns the current origin point of the Object instance
-func (o *CObject) GetOrigin() ptypes.Point2I {
-	return *o.origin
+func (o *CObject) GetOrigin() (origin ptypes.Point2I) {
+	o.RLock()
+	origin = o.origin.Clone()
+	o.RUnlock()
+	return
 }
 
 // SetAllocation updates the allocated size of the Object instance. This method
@@ -153,14 +161,19 @@ func (o *CObject) GetOrigin() ptypes.Point2I {
 // height of zero.
 func (o *CObject) SetAllocation(size ptypes.Rectangle) {
 	if f := o.Emit(SignalAllocation, o.allocation, size); f == enums.EVENT_PASS {
+		o.Lock()
 		o.allocation.Set(size.W, size.H)
 		o.allocation.Floor(0, 0)
+		o.Unlock()
 	}
 }
 
 // GetAllocation returns the current allocation size of the Object instance.
-func (o *CObject) GetAllocation() ptypes.Rectangle {
-	return *o.allocation
+func (o *CObject) GetAllocation() (alloc ptypes.Rectangle) {
+	o.RLock()
+	alloc = o.allocation.Clone()
+	o.RUnlock()
+	return
 }
 
 // GetObjectAt returns the Object's instance if the given point is within the
@@ -180,11 +193,14 @@ func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 	origin := o.GetOrigin()
 	size := o.GetAllocation()
+	o.RLock()
 	if p.X >= origin.X && p.X < (origin.X+size.W) {
 		if p.Y >= origin.Y && p.Y < (origin.Y+size.H) {
+			o.RUnlock()
 			return true
 		}
 	}
+	o.RUnlock()
 	return false
 }
 
@@ -192,6 +208,8 @@ func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 // which are drawable and need an opportunity to invalidate the memphis surfaces
 // so that the next CTK draw cycle can reflect the latest changes to the Object
 // instance.
+//
+// Locking: expected read/write
 func (o *CObject) Invalidate() enums.EventFlag {
 	return o.Emit(SignalInvalidate, o)
 }
@@ -199,12 +217,16 @@ func (o *CObject) Invalidate() enums.EventFlag {
 // ProcessEvent emits a cdk-event signal, primarily used to consume CDK events
 // received such as mouse or key events in other CTK and custom types that embed
 // CObject.
+//
+// Locking: expected read/write
 func (o *CObject) ProcessEvent(evt cdk.Event) enums.EventFlag {
 	return o.Emit(SignalCdkEvent, o, evt)
 }
 
 // Resize emits a resize signal, primarily used to make adjustments or otherwise
 // reallocate resources necessary for subsequent draw events.
+//
+// Locking: read
 func (o *CObject) Resize() enums.EventFlag {
 	size := o.GetAllocation()
 	return o.Emit(SignalResize, o, size)
@@ -214,7 +236,10 @@ func (o *CObject) Resize() enums.EventFlag {
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetTextDirection() (direction TextDirection) {
-	return o.textDirection
+	o.RLock()
+	direction = o.textDirection
+	o.RUnlock()
+	return
 }
 
 // SetTextDirection updates text direction for this Object instance. This method
@@ -224,7 +249,9 @@ func (o *CObject) GetTextDirection() (direction TextDirection) {
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) SetTextDirection(direction TextDirection) {
 	if f := o.Emit(SignalTextDirection, o, direction); f == enums.EVENT_PASS {
+		o.Lock()
 		o.textDirection = direction
+		o.Unlock()
 	}
 }
 
@@ -251,14 +278,17 @@ func (o *CObject) InstallCssProperty(name cdk.Property, state StateType, kind cd
 	if existing := o.GetCssProperty(name, state); existing != nil {
 		return fmt.Errorf("property exists: %v", name)
 	}
+	o.Lock()
 	if _, ok := o.css[state]; !ok {
 		o.css[state] = make(map[cdk.Property]*CStyleProperty)
 	}
 	o.css[state][name] = NewStyleProperty(name, state, kind, write, false, def)
+	o.Unlock()
 	return nil
 }
 
 func (o *CObject) SetCssPropertyFromStyle(key, value string) (err error) {
+	o.Lock()
 	state := StateNormal
 	if strings.Contains(key, ":") {
 		parts := strings.Split(key, ":")
@@ -270,6 +300,7 @@ func (o *CObject) SetCssPropertyFromStyle(key, value string) (err error) {
 	} else {
 		err = fmt.Errorf("css property not found: %v", key)
 	}
+	o.Unlock()
 	return
 }
 
@@ -278,10 +309,12 @@ func (o *CObject) SetCssPropertyFromStyle(key, value string) (err error) {
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssProperty(name cdk.Property, state StateType) (property *CStyleProperty) {
+	o.RLock()
 	var ok bool
 	if property, ok = o.css[state][name]; !ok {
 		property = nil
 	}
+	o.RUnlock()
 	return
 }
 
@@ -289,6 +322,7 @@ func (o *CObject) GetCssProperty(name cdk.Property, state StateType) (property *
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssProperties() (properties map[StateType][]*CStyleProperty) {
+	o.RLock()
 	properties = make(map[StateType][]*CStyleProperty)
 	for s, _ := range o.css {
 		properties[s] = make([]*CStyleProperty, len(o.css[s]))
@@ -296,6 +330,7 @@ func (o *CObject) GetCssProperties() (properties map[StateType][]*CStyleProperty
 			properties[s] = append(properties[s], v)
 		}
 	}
+	o.RUnlock()
 	return
 }
 
@@ -304,9 +339,11 @@ func (o *CObject) GetCssProperties() (properties map[StateType][]*CStyleProperty
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssValue(name cdk.Property, state StateType) (value interface{}) {
+	o.RLock()
 	if v, ok := o.css[state][name]; ok {
 		value = v.Value()
 	}
+	o.RUnlock()
 	return
 }
 
@@ -316,15 +353,19 @@ func (o *CObject) GetCssValue(name cdk.Property, state StateType) (value interfa
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssBool(name cdk.Property, state StateType) (value bool, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
+		o.RLock()
 		if prop.Type() == cdk.BoolProperty {
 			if v, ok := prop.Value().(bool); ok {
+				o.RUnlock()
 				return v, nil
 			}
 			if v, ok := prop.Default().(bool); ok {
+				o.RUnlock()
 				return v, nil
 			}
 		}
 		err = fmt.Errorf("%v.(%v) css property is not a bool", name, prop.Type())
+		o.RUnlock()
 		return
 	}
 	err = fmt.Errorf("css property not found: %v", name)
@@ -337,15 +378,19 @@ func (o *CObject) GetCssBool(name cdk.Property, state StateType) (value bool, er
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssString(name cdk.Property, state StateType) (value string, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
+		o.RLock()
 		if prop.Type() == cdk.StringProperty {
 			if v, ok := prop.Value().(string); ok {
+				o.RUnlock()
 				return v, nil
 			}
 			if v, ok := prop.Default().(string); ok {
+				o.RUnlock()
 				return v, nil
 			}
 		}
 		err = fmt.Errorf("%v.(%v) css property is not a string", name, prop.Type())
+		o.RUnlock()
 		return
 	}
 	err = fmt.Errorf("css property not found: %v", name)
@@ -358,15 +403,19 @@ func (o *CObject) GetCssString(name cdk.Property, state StateType) (value string
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssInt(name cdk.Property, state StateType) (value int, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
+		o.RLock()
 		if prop.Type() == cdk.IntProperty {
 			if v, ok := prop.Value().(int); ok {
+				o.RUnlock()
 				return v, nil
 			}
 			if v, ok := prop.Default().(int); ok {
+				o.RUnlock()
 				return v, nil
 			}
 		}
 		err = fmt.Errorf("%v.(%v) css property is not a int", name, prop.Type())
+		o.RUnlock()
 		return
 	}
 	err = fmt.Errorf("css property not found: %v", name)
@@ -379,15 +428,19 @@ func (o *CObject) GetCssInt(name cdk.Property, state StateType) (value int, err 
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssFloat(name cdk.Property, state StateType) (value float64, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
+		o.RLock()
 		if prop.Type() == cdk.FloatProperty {
 			if v, ok := prop.Value().(float64); ok {
+				o.RUnlock()
 				return v, nil
 			}
 			if v, ok := prop.Default().(float64); ok {
+				o.RUnlock()
 				return v, nil
 			}
 		}
 		err = fmt.Errorf("%v.(%v) css property is not a float64", name, prop.Type())
+		o.RUnlock()
 		return
 	}
 	err = fmt.Errorf("css property not found: %v", name)
@@ -400,15 +453,19 @@ func (o *CObject) GetCssFloat(name cdk.Property, state StateType) (value float64
 // Note that usage of this within CTK is unimplemented at this time
 func (o *CObject) GetCssColor(name cdk.Property, state StateType) (value paint.Color, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
+		o.RLock()
 		if prop.Type() == cdk.ColorProperty {
 			if v, ok := prop.Value().(paint.Color); ok {
+				o.RUnlock()
 				return v, nil
 			}
 			if v, ok := prop.Default().(paint.Color); ok {
+				o.RUnlock()
 				return v, nil
 			}
 		}
 		err = fmt.Errorf("%v.(%v) css property is not a Color", name, prop.Type())
+		o.RUnlock()
 		return
 	}
 	err = fmt.Errorf("css property not found: %v", name)
