@@ -160,7 +160,7 @@ func setupUi(manager cdk.Display) error {
 	hbox3.PackStart(b2, true, true, 0)
 
 	var b4 ctk.Button
-	b4 = newButton("curses", "Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) enums.EventFlag {
+	b4 = newButton("curses", "_Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) enums.EventFlag {
 		log.InfoF("pressed Curses!")
 		dialog := ctk.NewDialogWithButtons(
 			"dialog title", w,
@@ -226,6 +226,7 @@ func setupUi(manager cdk.Display) error {
 	})
 	b4.SetSizeRequest(13, 3)
 	b4.Show()
+	b4.SetUseUnderline(true)
 	hbox3.PackEnd(b4, false, false, 0)
 	b4.GrabFocus()
 
