@@ -282,6 +282,9 @@ func (v *CViewport) draw(data []interface{}, argv ...interface{}) enums.EventFla
 			return enums.EVENT_PASS
 		}
 
+		v.Lock()
+		defer v.Unlock()
+
 		if child := v.GetChild(); child != nil {
 			if f := child.Draw(); f == enums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
