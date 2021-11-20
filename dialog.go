@@ -68,6 +68,9 @@ type Dialog interface {
 	Show()
 	ShowAll()
 	Destroy()
+	Add(w Widget)
+	SetFocus(focus interface{})
+	GetWindow() Window
 }
 
 // The CDialog structure implements the Dialog interface and is exported
@@ -123,9 +126,15 @@ func NewDialogWithButtons(title string, parent Window, flags DialogFlags, argv .
 	d.dialogFlags = flags
 	d.Init()
 	d.SetTitle(title)
-	d.SetTransientFor(parent)
-	d.SetParent(parent)
-	d.SetWindow(parent)
+	if parent != nil {
+		parent.SetTransientFor(d)
+		d.SetTransientFor(parent)
+		d.SetParent(parent)
+		if err := d.AddStylesFromString(parent.ExportStylesToString()); err != nil {
+			d.LogErr(err)
+		}
+	}
+	d.SetWindow(d)
 	if len(argv) > 0 {
 		d.AddButtons(argv...)
 	}
@@ -148,10 +157,12 @@ func (d *CDialog) Init() (already bool) {
 	}
 	d.flags = NULL_WIDGET_FLAG
 	d.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
-	d.parent = d
+	d.SetParent(d)
+	d.SetWindow(d)
 	d.defResponse = ResponseNone
-	vbox := d.GetVBox()
+	vbox := NewVBox(false, 0)
 	vbox.Show()
+	d.Add(vbox)
 	d.content = NewVBox(false, 0)
 	d.content.Show()
 	vbox.PackStart(d.content, true, true, 0)
@@ -294,6 +305,15 @@ func (d *CDialog) Response(responseId ResponseType) {
 	d.Emit(SignalResponse, responseId)
 }
 
+func (d *CDialog) Add(w Widget) {
+	d.CBin.Add(w)
+	w.SetWindow(d)
+}
+
+func (d *CDialog) GetWindow() Window {
+	return d
+}
+
 // AddButton is a convenience method for AddActionWidget to create a Button with
 // the given text (or a stock button, if button_text is a StockID) and set
 // things up so that clicking the button will emit the response signal with the
@@ -385,7 +405,14 @@ func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId ResponseType
 // Parameters:
 // 	responseId	a response ID
 func (d *CDialog) SetDefaultResponse(responseId ResponseType) {
+	d.Lock()
 	d.defResponse = responseId
+	d.Unlock()
+	if widgets, ok := d.widgets[responseId]; ok {
+		if len(widgets) > 0 {
+			widgets[0].GrabFocus()
+		}
+	}
 }
 
 // SetResponseSensitive calls Widget.SetSensitive for each widget in the
@@ -476,11 +503,34 @@ func (d *CDialog) Destroy() {
 	d.Hide()
 	dm := d.GetDisplay()
 	if tf := d.GetTransientFor(); tf != nil {
+		tf.SetTransientFor(nil)
+		d.SetTransientFor(nil)
 		dm.RemoveWindowOverlay(tf.ObjectID(), d.ObjectID())
 	} else {
 		dm.RemoveWindow(d.ObjectID())
 	}
 	d.Emit(SignalDestroyEvent, d)
+}
+
+func (d *CDialog) SetFocus(focus interface{}) {
+	if focus == nil {
+		d.Lock()
+		d.focused = nil
+		d.Unlock()
+	} else if fw, ok := focus.(Sensitive); ok {
+		if fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
+			if err := d.SetStructProperty(PropertyFocusedWidget, focus); err != nil {
+				d.LogErr(err)
+			}
+			d.Lock()
+			d.focused = focus
+			d.Unlock()
+		} else {
+			d.LogError("cannot focus, not visible or not sensitive")
+		}
+	} else {
+		d.LogError("does not implement Sensitive interface: %v", focus)
+	}
 }
 
 func (d *CDialog) getDialogRegion() (region ptypes.Region) {
@@ -592,23 +642,22 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) enums.EventFla
 
 func (d *CDialog) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		d.Lock()
-		defer d.Unlock()
 		size := d.GetAllocation()
 		if !d.IsVisible() || size.W == 0 || size.H == 0 {
 			d.LogDebug("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
 		d.LogTrace("%v", size)
-		if d.GetTitle() != "" {
-			surface.FillBorderTitle(false, d.GetTitle(), enums.JUSTIFY_CENTER, d.GetThemeRequest())
-		} else {
-			surface.FillBorder(false, true, d.GetThemeRequest())
-		}
-		// _ = d.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
-		// _ = d.content.SetBoolProperty(cdk.PropertyDebug, true)
-		// _ = d.action.SetBoolProperty(cdk.PropertyDebug, true)
+		title := d.GetTitle()
+		theme := d.GetThemeRequest()
 		vbox := d.GetVBox()
+		d.Lock()
+		defer d.Unlock()
+		if d.GetTitle() != "" {
+			surface.FillBorderTitle(false, title, enums.JUSTIFY_CENTER, theme)
+		} else {
+			surface.FillBorder(false, true, theme)
+		}
 		if r := vbox.Draw(); r == enums.EVENT_STOP {
 			if err := surface.Composite(vbox.ObjectID()); err != nil {
 				vbox.LogErr(err)
