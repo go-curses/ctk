@@ -259,6 +259,8 @@ func (b *CButton) Clicked() enums.EventFlag {
 
 // GetRelief is a convenience method for returning the relief property value
 // See: SetRelief()
+//
+// Locking: read
 func (b *CButton) GetRelief() (value ReliefStyle) {
 	if v, err := b.GetStructProperty(PropertyRelief); err != nil {
 		b.LogErr(err)
@@ -274,6 +276,8 @@ func (b *CButton) GetRelief() (value ReliefStyle) {
 // SetRelief is a convenience method for updating the relief property value
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: write
 func (b *CButton) SetRelief(newStyle ReliefStyle) {
 	if err := b.SetStructProperty(PropertyRelief, newStyle); err != nil {
 		b.LogErr(err)
@@ -284,10 +288,14 @@ func (b *CButton) SetRelief(newStyle ReliefStyle) {
 // If the child Widget is not a Label, the value of the button label property
 // will be returned instead.
 // See: SetLabel()
+//
+// Locking: read
 func (b *CButton) GetLabel() (value string) {
 	if v, ok := b.GetChild().(Label); ok {
 		return v.GetText()
 	}
+	b.RLock()
+	defer b.RUnlock()
 	var err error
 	if value, err = b.GetStringProperty(PropertyButtonLabel); err != nil {
 		b.LogErr(err)
@@ -301,12 +309,16 @@ func (b *CButton) GetLabel() (value string) {
 //
 // Parameters:
 // 	label	the Label text to apply
+//
+// Locking: write
 func (b *CButton) SetLabel(label string) {
 	if b.GetUseStock() && label != "" {
+		b.Lock()
 		label = strings.ReplaceAll(label, "gtk", "ctk")
 		if item := LookupStockItem(StockID(label)); item != nil {
 			label = item.Label
 		}
+		b.Unlock()
 	}
 	if v, ok := b.GetChild().(Label); ok {
 		if strings.HasPrefix(label, "<markup") {
@@ -321,7 +333,11 @@ func (b *CButton) SetLabel(label string) {
 
 // GetUseStock is a convenience method to return the use-stock property value.
 // See: SetUseStock()
+//
+// Locking: read
 func (b *CButton) GetUseStock() (value bool) {
+	b.RLock()
+	defer b.RUnlock()
 	var err error
 	if value, err = b.GetBoolProperty(PropertyUseStock); err != nil {
 		b.LogErr(err)
@@ -774,10 +790,13 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) enums.EventFla
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
 	origin := b.GetOrigin()
 	child := b.GetChild()
+	b.Lock()
 	if child != nil {
 		if alloc.W <= 0 || alloc.H <= 0 {
 			child.SetAllocation(ptypes.MakeRectangle(0, 0))
-			return child.Resize()
+			rv := child.Resize()
+			b.Unlock()
+			return rv
 		}
 		local := ptypes.NewPoint2I(0, 0)
 		if alloc.W >= 3 && alloc.H >= 3 {
@@ -808,14 +827,13 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) enums.EventFla
 			child.LogErr(err)
 		}
 	}
+	b.Unlock()
 	b.Invalidate()
 	return enums.EVENT_PASS
 }
 
 func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		b.Lock()
-		defer b.Unlock()
 		size := b.GetAllocation()
 		if !b.IsVisible() || size.W <= 0 || size.H <= 0 {
 			b.LogTrace("not visible, zero width or zero height", surface)
@@ -834,6 +852,9 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 
 		theme := b.GetThemeRequest()
 		border := b.getBorderRequest()
+
+		b.Lock()
+		defer b.Unlock()
 
 		surface.Box(
 			ptypes.MakePoint2I(0, 0),
