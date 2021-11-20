@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/go-curses/cdk/lib/enums"
-	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
 	. "github.com/smartystreets/goconvey/convey"
@@ -15,7 +14,7 @@ func TestLabel(t *testing.T) {
 		Convey("basics: justification", func() {
 			l := NewLabel("test")
 			So(l, ShouldNotBeNil)
-			So(l.GetTheme().String(), ShouldEqual, paint.DefaultColorTheme.String())
+			So(l.GetTheme().String(), ShouldEqual, "{Content={Normal={white[#ffffff],navy[#000080],0},Selected={white[#ffffff],navy[#000080],0},Active={white[#ffffff],navy[#000080],0},Prelight={white[#ffffff],navy[#000080],0},Insensitive={white[#ffffff],navy[#000080],0},FillRune=32,BorderRunes={BorderRunes=9488,9472,9484,9474,9492,9472,9496,9474},ArrowRunes={ArrowRunes=8593,8592,8595,8594},Overlay=false},Border={Normal={white[#ffffff],navy[#000080],0},Selected={white[#ffffff],navy[#000080],0},Active={white[#ffffff],navy[#000080],0},Prelight={white[#ffffff],navy[#000080],0},Insensitive={white[#ffffff],navy[#000080],0},FillRune=32,BorderRunes={BorderRunes=9488,9472,9484,9474,9492,9472,9496,9474},ArrowRunes={ArrowRunes=8593,8592,8595,8594},Overlay=false}}")
 			l.Show()
 			l.SetOrigin(0, 0)
 			l.SetSizeRequest(10, 1)
