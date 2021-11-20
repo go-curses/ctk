@@ -564,8 +564,8 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 	w.mnemonicLock.Lock()
 	for _, entry := range w.mnemonics {
 		if entry.key == keyval {
-			if widget, ok := entry.target.(Widget); ok {
-				if tw, ok := target.(Widget); ok {
+			if widget, ok := entry.target.(Sensitive); ok {
+				if tw, ok := target.(Sensitive); ok {
 					if widget.ObjectID() == tw.ObjectID() {
 						w.mnemonicLock.Unlock()
 						return
@@ -574,7 +574,7 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 			}
 		}
 	}
-	if _, ok := target.(Widget); ok {
+	if _, ok := target.(Sensitive); ok {
 		w.mnemonics = append(w.mnemonics, &mnemonicEntry{
 			key:    keyval,
 			target: target,
@@ -591,11 +591,11 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 // 	target	the widget that gets activated by the mnemonic
 func (w *CWindow) RemoveMnemonic(keyval rune, target interface{}) {
 	w.mnemonicLock.Lock()
-	if tw, ok := target.(Widget); ok {
+	if tw, ok := target.(Sensitive); ok {
 		var mnemonics []*mnemonicEntry
 		for _, entry := range w.mnemonics {
 			if entry.key == keyval {
-				if widget, ok := entry.target.(Widget); ok {
+				if widget, ok := entry.target.(Sensitive); ok {
 					if widget.ObjectID() != tw.ObjectID() {
 						mnemonics = append(mnemonics, entry)
 					}
@@ -640,8 +640,9 @@ func (w *CWindow) MnemonicActivate(keyval rune, modifier cdk.ModMask) (activated
 	if modifier == w.mnemonicMod {
 		for _, entry := range w.mnemonics {
 			if entry.key == keyval {
-				if sa, ok := entry.target.(Widget); ok && sa.IsSensitive() && sa.IsVisible() {
+				if sa, ok := entry.target.(Sensitive); ok && sa.IsSensitive() && sa.IsVisible() {
 					w.mnemonicLock.Unlock()
+					sa.GrabFocus()
 					sa.Activate()
 					return true
 				}
