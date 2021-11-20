@@ -16,8 +16,8 @@ import (
 const TypeLabel cdk.CTypeTag = "ctk-label"
 
 var (
-	rxLabelPlainText = regexp.MustCompile(`(?msi)(_)([a-z])`)
-	rxLabelMnemonic  = regexp.MustCompile(`(?msi)_([a-z])`)
+	rxLabelPlainText = regexp.MustCompile(`(?msi)(_)([A-Za-z0-9])`)
+	rxLabelMnemonic  = regexp.MustCompile(`(?msi)_([A-Za-z0-9])`)
 )
 
 func init() {
@@ -849,13 +849,8 @@ func (l *CLabel) GetCleanText() (text string) {
 //
 // Locking: read
 func (l *CLabel) GetPlainTextInfo() (maxWidth, lineCount int) {
-	if l.tbuffer == nil {
-		return -1, -1
-	}
-	_, lineWrapMode, ellipsize, justify, maxWidthChars := l.Settings()
-	l.RLock()
-	maxWidth, lineCount = l.tbuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, maxWidthChars)
-	l.RUnlock()
+	maxWidthChars := l.GetMaxWidthChars()
+	maxWidth, lineCount = l.GetPlainTextInfoAtWidth(maxWidthChars)
 	return
 }
 
@@ -870,7 +865,15 @@ func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
 	}
 	_, lineWrapMode, ellipsize, justify, _ := l.Settings()
 	l.RLock()
-	maxWidth, lineCount = l.tbuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, width)
+	content := l.tbuffer.PlainText(lineWrapMode, ellipsize, justify, width)
+	lines := strings.Split(content, "\n")
+	lineCount = len(lines)
+	for _, line := range lines {
+		size := len(line)
+		if size > maxWidth {
+			maxWidth = size
+		}
+	}
 	l.RUnlock()
 	return
 }
@@ -940,8 +943,8 @@ func (l *CLabel) refreshMnemonics() {
 					w.AddMnemonic(keyval, widget)
 				} else {
 					if parent := l.GetParent(); parent != nil {
-						if pw, ok := parent.(Widget); ok && pw.IsSensitive() && pw.IsVisible() {
-							w.AddMnemonic(keyval, parent)
+						if pw, ok := parent.(Sensitive); ok && pw.IsSensitive() && pw.IsVisible() {
+							w.AddMnemonic(keyval, pw)
 						}
 					}
 				}
