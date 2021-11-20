@@ -232,11 +232,13 @@ func (l *CLabel) Build(builder Builder, element *CBuilderElement) error {
 //
 // Parameters:
 // 	text	the text you want to set
+//
+// Locking: write
 func (l *CLabel) SetText(text string) {
-	l.Lock()
 	if err := l.SetBoolProperty(PropertyUseMarkup, false); err != nil {
 		l.LogErr(err)
 	}
+	l.Lock()
 	l.text = text
 	l.Unlock()
 	l.Invalidate()
@@ -246,6 +248,8 @@ func (l *CLabel) SetText(text string) {
 //
 // Parameters:
 // 	attrs	a paint.Style
+//
+// Locking: write
 func (l *CLabel) SetAttributes(attrs paint.Style) {
 	if err := l.SetStructProperty(PropertyAttributes, attrs); err != nil {
 		l.LogErr(err)
@@ -257,13 +261,15 @@ func (l *CLabel) SetAttributes(attrs paint.Style) {
 //
 // Parameters:
 // 	text	a markup string (see Tango markup format)
+//
+// Locking: write
 func (l *CLabel) SetMarkup(text string) (parseError error) {
 	l.Lock()
 	l.text = text
+	l.Unlock()
 	if err := l.SetBoolProperty(PropertyUseMarkup, true); err != nil {
 		l.LogErr(err)
 	}
-	l.Unlock()
 	// Invalidate will call refreshTextBuffer again, we do this once before to
 	// see if there's any errors generated because we can't return any errors
 	// encountered in signal handlers (beyond the logging).
@@ -282,6 +288,8 @@ func (l *CLabel) SetMarkup(text string) (parseError error) {
 //
 // Parameters:
 // 	str	a markup string (see Pango markup format)
+//
+// Locking: write
 func (l *CLabel) SetMarkupWithMnemonic(str string) (err error) {
 	l.SetUseUnderline(true)
 	err = l.SetMarkup(str)
@@ -297,6 +305,8 @@ func (l *CLabel) SetMarkupWithMnemonic(str string) (err error) {
 //
 // Parameters:
 // 	jtype	a Justification
+//
+// Locking: write
 func (l *CLabel) SetJustify(justify enums.Justification) {
 	if err := l.SetStructProperty(PropertyJustify, justify); err != nil {
 		l.LogErr(err)
@@ -308,6 +318,8 @@ func (l *CLabel) SetJustify(justify enums.Justification) {
 //
 // Parameters:
 // 	mode	bool
+//
+// Locking: write
 func (l *CLabel) SetEllipsize(mode bool) {
 	if err := l.SetBoolProperty(PropertyEllipsize, mode); err != nil {
 		l.LogErr(err)
@@ -318,6 +330,8 @@ func (l *CLabel) SetEllipsize(mode bool) {
 //
 // Parameters:
 // 	nChars	the new desired width, in characters.
+//
+// Locking: write
 func (l *CLabel) SetWidthChars(nChars int) {
 	if err := l.SetIntProperty(PropertyWidthChars, nChars); err != nil {
 		l.LogErr(err)
@@ -329,6 +343,8 @@ func (l *CLabel) SetWidthChars(nChars int) {
 //
 // Parameters:
 // 	nChars	the new desired maximum width, in characters.
+//
+// Locking: write
 func (l *CLabel) SetMaxWidthChars(nChars int) {
 	if err := l.SetIntProperty(PropertyMaxWidthChars, nChars); err != nil {
 		l.LogErr(err)
@@ -345,6 +361,8 @@ func (l *CLabel) SetMaxWidthChars(nChars int) {
 //
 // Parameters:
 // 	wrap	the setting
+//
+// Locking: write
 func (l *CLabel) SetLineWrap(wrap bool) {
 	if err := l.SetBoolProperty(PropertyWrap, wrap); err != nil {
 		l.LogErr(err)
@@ -357,6 +375,8 @@ func (l *CLabel) SetLineWrap(wrap bool) {
 //
 // Parameters:
 // 	wrapMode	the line wrapping mode
+//
+// Locking: write
 func (l *CLabel) SetLineWrapMode(wrapMode enums.WrapMode) {
 	if err := l.SetStructProperty(PropertyWrapMode, wrapMode); err != nil {
 		l.LogErr(err)
@@ -370,20 +390,27 @@ func (l *CLabel) SetLineWrapMode(wrapMode enums.WrapMode) {
 //
 // Returns:
 //  value	keyval usable for accelerators
+//
+// Locking: read
 func (l *CLabel) GetMnemonicKeyVal() (value rune) {
 	if l.GetUseUnderline() {
 		label := l.GetClearText()
+		l.RLock()
 		if rxLabelMnemonic.MatchString(label) {
 			m := rxLabelMnemonic.FindStringSubmatch(label)
 			if len(m) > 1 {
+				l.RUnlock()
 				return rune(strings.ToLower(m[1])[0])
 			}
 		}
+		l.RUnlock()
 	}
 	return
 }
 
 // GetSelectable returns the value set by SetSelectable.
+//
+// Locking: read
 func (l *CLabel) GetSelectable() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertySelectable); err != nil {
@@ -396,6 +423,8 @@ func (l *CLabel) GetSelectable() (value bool) {
 // This does not include any embedded underlines indicating mnemonics or Tango
 // markup.
 // See: GetLabel
+//
+// Locking: read
 func (l *CLabel) GetText() (value string) {
 	value = l.GetCleanText()
 	return
@@ -412,6 +441,8 @@ func (l *CLabel) GetText() (value string) {
 // 	endOffset	end offset (in characters not bytes)
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Method stub, unimplemented
 func (l *CLabel) SelectRegion(startOffset int, endOffset int) {}
 
 // SetMnemonicWidget updates the mnemonic-widget property with the given Widget.
@@ -430,6 +461,8 @@ func (l *CLabel) SelectRegion(startOffset int, endOffset int) {}
 // 	widget	the target Widget.
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: write
 func (l *CLabel) SetMnemonicWidget(widget Widget) {
 	if err := l.SetStructProperty(PropertyMnemonicWidget, widget); err != nil {
 		l.LogErr(err)
@@ -445,6 +478,8 @@ func (l *CLabel) SetMnemonicWidget(widget Widget) {
 // 	setting	TRUE to allow selecting text in the label
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: write
 func (l *CLabel) SetSelectable(setting bool) {
 	if err := l.SetBoolProperty(PropertySelectable, setting); err != nil {
 		l.LogErr(err)
@@ -459,6 +494,8 @@ func (l *CLabel) SetSelectable(setting bool) {
 //
 // Parameters:
 // 	str	a string
+//
+// Locking: write
 func (l *CLabel) SetTextWithMnemonic(str string) {
 	l.SetUseUnderline(true)
 	l.SetText(str)
@@ -466,7 +503,9 @@ func (l *CLabel) SetTextWithMnemonic(str string) {
 
 // GetAttributes returns the attribute list that was set on the label using
 // SetAttributes, if any. This function does not reflect attributes that come
-// from the labels markup (see SetMarkup).
+// from the Label markup (see SetMarkup).
+//
+// Locking: read
 func (l *CLabel) GetAttributes() (value paint.Style) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyAttributes); err != nil {
@@ -479,6 +518,8 @@ func (l *CLabel) GetAttributes() (value paint.Style) {
 
 // GetJustify returns the justification of the label.
 // See: SetJustify()
+//
+// Locking: read
 func (l *CLabel) GetJustify() (value enums.Justification) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyJustify); err != nil {
@@ -491,6 +532,8 @@ func (l *CLabel) GetJustify() (value enums.Justification) {
 
 // GetEllipsize returns the ellipsizing state of the label.
 // See: SetEllipsize()
+//
+// Locking: read
 func (l *CLabel) GetEllipsize() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyEllipsize); err != nil {
@@ -501,6 +544,8 @@ func (l *CLabel) GetEllipsize() (value bool) {
 
 // GetWidthChars retrieves the desired width of label, in characters.
 // See: SetWidthChars()
+//
+// Locking: read
 func (l *CLabel) GetWidthChars() (value int) {
 	var err error
 	if value, err = l.GetIntProperty(PropertyWidthChars); err != nil {
@@ -511,6 +556,8 @@ func (l *CLabel) GetWidthChars() (value int) {
 
 // GetMaxWidthChars retrieves the desired maximum width of label, in characters.
 // See: SetWidthChars()
+//
+// Locking: read
 func (l *CLabel) GetMaxWidthChars() (value int) {
 	var err error
 	if value, err = l.GetIntProperty(PropertyMaxWidthChars); err != nil {
@@ -522,6 +569,8 @@ func (l *CLabel) GetMaxWidthChars() (value int) {
 // GetLabel returns the text from a label widget including any embedded
 // underlines indicating mnemonics and Tango markup.
 // See: GetText()
+//
+// Locking: read
 func (l *CLabel) GetLabel() (value string) {
 	var err error
 	if value, err = l.GetStringProperty(PropertyLabel); err != nil {
@@ -532,6 +581,8 @@ func (l *CLabel) GetLabel() (value string) {
 
 // GetLineWrap returns whether lines in the label are automatically wrapped.
 // See: SetLineWrap()
+//
+// Locking: read
 func (l *CLabel) GetLineWrap() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyWrap); err != nil {
@@ -542,10 +593,9 @@ func (l *CLabel) GetLineWrap() (value bool) {
 
 // GetLineWrapMode returns line wrap mode used by the label.
 // See: SetLineWrapMode()
+//
+// Locking: read
 func (l *CLabel) GetLineWrapMode() (value enums.WrapMode) {
-	// if !l.GetLineWrap() {
-	// 	return enums.WRAP_NONE
-	// }
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyWrapMode); err != nil {
 		l.LogErr(err)
@@ -558,13 +608,14 @@ func (l *CLabel) GetLineWrapMode() (value enums.WrapMode) {
 // GetMnemonicWidget retrieves the target of the mnemonic (keyboard shortcut) of
 // this Label.
 // See: SetMnemonicWidget()
+//
+// Locking: read
 func (l *CLabel) GetMnemonicWidget() (value Widget) {
 	if v, err := l.GetStructProperty(PropertyMnemonicWidget); err == nil {
 		value, _ = v.(Widget)
 	} else {
 		l.LogErr(err)
 	}
-
 	return
 }
 
@@ -572,6 +623,8 @@ func (l *CLabel) GetMnemonicWidget() (value Widget) {
 // returning TRUE for nonEmpty if there's a selection.
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Method stub, unimplemented
 func (l *CLabel) GetSelectionBounds() (start int, end int, nonEmpty bool) {
 	return 0, 0, false
 }
@@ -579,6 +632,8 @@ func (l *CLabel) GetSelectionBounds() (start int, end int, nonEmpty bool) {
 // GetUseMarkup returns whether the label's text is interpreted as marked up
 // with the Tango text markup language.
 // See: SetUseMarkup()
+//
+// Locking: read
 func (l *CLabel) GetUseMarkup() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyUseMarkup); err != nil {
@@ -590,6 +645,8 @@ func (l *CLabel) GetUseMarkup() (value bool) {
 // GetUseUnderline returns whether an embedded underline in the label indicates
 // a mnemonic.
 // See: SetUseUnderline()
+//
+// Locking: read
 func (l *CLabel) GetUseUnderline() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyUseUnderline); err != nil {
@@ -599,6 +656,8 @@ func (l *CLabel) GetUseUnderline() (value bool) {
 }
 
 // GetSingleLineMode returns whether the label is in single line mode.
+//
+// Locking: read
 func (l *CLabel) GetSingleLineMode() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertySingleLineMode); err != nil {
@@ -613,6 +672,8 @@ func (l *CLabel) GetSingleLineMode() (value bool) {
 //
 // Parameters:
 // 	str	the new text to set for the label
+//
+// Locking: write
 func (l *CLabel) SetLabel(str string) {
 	if err := l.SetStringProperty(PropertyLabel, str); err != nil {
 		l.LogErr(err)
@@ -633,6 +694,8 @@ func (l *CLabel) SetLabel(str string) {
 //
 // Parameters:
 // 	setting	TRUE if the label's text should be parsed for markup.
+//
+// Locking: write
 func (l *CLabel) SetUseMarkup(setting bool) {
 	if err := l.SetBoolProperty(PropertyUseMarkup, setting); err != nil {
 		l.LogErr(err)
@@ -647,6 +710,8 @@ func (l *CLabel) SetUseMarkup(setting bool) {
 //
 // Parameters:
 // 	setting	TRUE if underlines in the text indicate mnemonics
+//
+// Locking: write
 func (l *CLabel) SetUseUnderline(setting bool) {
 	if err := l.SetBoolProperty(PropertyUseUnderline, setting); err != nil {
 		l.LogErr(err)
@@ -659,6 +724,8 @@ func (l *CLabel) SetUseUnderline(setting bool) {
 //
 // Parameters:
 // 	singleLineMode	TRUE if the label should be in single line mode
+//
+// Locking: write
 func (l *CLabel) SetSingleLineMode(singleLineMode bool) {
 	if err := l.SetBoolProperty(PropertySingleLineMode, singleLineMode); err != nil {
 		l.LogErr(err)
@@ -674,6 +741,8 @@ func (l *CLabel) SetSingleLineMode(singleLineMode bool) {
 // query-tooltip handler.
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Method stub, unimplemented
 func (l *CLabel) GetCurrentUri() (value string) {
 	return ""
 }
@@ -685,6 +754,8 @@ func (l *CLabel) GetCurrentUri() (value string) {
 // 	trackLinks	TRUE to track visited links
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: write
 func (l *CLabel) SetTrackVisitedLinks(trackLinks bool) {
 	if err := l.SetBoolProperty(PropertyTrackVisitedLinks, trackLinks); err != nil {
 		l.LogErr(err)
@@ -698,6 +769,8 @@ func (l *CLabel) SetTrackVisitedLinks(trackLinks bool) {
 // 	TRUE if clicked links are remembered
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: read
 func (l *CLabel) GetTrackVisitedLinks() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyTrackVisitedLinks); err != nil {
@@ -706,66 +779,106 @@ func (l *CLabel) GetTrackVisitedLinks() (value bool) {
 	return
 }
 
+// Settings is a convenience method to return the interesting settings currently
+// configured on the Label instance.
+//
+// Locking: read
+func (l *CLabel) Settings() (singleLineMode bool, lineWrapMode enums.WrapMode, ellipsize bool, justify enums.Justification, maxWidthChars int) {
+	singleLineMode = l.GetSingleLineMode()
+	lineWrapMode = l.GetLineWrapMode()
+	ellipsize = l.GetEllipsize()
+	justify = l.GetJustify()
+	maxWidthChars = l.GetMaxWidthChars()
+	return
+}
+
 // GetClearText returns the Label's text, stripped of markup.
+//
+// Locking: read
 func (l *CLabel) GetClearText() (text string) {
 	if l.tbuffer == nil {
 		return ""
 	}
-	text = l.tbuffer.ClearText(l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), l.GetMaxWidthChars())
-	if l.GetSingleLineMode() {
+	singleLineMode, lineWrapMode, ellipsize, justify, maxWidthChars := l.Settings()
+	l.RLock()
+	text = l.tbuffer.ClearText(lineWrapMode, ellipsize, justify, maxWidthChars)
+	if singleLineMode {
 		if strings.Contains(text, "\n") {
 			if idx := strings.Index(text, "\n"); idx >= 0 {
 				text = text[:idx]
 			}
 		}
 	}
+	l.RUnlock()
 	return
 }
 
 // GetPlainText returns the Label's text, stripped of markup and mnemonics.
+//
+// Locking: read
 func (l *CLabel) GetPlainText() (text string) {
 	if l.tbuffer == nil {
 		return ""
 	}
-	text = l.tbuffer.PlainText(l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), l.GetMaxWidthChars())
-	if l.GetSingleLineMode() {
+	singleLineMode, lineWrapMode, ellipsize, justify, maxWidthChars := l.Settings()
+	l.RLock()
+	text = l.tbuffer.PlainText(lineWrapMode, ellipsize, justify, maxWidthChars)
+	if singleLineMode {
 		if strings.Contains(text, "\n") {
 			if idx := strings.Index(text, "\n"); idx >= 0 {
 				text = text[:idx]
 			}
 		}
 	}
+	l.RUnlock()
 	return
 }
 
 // GetCleanText filters the result of GetClearText to strip leading underscores.
+//
+// Locking: read
 func (l *CLabel) GetCleanText() (text string) {
-	text = rxLabelPlainText.ReplaceAllString(l.GetPlainText(), "$2")
+	plain := l.GetPlainText()
+	l.RLock()
+	text = rxLabelPlainText.ReplaceAllString(plain, "$2")
+	l.RUnlock()
 	return
 }
 
 // GetPlainTextInfo returns the maximum line width and line count.
+//
+// Locking: read
 func (l *CLabel) GetPlainTextInfo() (maxWidth, lineCount int) {
 	if l.tbuffer == nil {
 		return -1, -1
 	}
-	maxWidth, lineCount = l.tbuffer.PlainTextInfo(l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), l.GetMaxWidthChars())
+	_, lineWrapMode, ellipsize, justify, maxWidthChars := l.Settings()
+	l.RLock()
+	maxWidth, lineCount = l.tbuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, maxWidthChars)
+	l.RUnlock()
 	return
 }
 
 // GetPlainTextInfoAtWidth returns the maximum line width and line count, with the given width as an override to the
 // value set with SetMaxWidthChars. This is used primarily for pre-rendering stages like Resize to determine the size
 // allocations without having to render the actual text with Tango first.
+//
+// Locking: read
 func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
 	if l.tbuffer == nil {
 		return -1, -1
 	}
-	maxWidth, lineCount = l.tbuffer.PlainTextInfo(l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), width)
+	_, lineWrapMode, ellipsize, justify, _ := l.Settings()
+	l.RLock()
+	maxWidth, lineCount = l.tbuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, width)
+	l.RUnlock()
 	return
 }
 
 // GetSizeRequest returns the requested size of the Label taking into account
 // the label's content and any padding set.
+//
+// Locking: read
 func (l *CLabel) GetSizeRequest() (width, height int) {
 	size := ptypes.NewRectangle(l.CWidget.GetSizeRequest())
 	if size.W <= -1 {
@@ -789,9 +902,10 @@ func (l *CLabel) GetSizeRequest() (width, height int) {
 	}
 	// add padding
 	xPadding, yPadding := l.GetPadding()
+	l.RLock()
 	size.W += xPadding * 2
 	size.H += yPadding * 2
-	// min size of 3 according to GTK
+	l.RUnlock()
 	return size.W, size.H
 }
 
@@ -837,50 +951,50 @@ func (l *CLabel) refreshMnemonics() {
 }
 
 func (l *CLabel) refreshTextBuffer() (err error) {
+	style := l.GetThemeRequest().Content.Normal
+	useUnderline := l.GetUseUnderline()
 	l.Lock()
 	var markup bool
-	if markup, err = l.GetBoolProperty(PropertyUseMarkup); err != nil {
-	} else if markup {
+	if markup, err = l.GetBoolProperty(PropertyUseMarkup); err == nil && markup {
 		var m memphis.Tango
-		if m, err = memphis.NewMarkup(l.text, l.GetThemeRequest().Content.Normal); err != nil {
-			// tbuffer must always be valid
-			l.tbuffer = memphis.NewTextBuffer(l.text, l.GetThemeRequest().Content.Normal, l.GetUseUnderline())
+		if m, err = memphis.NewMarkup(l.text, style); err != nil {
+			// tbuffer must always be valid, default to plain text on error
+			l.tbuffer = memphis.NewTextBuffer(l.text, style, useUnderline)
 		} else {
-			// get the markup tbuffer
-			l.tbuffer = m.TextBuffer(l.GetUseUnderline())
+			// use the markup tbuffer
+			l.tbuffer = m.TextBuffer(useUnderline)
 		}
 	} else {
 		// plain text tbuffer
-		l.tbuffer = memphis.NewTextBuffer(l.text, l.GetThemeRequest().Content.Normal, l.GetUseUnderline())
+		l.tbuffer = memphis.NewTextBuffer(l.text, style, useUnderline)
 	}
 	l.Unlock()
 	return
 }
 
 func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
-	l.Lock()
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 		l.LogTrace("not visible, zero width or zero height")
-		l.Unlock()
 		return enums.EVENT_PASS
 	}
 
 	theme := l.GetThemeRequest()
-
 	origin := l.GetOrigin()
-	if err := memphis.ConfigureSurface(l.ObjectID(), origin, alloc, theme.Content.Normal); err != nil {
+	id := l.ObjectID()
+	xPad, _ := l.GetPadding()
+	_, yAlign := l.GetAlignment()
+
+	size := ptypes.NewRectangle(alloc.W, alloc.H)
+	local := ptypes.MakePoint2I(xPad, 0)
+	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
+
+	l.Lock()
+
+	if err := memphis.ConfigureSurface(id, origin, alloc, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
 
-	local := ptypes.MakePoint2I(0, 0)
-	size := ptypes.NewRectangle(alloc.W, alloc.H)
-
-	xPad, _ := l.GetPadding()
-	local.X += xPad
-	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
-
-	_, yAlign := l.GetAlignment()
 	if size.H < alloc.H {
 		delta := alloc.H - size.H
 		local.Y += int(float64(delta) * yAlign)
@@ -901,33 +1015,37 @@ func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.Event
 		l.LogErr(err)
 	}
 	l.refreshMnemonics()
+	id := l.ObjectID()
 	l.Lock()
 	theme.Content.FillRune = rune(0)
-	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
+	if err := memphis.FillSurface(id, theme); err != nil {
 		l.LogErr(err)
 	}
 	if err := memphis.FillSurface(l.tid, theme); err != nil {
 		l.LogErr(err)
 	}
 	l.Unlock()
-	return enums.EVENT_STOP
+	return enums.EVENT_PASS
 }
 
 func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		l.Lock()
-		defer l.Unlock()
 		alloc := l.GetAllocation()
 		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			l.LogTrace("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
 
+		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
+
+		l.Lock()
+		defer l.Unlock()
+
 		if l.tbuffer != nil {
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
 			} else {
-				if f := l.tbuffer.Draw(tSurface, l.GetSingleLineMode(), l.GetLineWrapMode(), l.GetEllipsize(), l.GetJustify(), enums.ALIGN_TOP); f == enums.EVENT_STOP {
+				if f := l.tbuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, enums.ALIGN_TOP); f == enums.EVENT_STOP {
 					if err := surface.CompositeSurface(tSurface); err != nil {
 						l.LogErr(err)
 					}
