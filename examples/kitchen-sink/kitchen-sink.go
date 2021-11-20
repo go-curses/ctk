@@ -139,7 +139,11 @@ func setupDruidUi(d cdk.Display, w ctk.Window) error {
 	buttonPrev.Show()
 	actionBox.PackStart(buttonPrev, false, false, 0)
 	// informational text area
-	actionNote, _ = ctk.NewLabelWithMarkup("Curses<u><i>!</i></u>")
+	var err error
+	actionNote, err = ctk.NewLabelWithMarkup("Curses<u><i>!</i></u>")
+	if err != nil {
+		log.ErrorF("failed to set action markup: %v", err)
+	}
 	actionNote.SetName("note")
 	actionNote.SetBoolProperty(cdk.PropertyDebug, Debug)
 	actionNote.SetAlignment(0.5, 0.5)
