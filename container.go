@@ -12,6 +12,8 @@ import (
 
 const TypeContainer cdk.CTypeTag = "ctk-container"
 
+// TODO: remove Container.properties, use Widget children directly
+
 func init() {
 	_ = cdk.TypesManager.AddType(TypeContainer, nil)
 }
@@ -154,25 +156,32 @@ func (c *CContainer) Build(builder Builder, element *CBuilderElement) error {
 }
 
 // SetOrigin emits an origin signal and if all signal handlers return
-// enums.EVENT_PASS, updates the Container origin field while also setting all
-// children to the same origin.
+// enums.EVENT_PASS, updates the Container origin field.
 //
 // Note that this method's behaviour may change.
+//
+// Locking: write
 func (c *CContainer) SetOrigin(x, y int) {
 	if f := c.Emit(SignalOrigin, c, ptypes.MakePoint2I(x, y)); f == enums.EVENT_PASS {
+		children := c.GetChildren()
+		c.Lock()
 		c.origin.Set(x, y)
-		for _, child := range c.GetChildren() {
+		for _, child := range children {
 			child.SetOrigin(x, y)
 		}
+		c.Unlock()
+		c.Invalidate()
 	}
-	c.Invalidate()
 }
 
 // SetWindow sets the Container window field to the given Window and then does
 // the same for each of the Widget children.
+//
+// Locking: write
 func (c *CContainer) SetWindow(w Window) {
 	c.CWidget.SetWindow(w)
-	for _, child := range c.GetChildren() {
+	children := c.GetChildren()
+	for _, child := range children {
 		if wc, ok := child.(Container); ok {
 			wc.SetWindow(w)
 		} else {
@@ -183,9 +192,12 @@ func (c *CContainer) SetWindow(w Window) {
 
 // ShowAll is a convenience method to call Show on the Container itself and then
 // call ShowAll for all Widget children.
+//
+// Locking: write
 func (c *CContainer) ShowAll() {
 	c.Show()
-	for _, child := range c.GetChildren() {
+	children := c.GetChildren()
+	for _, child := range children {
 		child.ShowAll()
 	}
 }
@@ -202,24 +214,31 @@ func (c *CContainer) ShowAll() {
 //
 // Parameters:
 // 	widget	a widget to be placed inside container
+//
+// Locking: write
 func (c *CContainer) Add(w Widget) {
 	// TODO: if can default and no default yet, set
 	if f := c.Emit(SignalAdd, c, w); f == enums.EVENT_PASS {
+		window := c.GetWindow()
 		log.DebugDF(1, "child=%v", w.ObjectName())
 		w.SetParent(c)
 		if wc, ok := w.(Container); ok {
-			wc.SetWindow(c.GetWindow())
+			wc.SetWindow(window)
 		} else {
-			w.SetWindow(c.GetWindow())
+			w.SetWindow(window)
 		}
-		w.Connect(SignalLostFocus, ContainerLostFocusHandle, c.lostFocus)
-		w.Connect(SignalGainedFocus, ContainerGainedFocusHandle, c.gainedFocus)
+		w.Connect(SignalLostFocus, ContainerLostFocusHandle, c.childLostFocus)
+		w.Connect(SignalGainedFocus, ContainerGainedFocusHandle, c.childGainedFocus)
+		w.Connect(SignalShow, ContainerChildShowHandle, c.childShow)
+		w.Connect(SignalHide, ContainerChildHideHandle, c.childHide)
+		c.Lock()
 		c.children = append(c.children, w)
 		childProps := make([]*cdk.CProperty, len(c.properties))
 		for idx, prop := range c.properties {
 			childProps[idx] = prop.Clone()
 		}
 		c.property[w.ObjectID()] = childProps
+		c.Unlock()
 		c.Resize()
 	}
 }
@@ -229,8 +248,10 @@ func (c *CContainer) Add(w Widget) {
 // See: Add() and ChildSet()
 //
 // Parameters:
-// 	widget	widget to be placed inside container
+// 	widget	instance to be placed inside container
 // 	argv    list of property names and values
+//
+// Locking: write
 func (c *CContainer) AddWithProperties(widget Widget, argv ...interface{}) {
 	c.Add(widget)
 	c.ChildSet(widget, argv...)
@@ -242,37 +263,48 @@ func (c *CContainer) AddWithProperties(widget Widget, argv ...interface{}) {
 //
 // Parameters:
 // 	widget	a current child of container
+//
+// Locking: write
 func (c *CContainer) Remove(w Widget) {
 	var children []Widget
 	resize := false
-	for _, child := range c.children {
+	for _, child := range c.GetChildren() {
 		if child.ObjectID() == w.ObjectID() {
 			if f := c.Emit(SignalRemove, c, child); f == enums.EVENT_PASS {
 				_ = w.Disconnect(SignalLostFocus, ContainerLostFocusHandle)
 				_ = w.Disconnect(SignalGainedFocus, ContainerGainedFocusHandle)
+				_ = w.Disconnect(SignalShow, ContainerChildShowHandle)
+				_ = w.Disconnect(SignalHide, ContainerChildHideHandle)
 				w.SetParent(nil)
+				c.Lock()
 				delete(c.property, w.ObjectID())
 				resize = true
+				c.Unlock()
 				continue
 			}
 		}
 		children = append(children, child)
 	}
+	c.Lock()
 	if len(children) == 0 {
-		if len(c.children) > 0 {
-			c.children = make([]Widget, 0)
-		}
+		c.children = make([]Widget, 0)
 	} else {
 		c.children = children
 	}
+	c.Unlock()
 	if resize {
 		c.Resize()
 	}
 }
 
 // ResizeChildren will call Resize on each child Widget.
+//
+// Locking: write
 func (c *CContainer) ResizeChildren() {
-	for _, child := range c.GetChildren() {
+	children := c.GetChildren()
+	c.Lock()
+	defer c.Unlock()
+	for _, child := range children {
 		child.Resize()
 	}
 }
@@ -285,7 +317,11 @@ func (c *CContainer) ResizeChildren() {
 //  tag	a cdk.CTypeTag
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: read
 func (c *CContainer) ChildType() (value cdk.CTypeTag) {
+	c.RLock()
+	defer c.RUnlock()
 	return TypeWidget
 }
 
@@ -295,7 +331,11 @@ func (c *CContainer) ChildType() (value cdk.CTypeTag) {
 //  children	list of Widget children
 //
 // Note that usage of this within CTK is unimplemented at this time
+//
+// Locking: read
 func (c *CContainer) GetChildren() (children []Widget) {
+	c.RLock()
+	defer c.RUnlock()
 	for _, child := range c.children {
 		children = append(children, child)
 	}
@@ -381,7 +421,11 @@ func (c *CContainer) SetFocusHAdjustment(adjustment Adjustment) {}
 //   an array of property values, in the order of the property names given, and
 //   if the property named is not found, a Go error is returned for that
 //   position of property names given
+//
+// Locking: read
 func (c *CContainer) ChildGet(child Widget, properties ...cdk.Property) (values []interface{}) {
+	c.RLock()
+	defer c.RUnlock()
 	for _, nextProperty := range properties {
 		if nextProp := c.GetChildProperty(child, nextProperty); nextProp != nil {
 			values = append(values, nextProp)
@@ -398,6 +442,8 @@ func (c *CContainer) ChildGet(child Widget, properties ...cdk.Property) (values 
 // Parameters:
 // 	child	a widget which is a child of container
 //  argv    a list of property name and value pairs
+//
+// Locking: write
 func (c *CContainer) ChildSet(child Widget, argv ...interface{}) {
 	argc := len(argv)
 	if argc%2 != 0 {
@@ -420,7 +466,11 @@ func (c *CContainer) ChildSet(child Widget, argv ...interface{}) {
 //
 // Returns:
 //   the value stored in the given property, or nil if the property
+//
+// Locking: read
 func (c *CContainer) GetChildProperty(child Widget, propertyName cdk.Property) (value interface{}) {
+	c.RLock()
+	defer c.RUnlock()
 	if properties, ok := c.property[child.ObjectID()]; ok {
 		for _, cp := range properties {
 			if cp.Name().String() == propertyName.String() {
@@ -438,7 +488,11 @@ func (c *CContainer) GetChildProperty(child Widget, propertyName cdk.Property) (
 // 	child	a widget which is a child of container
 // 	propertyName	the name of the property to set
 // 	value	the value to set the property to
+//
+// Locking: write
 func (c *CContainer) SetChildProperty(child Widget, propertyName cdk.Property, value interface{}) {
+	c.Lock()
+	defer c.Unlock()
 	if properties, ok := c.property[child.ObjectID()]; ok {
 		for _, cp := range properties {
 			if cp.Name().String() == propertyName.String() {
@@ -457,8 +511,12 @@ func (c *CContainer) SetChildProperty(child Widget, propertyName cdk.Property, v
 // Returns:
 // 	the current border width
 //
+// Locking: read
+//
 // Note that usage of this within CTK is unimplemented at this time
 func (c *CContainer) GetBorderWidth() (value int) {
+	c.RLock()
+	defer c.RUnlock()
 	var err error
 	if value, err = c.GetIntProperty(PropertyBorderWidth); err != nil {
 		c.LogErr(err)
@@ -477,8 +535,12 @@ func (c *CContainer) GetBorderWidth() (value int) {
 // Parameters:
 // 	borderWidth	amount of blank space to leave outside the container
 //
+// Locking: write
+//
 // Note that usage of this within CTK is unimplemented at this time
 func (c *CContainer) SetBorderWidth(borderWidth int) {
+	c.Lock()
+	defer c.Unlock()
 	if err := c.SetIntProperty(PropertyBorderWidth, borderWidth); err != nil {
 		c.LogErr(err)
 	}
@@ -491,12 +553,15 @@ func (c *CContainer) SetBorderWidth(borderWidth int) {
 // Returns:
 // 	focusableWidgets	widgets in the focus chain.
 // 	explicitlySet       TRUE if the focus chain has been set explicitly.
+//
+// Locking: read
 func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
 	if c.focusChainSet {
 		return c.focusChain, true
 	}
 	for _, child := range c.children {
 		if cc, ok := child.(Container); ok {
+			// the container itself may be more than a Container, if so, add it
 			if cc.CanFocus() && cc.IsVisible() && cc.IsSensitive() {
 				focusableWidgets = append(focusableWidgets, child)
 				continue
@@ -527,13 +592,21 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitly
 //
 // Parameters:
 // 	focusableWidgets	the new focus chain.
+//
+// Locking: write
 func (c *CContainer) SetFocusChain(focusableWidgets []interface{}) {
+	c.Lock()
+	defer c.Unlock()
 	c.focusChain = focusableWidgets
 	c.focusChainSet = true
 }
 
 // UnsetFocusChain removes a focus chain explicitly set with SetFocusChain.
+//
+// Locking: write
 func (c *CContainer) UnsetFocusChain() {
+	c.Lock()
+	defer c.Unlock()
 	c.focusChain = []interface{}{}
 	c.focusChainSet = false
 }
@@ -545,7 +618,11 @@ func (c *CContainer) UnsetFocusChain() {
 //
 // Returns:
 //  value  the cdk.CProperty of the child property or nil if there is no child property with that name.
+//
+// Locking: read
 func (c *CContainer) FindChildProperty(property cdk.Property) (value *cdk.CProperty) {
+	c.RLock()
+	defer c.RUnlock()
 	for _, prop := range c.properties {
 		if prop.Name().String() == property.String() {
 			value = prop
@@ -556,11 +633,15 @@ func (c *CContainer) FindChildProperty(property cdk.Property) (value *cdk.CPrope
 }
 
 // InstallChildProperty adds a child property on a container.
+//
+// Locking: write
 func (c *CContainer) InstallChildProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) error {
 	existing := c.FindChildProperty(name)
 	if existing != nil {
 		return fmt.Errorf("property exists: %v", name)
 	}
+	c.Lock()
+	defer c.Unlock()
 	c.properties = append(
 		c.properties,
 		cdk.NewProperty(name, kind, write, false, def),
@@ -572,7 +653,11 @@ func (c *CContainer) InstallChildProperty(name cdk.Property, kind cdk.PropertyTy
 //
 // Parameters:
 //  properties	list of *cdk.Property instances
+//
+// Locking: read
 func (c *CContainer) ListChildProperties() (properties []*cdk.CProperty) {
+	c.RLock()
+	defer c.RUnlock()
 	for _, prop := range c.properties {
 		properties = append(properties, prop)
 	}
@@ -584,12 +669,17 @@ func (c *CContainer) ListChildProperties() (properties []*cdk.CProperty) {
 // if there is a child Widget at the given Point2I will return the child Widget.
 // If the Container does not have the given point within it's bounds, will
 // return nil
+//
+// Locking: read
 func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if c.HasPoint(p) && c.IsVisible() {
-		for _, child := range c.children {
-			switch c := child.(type) {
-			case Container:
-				if w := c.GetWidgetAt(p); w != nil && w.IsVisible() {
+		c.RLock()
+		children := c.children
+		c.RUnlock()
+		for _, child := range children {
+			switch ct := child.(type) {
+			case Alignment, Button, Frame, ButtonBox, Scrollbar, ScrolledViewport, Viewport, Window, Box, Container:
+				if w := ct.GetWidgetAt(p); w != nil && w.IsVisible() {
 					return w
 				}
 			default:
@@ -603,12 +693,22 @@ func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-func (c *CContainer) lostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (c *CContainer) childShow(data []interface{}, argv ...interface{}) enums.EventFlag {
+	c.Resize()
+	return enums.EVENT_PASS
+}
+
+func (c *CContainer) childHide(data []interface{}, argv ...interface{}) enums.EventFlag {
+	c.Resize()
+	return enums.EVENT_PASS
+}
+
+func (c *CContainer) childLostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
 	c.Invalidate()
 	return enums.EVENT_PASS
 }
 
-func (c *CContainer) gainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (c *CContainer) childGainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
 	c.Invalidate()
 	return enums.EVENT_PASS
 }
@@ -641,6 +741,10 @@ const SignalRemove cdk.Signal = "remove"
 // Listener function arguments:
 // 	widget Widget
 const SignalSetFocusChild cdk.Signal = "set-focus-child"
+
+const ContainerChildShowHandle = "container-child-show-handler"
+
+const ContainerChildHideHandle = "container-child-hide-handler"
 
 const ContainerLostFocusHandle = "container-lost-focus-handler"
 
