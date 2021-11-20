@@ -1,43 +1,32 @@
-ctk-button {
+ctk-button,
+ctk-button:selected,
+ctk-button:active,
+ctk-button:prelight,
+ctk-button:insensitive {
     color: #ffffff;
-    background-color: darkred;
     border-color: #ffffff;
+    background-color: darkred;
     border-background-color: darkred;
     bold: false;
     dim: true;
 }
 
-ctk-button:selected {
-    color: #ffffff;
+ctk-button:selected,
+ctk-button:active,
+ctk-button:prelight {
     background-color: firebrick;
-    border-color: #ffffff;
-    border-background-color: firebrick;
-    bold: true;
-    dim: false;
-}
-
-ctk-button:active {
-    color: #ffffff;
-    background-color: firebrick;
-    border-color: #ffffff;
     border-background-color: firebrick;
     bold: true;
     dim: false;
 }
 
 ctk-button:prelight {
-    color: #ffffff;
-    background-color: firebrick;
-    border-color: #ffffff;
-    border-background-color: firebrick;
     bold: false;
     dim: false;
 }
 
 ctk-button:insensitive {
-    color: #ffffff;
     background-color: rosybrown;
-    border-color: #ffffff;
     border-background-color: rosybrown;
     bold: false;
     dim: true;
