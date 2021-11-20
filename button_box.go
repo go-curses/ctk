@@ -42,6 +42,7 @@ type ButtonBox interface {
 	Remove(w Widget)
 	PackStart(w Widget, expand, fill bool, padding int)
 	PackEnd(w Widget, expand, fill bool, padding int)
+	GetChildren() (children []Widget)
 	GetChildPrimary(w Widget) (isPrimary bool)
 	GetChildSecondary(w Widget) (isSecondary bool)
 	SetChildSecondary(child Widget, isSecondary bool)
@@ -195,6 +196,17 @@ func (b *CButtonBox) SetLayout(layoutStyle ButtonBoxStyle) {
 	}
 }
 
+// GetChildren returns the children of the primary and secondary groupings.
+func (b *CButtonBox) GetChildren() (children []Widget) {
+	for _, child := range b.getPrimary().GetChildren() {
+		children = append(children, child)
+	}
+	for _, child := range b.getSecondary().GetChildren() {
+		children = append(children, child)
+	}
+	return
+}
+
 // Add is a convenience method for adding the given Widget to the primary group
 // with default PackStart configuration of: expand=true, fill=true and padding=0
 func (b *CButtonBox) Add(w Widget) {
@@ -322,7 +334,7 @@ func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, paddi
 }
 
 func (b *CButtonBox) getPrimary() (box Box) {
-	children := b.GetChildren()
+	children := b.CBox.GetChildren()
 	if len(children) > 0 {
 		var ok bool
 		if box, ok = children[0].(Box); !ok {
@@ -336,7 +348,7 @@ func (b *CButtonBox) getPrimary() (box Box) {
 }
 
 func (b *CButtonBox) getSecondary() (box Box) {
-	children := b.GetChildren()
+	children := b.CBox.GetChildren()
 	if len(children) > 1 {
 		var ok bool
 		if box, ok = children[1].(Box); !ok {
@@ -351,8 +363,6 @@ func (b *CButtonBox) getSecondary() (box Box) {
 
 func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		b.Lock()
-		defer b.Unlock()
 		alloc := b.GetAllocation()
 		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			b.LogTrace("not visible, zero width or zero height")
@@ -362,7 +372,10 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFl
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
-		surface.Fill(b.GetTheme())
+		theme := b.GetThemeRequest()
+		b.Lock()
+		defer b.Unlock()
+		surface.Fill(theme)
 		for _, child := range children {
 			if child.widget.IsVisible() {
 				if f := child.widget.Draw(); f == enums.EVENT_STOP {
