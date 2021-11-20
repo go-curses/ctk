@@ -118,10 +118,12 @@ func (s *CScrolledViewport) Init() (already bool) {
 		vs.UnsetFlags(CAN_FOCUS)
 	}
 	s.Connect(SignalCdkEvent, ScrolledViewportEventHandle, s.event)
+	s.Connect(SignalLostFocus, ScrolledViewportLostFocusHandle, s.lostFocus)
+	s.Connect(SignalGainedFocus, ScrolledViewportGainedFocusHandle, s.gainedFocus)
 	s.Connect(SignalInvalidate, ScrolledViewportDrawHandle, s.invalidate)
 	s.Connect(SignalResize, ScrolledViewportDrawHandle, s.resize)
 	s.Connect(SignalDraw, ScrolledViewportDrawHandle, s.draw)
-	s.Invalidate()
+	// s.Invalidate()
 	return false
 }
 
@@ -321,13 +323,16 @@ func (s *CScrolledViewport) GetShadowType() (value ShadowType) {
 
 func (s *CScrolledViewport) VerticalShowByPolicy() (show bool) {
 	vPolicy, _ := s.GetPolicy()
-	if vertical := s.GetVAdjustment(); vertical != nil {
+	vertical := s.GetVAdjustment()
+	child := s.GetChild()
+	alloc := s.GetAllocation()
+	s.RLock()
+	if vertical != nil {
 		show = vertical.ShowByPolicy(vPolicy)
 		if !show && vPolicy == PolicyAutomatic && vertical.Moot() {
-			if child := s.GetChild(); child != nil {
+			if child != nil {
 				childSize := ptypes.NewRectangle(child.GetSizeRequest())
 				if childSize.H > 0 {
-					alloc := s.GetAllocation()
 					if childSize.H > alloc.H {
 						show = true
 					}
@@ -337,18 +342,22 @@ func (s *CScrolledViewport) VerticalShowByPolicy() (show bool) {
 	} else {
 		s.LogError("missing vertical adjustment")
 	}
+	s.RUnlock()
 	return
 }
 
 func (s *CScrolledViewport) HorizontalShowByPolicy() (show bool) {
 	_, hPolicy := s.GetPolicy()
-	if horizontal := s.GetHAdjustment(); horizontal != nil {
+	horizontal := s.GetHAdjustment()
+	child := s.GetChild()
+	alloc := s.GetAllocation()
+	s.RLock()
+	if horizontal != nil {
 		show = horizontal.ShowByPolicy(hPolicy)
 		if !show && hPolicy == PolicyAutomatic && horizontal.Moot() {
-			if child := s.GetChild(); child != nil {
+			if child != nil {
 				childSize := ptypes.NewRectangle(child.GetSizeRequest())
 				if childSize.W > 0 {
-					alloc := s.GetAllocation()
 					if childSize.W > alloc.W {
 						show = true
 					}
@@ -358,16 +367,22 @@ func (s *CScrolledViewport) HorizontalShowByPolicy() (show bool) {
 	} else {
 		s.LogError("missing horizontal adjustment")
 	}
+	s.RUnlock()
 	return
 }
 
 func (s *CScrolledViewport) Add(w Widget) {
-	if len(s.children) < 3 {
-		s.CContainer.Add(w)
-		s.Invalidate()
-	} else {
-		s.LogError("too many children for scrolled viewport")
+	if _, ok := w.(Scrollbar); ok {
+		s.LogError("cannot Add a scrollbar as the Viewport content: %v", w)
+		return
 	}
+	for _, child := range s.GetChildren() {
+		if _, ok := child.(Scrollbar); !ok {
+			s.CContainer.Remove(child)
+		}
+	}
+	s.CContainer.Add(w)
+	s.Invalidate()
 }
 
 func (s *CScrolledViewport) Remove(w Widget) {
@@ -490,15 +505,15 @@ func (s *CScrolledViewport) GrabFocus() {
 			if tl := s.GetWindow(); tl != nil {
 				if focused := tl.GetFocus(); focused != nil {
 					if fw, ok := focused.(Widget); ok && fw.ObjectID() != s.ObjectID() {
-						fw.Emit(SignalLostFocus)
 						fw.UnsetState(StateSelected)
-						fw.LogDebug("has lost focus")
+						fw.Emit(SignalLostFocus)
+						fw.Invalidate()
 					}
 				}
 				tl.SetFocus(s)
-				s.Emit(SignalGainedFocus)
 				s.SetState(StateSelected)
-				s.LogDebug("has taken focus")
+				s.Emit(SignalGainedFocus)
+				s.Invalidate()
 			}
 		}
 	} else {
@@ -514,55 +529,71 @@ func (s *CScrolledViewport) GrabFocus() {
 // be focused because of the golang interface system losing the concrete struct
 // when a Widget interface reference is passed as a generic interface{}
 // argument.
-func (b *CScrolledViewport) GrabEventFocus() {
-	if window := b.GetWindow(); window != nil {
-		if f := b.Emit(SignalGrabEventFocus, b, window); f == enums.EVENT_PASS {
-			window.SetEventFocus(b)
+func (s *CScrolledViewport) GrabEventFocus() {
+	if window := s.GetWindow(); window != nil {
+		if f := s.Emit(SignalGrabEventFocus, s, window); f == enums.EVENT_PASS {
+			window.SetEventFocus(s)
 		}
 	} else {
-		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
+		s.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
 func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
-		s.Lock()
-		defer s.Unlock()
 		switch e := evt.(type) {
 		case *cdk.EventMouse:
 			if e.IsWheelImpulse() {
-				s.GrabFocus()
+				vs := s.GetVScrollbar()
+				hs := s.GetHScrollbar()
 				switch e.WheelImpulse() {
 				case cdk.WheelUp:
-					if vs := s.GetVScrollbar(); vs != nil {
+					if vs != nil {
+						s.Lock()
 						if f := vs.ForwardStep(); f == enums.EVENT_STOP {
+							s.Unlock()
 							s.Invalidate()
+							s.GrabFocus()
 							return enums.EVENT_STOP
 						}
-						return enums.EVENT_PASS
+						s.Unlock()
+						// return enums.EVENT_PASS
 					}
 				case cdk.WheelLeft:
-					if hs := s.GetHScrollbar(); hs != nil {
+					if hs != nil {
+						s.Lock()
 						if f := hs.BackwardStep(); f == enums.EVENT_STOP {
+							s.Unlock()
 							s.Invalidate()
+							s.GrabFocus()
 							return enums.EVENT_STOP
 						}
-						return enums.EVENT_PASS
+						s.Unlock()
+						// return enums.EVENT_PASS
 					}
 				case cdk.WheelDown:
-					if vs := s.GetVScrollbar(); vs != nil {
+					if vs != nil {
+						s.Lock()
 						if f := vs.BackwardStep(); f == enums.EVENT_STOP {
+							s.Unlock()
 							s.Invalidate()
+							s.GrabFocus()
 							return enums.EVENT_STOP
 						}
+						s.Unlock()
+						// return enums.EVENT_PASS
 					}
 				case cdk.WheelRight:
-					if hs := s.GetHScrollbar(); hs != nil {
+					if hs != nil {
+						s.Lock()
 						if f := hs.ForwardStep(); f == enums.EVENT_STOP {
+							s.Unlock()
 							s.Invalidate()
+							s.GrabFocus()
 							return enums.EVENT_STOP
 						}
-						return enums.EVENT_PASS
+						s.Unlock()
+						// return enums.EVENT_PASS
 					}
 				}
 			}
@@ -572,18 +603,26 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums
 				return enums.EVENT_STOP
 			}
 		case *cdk.EventKey:
-			if vs := s.GetVScrollbar(); vs != nil {
+			vs := s.GetVScrollbar()
+			hs := s.GetHScrollbar()
+			s.Lock()
+			if vs != nil {
 				if f := vs.ProcessEvent(evt); f == enums.EVENT_STOP {
+					s.Unlock()
 					s.Invalidate()
+					s.GrabFocus()
 					return enums.EVENT_STOP
 				}
 			}
-			if hs := s.GetHScrollbar(); hs != nil {
+			if hs != nil {
 				if f := hs.ProcessEvent(evt); f == enums.EVENT_STOP {
+					s.Unlock()
 					s.Invalidate()
+					s.GrabFocus()
 					return enums.EVENT_STOP
 				}
 			}
+			s.Unlock()
 		}
 	}
 	return enums.EVENT_PASS
@@ -633,21 +672,29 @@ func (s *CScrolledViewport) resize(data []interface{}, argv ...interface{}) enum
 
 func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		s.Lock()
-		defer s.Unlock()
 		alloc := s.GetAllocation()
 		if !s.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			s.LogTrace("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
 		child := s.GetChild()
+		origin := s.GetOrigin()
+		vs := s.GetVScrollbar()
+		hs := s.GetHScrollbar()
+		verticalShow := s.VerticalShowByPolicy()
+		horizontalShow := s.HorizontalShowByPolicy()
+		theme := s.GetThemeRequest()
+
+		s.Lock()
+		defer s.Unlock()
+
 		if child != nil {
 			surface.BoxWithTheme(
-				s.GetOrigin(),
-				s.GetAllocation(),
+				origin,
+				alloc,
 				false,
 				true,
-				child.GetTheme(),
+				child.GetThemeRequest(),
 			)
 			if f := child.Draw(); f == enums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
@@ -655,23 +702,24 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) enums.
 				}
 			}
 		}
-		if vs := s.GetVScrollbar(); child != nil && vs != nil && s.VerticalShowByPolicy() {
+		if child != nil && vs != nil && verticalShow {
 			if f := vs.Draw(); f == enums.EVENT_STOP {
 				if err := surface.Composite(vs.ObjectID()); err != nil {
 					s.LogError("vertical scrollbar composite error: %v", err)
 				}
 			}
 		}
-		if hs := s.GetHScrollbar(); child != nil && hs != nil && s.HorizontalShowByPolicy() {
+		if child != nil && hs != nil && horizontalShow {
 			if f := hs.Draw(); f == enums.EVENT_STOP {
 				if err := surface.Composite(hs.ObjectID()); err != nil {
 					s.LogError("horizontal scrollbar composite error: %v", err)
 				}
 			}
 		}
-		if child != nil && s.VerticalShowByPolicy() && s.HorizontalShowByPolicy() {
+
+		if child != nil && verticalShow && horizontalShow {
 			// fill in the corner gap between scrollbars
-			_ = surface.SetRune(alloc.W-1, alloc.H-1, s.GetTheme().Content.FillRune, s.GetTheme().Content.Normal)
+			_ = surface.SetRune(alloc.W-1, alloc.H-1, theme.Content.FillRune, theme.Content.Normal)
 		}
 
 		if debug, _ := s.GetBoolProperty(cdk.PropertyDebug); debug {
@@ -686,41 +734,57 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 	s.resizeViewport()
 	s.resizeScrollbars()
 	origin := s.GetOrigin()
-	// alloc := s.GetAllocation()
-	if child := s.GetChild(); child != nil {
+	child := s.GetChild()
+	vs := s.GetVScrollbar()
+	hs := s.GetHScrollbar()
+	theme := s.GetThemeRequest()
+	horizontalShow := s.HorizontalShowByPolicy()
+	verticalShow := s.VerticalShowByPolicy()
+	state := s.GetState()
+	s.Lock()
+	if child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(origin)
 		size := child.GetAllocation() // set by resizeViewport() call
-		style := child.GetTheme().Content.Normal
+		child.SetState(StateNone)
+		child.SetState(state)
+		style := child.GetThemeRequest().Content.Normal
 		if err := memphis.ConfigureSurface(child.ObjectID(), local, size, style); err != nil {
 			child.LogErr(err)
 		}
 	}
-	if vs := s.GetVScrollbar(); vs != nil && s.VerticalShowByPolicy() {
-		local := vs.GetOrigin()
-		local.SubPoint(origin)
-		if err := memphis.ConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), s.GetThemeRequest().Content.Normal); err != nil {
-			vs.LogErr(err)
+	if vs != nil {
+		if verticalShow {
+			local := vs.GetOrigin()
+			local.SubPoint(origin)
+			if err := memphis.ConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), theme.Content.Normal); err != nil {
+				vs.LogErr(err)
+			}
 		}
-		vs.Show()
 	}
-	if hs := s.GetHScrollbar(); hs != nil && s.HorizontalShowByPolicy() {
-		local := hs.GetOrigin()
-		local.SubPoint(origin)
-		if err := memphis.ConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), s.GetThemeRequest().Content.Normal); err != nil {
-			hs.LogErr(err)
+	if hs != nil {
+		if horizontalShow {
+			local := hs.GetOrigin()
+			local.SubPoint(origin)
+			if err := memphis.ConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), theme.Content.Normal); err != nil {
+				hs.LogErr(err)
+			}
 		}
-		hs.Show()
 	}
+	s.Unlock()
 	return enums.EVENT_STOP
 }
 
 func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed bool) {
-	changed = false
-	region = ptypes.MakeRegion(0, 0, 0, 0)
 	origin := s.GetOrigin()
 	alloc := s.GetAllocation()
+	child := s.GetChild()
+	verticalShow := s.VerticalShowByPolicy()
+	horizontalShow := s.HorizontalShowByPolicy()
+	s.Lock()
 	horizontal, vertical := s.GetHAdjustment(), s.GetVAdjustment()
+	changed = false
+	region = ptypes.MakeRegion(0, 0, 0, 0)
 	if alloc.W == 0 || alloc.H == 0 {
 		if horizontal != nil {
 			ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
@@ -736,30 +800,25 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			changed = changed || cmath.EqInts(av, bv)
 			vertical.Configure(0, 0, 0, 0, 0, 0)
 		}
+		s.Unlock()
 		return
 	}
 	hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
 	vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
-	if child := s.GetChild(); child != nil {
+	if child != nil {
 		size := ptypes.NewRectangle(child.GetSizeRequest())
 		if size.W <= -1 { // auto
 			size.W = alloc.W
-			// if s.VerticalShowByPolicy() {
-			// 	size.W -= 1
-			// }
 		}
 		if size.H <= -1 { // auto
 			size.H = alloc.H
-			// if s.HorizontalShowByPolicy() {
-			// 	size.H -= 1
-			// }
 		}
 		if size.W >= alloc.W {
 			hStepIncrement, hPageIncrement, hPageSize = 1, alloc.W/2, alloc.W
 			if size.W >= alloc.W {
 				overflow := size.W - alloc.W
 				hLower, hUpper = 0, overflow
-				if s.VerticalShowByPolicy() {
+				if verticalShow {
 					hUpper += 1
 				}
 			} else {
@@ -776,7 +835,7 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			if size.H >= alloc.H {
 				overflow := size.H - alloc.H
 				vLower, vUpper = 0, overflow
-				if s.HorizontalShowByPolicy() {
+				if horizontalShow {
 					vUpper += 1
 				}
 			} else {
@@ -809,15 +868,19 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			vertical.Configure(vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize)
 		}
 	}
+	s.Unlock()
 	return
 }
 
 func (s *CScrolledViewport) resizeViewport() enums.EventFlag {
 	region, _ := s.makeAdjustments()
-	if child := s.GetChild(); child != nil {
+	child := s.GetChild()
+	if child != nil {
+		s.Lock()
 		child.SetOrigin(region.X, region.Y)
 		child.SetAllocation(region.Size())
-		return child.Resize()
+		child.Resize()
+		s.Unlock()
 	}
 	return enums.EVENT_STOP
 }
@@ -825,47 +888,50 @@ func (s *CScrolledViewport) resizeViewport() enums.EventFlag {
 func (s *CScrolledViewport) resizeScrollbars() enums.EventFlag {
 	origin := s.GetOrigin()
 	alloc := s.GetAllocation()
-	if hs := s.GetHScrollbar(); hs != nil {
+	hs := s.GetHScrollbar()
+	vs := s.GetVScrollbar()
+	verticalShow := s.VerticalShowByPolicy()
+	horizontalShow := s.HorizontalShowByPolicy()
+	state := s.GetState()
+	s.Lock()
+	if hs != nil {
 		o := ptypes.MakePoint2I(origin.X, origin.Y+alloc.H-1)
 		a := ptypes.MakeRectangle(alloc.W, 1)
-		if s.VerticalShowByPolicy() {
+		if verticalShow {
 			a.W -= 1
 		}
 		hs.SetOrigin(o.X, o.Y)
 		hs.SetAllocation(a)
-		if s.IsFocused() {
-			hs.SetState(StateSelected)
-		} else {
-			hs.UnsetState(StateSelected)
-		}
+		hs.SetState(StateNone)
+		hs.SetState(state)
 		hs.Resize()
 	}
-	if vs := s.GetVScrollbar(); vs != nil {
+	if vs != nil {
 		o := ptypes.MakePoint2I(origin.X+alloc.W-1, origin.Y)
 		a := ptypes.MakeRectangle(1, alloc.H)
-		if s.HorizontalShowByPolicy() {
+		if horizontalShow {
 			a.H -= 1
 		}
 		vs.SetOrigin(o.X, o.Y)
 		vs.SetAllocation(a)
-		if s.IsFocused() {
-			vs.SetState(StateSelected)
-		} else {
-			vs.UnsetState(StateSelected)
-		}
+		vs.SetState(StateNone)
+		vs.SetState(state)
 		vs.Resize()
 	}
+	s.Unlock()
 	return enums.EVENT_STOP
 }
 
 func (s *CScrolledViewport) lostFocus([]interface{}, ...interface{}) enums.EventFlag {
+	s.UnsetState(StateSelected)
 	s.Invalidate()
-	return enums.EVENT_PASS
+	return enums.EVENT_STOP
 }
 
 func (s *CScrolledViewport) gainedFocus([]interface{}, ...interface{}) enums.EventFlag {
+	s.SetState(StateSelected)
 	s.Invalidate()
-	return enums.EVENT_PASS
+	return enums.EVENT_STOP
 }
 
 // The Adjustment for the horizontal position.
