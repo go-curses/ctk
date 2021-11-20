@@ -178,6 +178,16 @@ func setupUi(manager cdk.Display) error {
 		label.SetAlignment(0.5, 0.5)
 		label.SetJustify(enums.JUSTIFY_CENTER)
 		dialog.GetContentArea().PackStart(label, true, true, 0)
+		for _, child := range dialog.GetActionArea().GetChildren() {
+			if cb, ok := child.(ctk.Button); ok {
+				switch cb.GetLabel() {
+				case "OK":
+					cb.SetName("ok")
+				case "Cancel":
+					cb.SetName("cancel")
+				}
+			}
+		}
 		dialog.ShowAll()
 		// if Debug {
 		// dialog.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
