@@ -700,6 +700,7 @@ const (
 type StateType uint64
 
 const (
+	StateNone   StateType = 0
 	StateNormal StateType = 1 << iota
 	StateActive
 	StatePrelight
