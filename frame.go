@@ -42,9 +42,9 @@ type Frame interface {
 	IsFocus() bool
 	GetFocusWithChild() (focusWithChild bool)
 	SetFocusWithChild(focusWithChild bool)
-	GetWidgetAt(p *ptypes.Point2I) Widget
 	GetThemeRequest() (theme paint.Theme)
 	GetSizeRequest() (width, height int)
+	GetWidgetAt(p *ptypes.Point2I) Widget
 }
 
 // The CFrame structure implements the Frame interface and is exported
@@ -120,17 +120,23 @@ func (f *CFrame) Init() (already bool) {
 // Returns:
 // 	the text in the label, or NULL if there was no label widget or
 // 	the label widget was not a Label. This string is owned by
-// 	CTK and must not be modified or freed.
+//
+// Locking: read
 func (f *CFrame) GetLabel() (value string) {
 	var err error
 	if w := f.GetLabelWidget(); w != nil {
 		if lw, ok := w.(Label); ok {
-			return lw.GetLabel()
+			f.RLock()
+			value = lw.GetLabel()
+			f.RUnlock()
+			return
 		}
 	}
+	f.RLock()
 	if value, err = f.GetStringProperty(PropertyLabel); err != nil {
 		f.LogErr(err)
 	}
+	f.RUnlock()
 	return
 }
 
@@ -138,6 +144,8 @@ func (f *CFrame) GetLabel() (value string) {
 //
 // Parameters:
 // 	label	the text to use as the label of the frame.
+//
+// Locking: write
 func (f *CFrame) SetLabel(label string) {
 	if err := f.SetStringProperty(PropertyLabel, label); err != nil {
 		f.LogErr(err)
@@ -153,10 +161,14 @@ func (f *CFrame) SetLabel(label string) {
 
 // GetLabelWidget retrieves the label widget for the Frame.
 // See: SetLabelWidget()
+//
+// Locking: read
 func (f *CFrame) GetLabelWidget() (value Widget) {
+	// f.RLock()
+	// defer f.RUnlock()
 	if v, err := f.GetStructProperty(PropertyLabelWidget); err != nil {
 		f.LogErr(err)
-	} else {
+	} else if v != nil {
 		var ok bool
 		if value, ok = v.(Widget); !ok {
 			f.LogError("value stored in %v is not a Widget: %v (%T)", PropertyLabelWidget, v, v)
@@ -171,12 +183,15 @@ func (f *CFrame) GetLabelWidget() (value Widget) {
 //
 // Parameters:
 // 	labelWidget	the new label widget
+//
+// Locking: write
 func (f *CFrame) SetLabelWidget(labelWidget Widget) {
+	window := f.GetWindow()
 	if err := f.SetStructProperty(PropertyLabelWidget, labelWidget); err != nil {
 		f.LogErr(err)
 	} else {
 		labelWidget.SetParent(f)
-		labelWidget.SetWindow(f.GetWindow())
+		labelWidget.SetWindow(window)
 		labelWidget.Show()
 		f.Invalidate()
 	}
@@ -190,6 +205,8 @@ func (f *CFrame) SetLabelWidget(labelWidget Widget) {
 // Parameters:
 // 	xAlign	X alignment of frame's label
 // 	yAlign	Y alignment of frame's label
+//
+// Locking: read
 func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
 	var err error
 	if w := f.GetLabelWidget(); w != nil {
@@ -198,12 +215,14 @@ func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
 			return
 		}
 	}
+	f.RLock()
 	if xAlign, err = f.GetFloatProperty(PropertyLabelXAlign); err != nil {
 		f.LogErr(err)
 	}
 	if yAlign, err = f.GetFloatProperty(PropertyLabelYAlign); err != nil {
 		f.LogErr(err)
 	}
+	f.RUnlock()
 	return
 }
 
@@ -219,24 +238,33 @@ func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
 // 	        1.0 aligns above the frame. If the values are exactly 0.0 or 1.0 the
 // 	        gap in the frame won't be painted because the label will be
 // 	        completely above or below the frame.
+//
+// Locking: write
 func (f *CFrame) SetLabelAlign(xAlign float64, yAlign float64) {
+	f.Lock()
 	if err := f.SetFloatProperty(PropertyLabelXAlign, xAlign); err != nil {
 		f.LogErr(err)
 	}
 	if err := f.SetFloatProperty(PropertyLabelYAlign, yAlign); err != nil {
 		f.LogErr(err)
 	}
+	f.Unlock()
 	if w := f.GetLabelWidget(); w != nil {
 		if lw, ok := w.(Label); ok {
+			f.Lock()
 			lw.SetAlignment(xAlign, yAlign)
+			f.Unlock()
 		}
 	}
 }
 
-// Retrieves the shadow type of the frame. See SetShadowType.
-// Returns:
-// 	the current shadow type of the frame.
+// GetShadowType returns the shadow type of the frame.
+// See: SetShadowType()
+//
+// Locking: read
 func (f *CFrame) GetShadowType() (value ShadowType) {
+	f.RLock()
+	defer f.RUnlock()
 	if v, err := f.GetStructProperty(PropertyShadowType); err != nil {
 		f.LogErr(err)
 	} else {
@@ -255,57 +283,59 @@ func (f *CFrame) GetShadowType() (value ShadowType) {
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (f *CFrame) SetShadowType(shadowType ShadowType) {
+	f.Lock()
+	defer f.Unlock()
 	if err := f.SetStructProperty(PropertyShadowType, shadowType); err != nil {
 		f.LogErr(err)
 	}
 }
 
-// If the Widget instance CanFocus() then take the focus of the associated
-// Window. Any previously focused Widget will emit a lost-focus signal and the
-// newly focused Widget will emit a gained-focus signal. This method emits a
+// GrabFocus will take the focus of the associated Window if the Widget instance
+// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
+// the newly focused Widget will emit a gained-focus signal. This method emits a
 // grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied
+// changes are applied.
 //
-// Emits: SignalGrabFocus, Argv=[Widget instance]
-// Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
-// Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
+// Note that this method needs to be implemented within each Drawable that can
+// be focused because of the golang interface system losing the concrete struct
+// when a Widget interface reference is passed as a generic interface{}
+// argument.
 func (f *CFrame) GrabFocus() {
-	if f.CanFocus() {
+	if f.CanFocus() && f.IsVisible() && f.IsSensitive() {
 		if r := f.Emit(SignalGrabFocus, f); r == enums.EVENT_PASS {
-			tl := f.GetWindow()
-			if tl != nil {
-				var fw Widget
-				focused := tl.GetFocus()
+			if tl := f.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if fw, ok := focused.(Widget); ok && fw.ObjectID() != f.ObjectID() {
+						fw.UnsetState(StateSelected)
+						fw.Emit(SignalLostFocus)
+						fw.Invalidate()
+					}
+				}
 				tl.SetFocus(f)
-				if focused != nil {
-					var ok bool
-					if fw, ok = focused.(Widget); ok && fw.ObjectID() != f.ObjectID() {
-						if f := fw.Emit(SignalLostFocus, fw); f == enums.EVENT_STOP {
-							fw = nil
-						}
-					}
-				}
-				if f := f.Emit(SignalGainedFocus, f, fw); f == enums.EVENT_STOP {
-					if fw != nil {
-						tl.SetFocus(fw)
-					}
-				}
-				f.LogDebug("has taken focus")
+				f.SetState(StateSelected)
+				f.Emit(SignalGainedFocus)
+				f.Invalidate()
 			}
 		}
+	} else {
+		f.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
 // Add will add the given Widget to the Frame. As the Frame Widget is of Bin
 // type, any previous child Widget is removed first.
+//
+// Locking: write
 func (f *CFrame) Add(w Widget) {
 	f.CBin.Add(w)
-	w.Connect(SignalLostFocus, FrameChildLostFocusHandle, f.lostFocus)
-	w.Connect(SignalGainedFocus, FrameChildGainedFocusHandle, f.gainedFocus)
+	w.Connect(SignalLostFocus, FrameChildLostFocusHandle, f.childLostFocus)
+	w.Connect(SignalGainedFocus, FrameChildGainedFocusHandle, f.childGainedFocus)
 	f.Invalidate()
 }
 
 // Remove will remove the given Widget from the Frame.
+//
+// Locking: write
 func (f *CFrame) Remove(w Widget) {
 	_ = w.Disconnect(SignalLostFocus, FrameChildLostFocusHandle)
 	_ = w.Disconnect(SignalGainedFocus, FrameChildGainedFocusHandle)
@@ -317,6 +347,8 @@ func (f *CFrame) Remove(w Widget) {
 // focused Widget. If no child Widget exists, or the child Widget cannot be
 // focused itself, then the return value is whether the Frame itself is the
 // focused Widget.
+//
+// Locking: read
 func (f *CFrame) IsFocus() bool {
 	if f.GetFocusWithChild() {
 		if child := f.GetChild(); child != nil && child.CanFocus() {
@@ -329,33 +361,24 @@ func (f *CFrame) IsFocus() bool {
 // GetFocusWithChild returns true if the Frame is supposed to follow the focus
 // of its child Widget or if it should follow its own focus.
 // See: SetFocusWithChild()
+//
+// Locking: read
 func (f *CFrame) GetFocusWithChild() (focusWithChild bool) {
-	return f.focusWithChild
+	f.RLock()
+	focusWithChild = f.focusWithChild
+	f.RUnlock()
+	return
 }
 
-// SetFocusWithChild updates whether or not the Frame's theme will reflect the
-// focused state of the Frame's child Widget.
+// SetFocusWithChild updates whether the Frame's theme will reflect the focused
+// state of the Frame's child Widget.
+//
+// Locking: write
 func (f *CFrame) SetFocusWithChild(focusWithChild bool) {
+	f.Lock()
 	f.focusWithChild = focusWithChild
+	f.Unlock()
 	f.Invalidate()
-}
-
-// GetWidgetAt returns the Widget at the given point within the Frame. Widgets
-// that are not visible are ignored.
-func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
-	if f.HasPoint(p) && f.IsVisible() {
-		if child := f.GetChild(); child != nil {
-			if cc, ok := child.(Container); ok {
-				if cc.HasPoint(p) && cc.IsVisible() {
-					if w := cc.GetWidgetAt(p); w != nil && w.IsVisible() {
-						return w
-					}
-				}
-			}
-		}
-		return f
-	}
-	return nil
 }
 
 // GetSizeRequest returns the requested size of the Frame, taking into account
@@ -382,12 +405,32 @@ func (f *CFrame) GetSizeRequest() (width, height int) {
 	return size.W, size.H
 }
 
-func (f *CFrame) lostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
+	if f.HasPoint(p) && f.IsVisible() {
+		if child := f.GetChild(); child != nil {
+			return child
+		}
+		return f
+	}
+	return nil
+}
+
+func (f *CFrame) childLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	f.UnsetState(StateSelected)
+	if child := f.GetChild(); child != nil {
+		child.UnsetState(StateSelected)
+		child.Invalidate()
+	}
 	f.Invalidate()
 	return enums.EVENT_PASS
 }
 
-func (f *CFrame) gainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (f *CFrame) childGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	f.SetState(StateSelected)
+	if child := f.GetChild(); child != nil {
+		child.SetState(StateSelected)
+		child.Invalidate()
+	}
 	f.Invalidate()
 	return enums.EVENT_PASS
 }
@@ -396,7 +439,11 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.Event
 	wantStop := false
 	origin := f.GetOrigin()
 	theme := f.GetThemeRequest()
-	if labelChild, ok := f.GetLabelWidget().(Label); ok && labelChild != nil {
+	labelWidget := f.GetLabelWidget()
+	child := f.GetChild()
+	f.Lock()
+	defer f.Unlock()
+	if labelChild, ok := labelWidget.(Label); ok && labelChild != nil {
 		local := labelChild.GetOrigin()
 		local.SubPoint(origin)
 		alloc := labelChild.GetAllocation()
@@ -412,7 +459,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.Event
 		labelChild.Invalidate()
 		wantStop = true
 	}
-	if child := f.GetChild(); child != nil {
+	if child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(origin)
 		alloc := child.GetAllocation()
@@ -420,6 +467,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.Event
 			child.LogErr(err)
 		}
 		wantStop = true
+		child.Invalidate()
 	}
 	if wantStop {
 		return enums.EVENT_STOP
@@ -428,29 +476,35 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.Event
 }
 
 func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
-	f.Lock()
-	defer f.Unlock()
 	// our allocation has been set prior to Resize() being called
 	alloc := f.GetAllocation()
 	widget := f.GetLabelWidget()
+	origin := f.GetOrigin()
+	xAlign, yAlign := f.GetLabelAlign()
+	child := f.GetChild()
+
+	f.Lock()
+
 	if widget == nil {
+		f.Unlock()
 		return enums.EVENT_PASS
 	}
+
 	label, _ := widget.(Label)
 	if alloc.W <= 0 && alloc.H <= 0 {
 		if label != nil {
 			label.SetAllocation(ptypes.MakeRectangle(0, 0))
 			label.Resize()
 		}
+		f.Unlock()
 		return enums.EVENT_PASS
 	}
+
 	alloc.Floor(0, 0)
-	origin := f.GetOrigin()
 	childOrigin := ptypes.MakePoint2I(origin.X+1, origin.Y+1)
 	childAlloc := ptypes.MakeRectangle(alloc.W-2, alloc.H-2)
 	labelOrigin := ptypes.MakePoint2I(origin.X+2, origin.Y)
 	labelAlloc := ptypes.MakeRectangle(alloc.W-4, 1)
-	xAlign, yAlign := f.GetLabelAlign()
 	if yAlign <= 0.0 {
 		yAlign = 0.0
 		childAlloc.H -= 1
@@ -470,18 +524,20 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 		label.SetAllocation(labelAlloc)
 		label.Resize()
 	}
-	if child := f.GetChild(); child != nil {
+	if child != nil {
 		child.SetOrigin(childOrigin.X, childOrigin.Y)
 		child.SetAllocation(childAlloc)
 		child.Resize()
 	}
-	return f.Invalidate()
+
+	f.Unlock()
+
+	f.Invalidate()
+	return enums.EVENT_STOP
 }
 
 func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		f.Lock()
-		defer f.Unlock()
 		alloc := f.GetAllocation()
 		if !f.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			f.LogTrace("not visible, zero width or zero height")
@@ -489,38 +545,41 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		}
 
 		// render the box and border, with widget
+		_, yAlign := f.GetLabelAlign()
+		widget := f.GetLabelWidget()
 		child := f.GetChild()
 		theme := f.GetThemeRequest()
 		if child != nil {
 			theme = child.GetThemeRequest()
 		}
+
+		f.Lock()
+		defer f.Unlock()
+
 		boxOrigin := ptypes.MakePoint2I(0, 0)
 		boxSize := alloc
-		_, yAlign := f.GetLabelAlign()
 		if yAlign == 0.0 { // top
 			boxOrigin.Y += 1
 			boxSize.H -= 1
 		}
+
 		surface.BoxWithTheme(boxOrigin, boxSize, true, true, theme)
 
-		if widget := f.GetLabelWidget(); widget != nil {
+		if widget != nil {
 			if label, ok := widget.(Label); ok {
-				labelTheme := label.GetTheme()
-				if labelTheme.String() != theme.String() {
-					label.SetTheme(theme)
-					label.Invalidate()
-				}
-				label.Draw()
-				if err := surface.Composite(label.ObjectID()); err != nil {
-					f.LogError("composite error: %v", err)
+				if rv := label.Draw(); rv == enums.EVENT_STOP {
+					if err := surface.Composite(label.ObjectID()); err != nil {
+						f.LogError("composite error: %v", err)
+					}
 				}
 			}
 		}
 
 		if child != nil {
-			child.Draw()
-			if err := surface.Composite(child.ObjectID()); err != nil {
-				f.LogError("composite error: %v", err)
+			if rv := child.Draw(); rv == enums.EVENT_STOP {
+				if err := surface.Composite(child.ObjectID()); err != nil {
+					f.LogError("composite error: %v", err)
+				}
 			}
 		}
 
