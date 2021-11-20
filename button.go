@@ -387,6 +387,11 @@ func (b *CButton) SetUseUnderline(enabled bool) {
 	}
 	if child := b.GetChild(); child != nil {
 		if label, ok := child.(Label); ok {
+			if enabled {
+				label.SetMnemonicWidget(b)
+			} else {
+				label.SetMnemonicWidget(nil)
+			}
 			label.SetUseUnderline(enabled)
 		}
 	}
