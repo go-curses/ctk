@@ -134,7 +134,7 @@ func setupDruidUi(d cdk.Display, w ctk.Window) error {
 	vbox.PackEnd(actionBox, false, false, 0)
 	actionBox.SetSizeRequest(-1, 3)
 	// back button
-	buttonPrev = newButton("previous", "Back", handlePrevious)
+	buttonPrev = newButton("previous", "_Back", handlePrevious)
 	buttonPrev.SetBoolProperty(cdk.PropertyDebug, Debug)
 	buttonPrev.Show()
 	actionBox.PackStart(buttonPrev, false, false, 0)
@@ -151,7 +151,7 @@ func setupDruidUi(d cdk.Display, w ctk.Window) error {
 	actionNote.Show()
 	actionBox.PackEnd(actionNote, true, true, 0)
 	// forward button
-	buttonNext = newButton("next", "Continue", handleNext)
+	buttonNext = newButton("next", "_Next", handleNext)
 	buttonNext.SetBoolProperty(cdk.PropertyDebug, Debug)
 	actionBox.PackStart(buttonNext, false, false, 0)
 	buttonNext.Show()
@@ -175,22 +175,22 @@ func switchPage(id int) {
 		buttonPrev.Hide()
 		if numKnownPages > 1 {
 			buttonNext.GrabFocus()
-			buttonNext.SetLabel("Next")
+			buttonNext.SetLabel("_Next")
 			buttonNext.Show()
 		} else {
 			buttonNext.Hide()
 		}
 	} else if currentPage < numKnownPages-1 {
 		// middle
-		buttonNext.SetLabel("Next")
+		buttonNext.SetLabel("_Next")
 		buttonNext.Show()
-		buttonPrev.SetLabel("Back")
+		buttonPrev.SetLabel("_Back")
 		buttonPrev.Show()
 	} else {
 		// end
-		buttonPrev.SetLabel("Back")
+		buttonPrev.SetLabel("_Back")
 		buttonPrev.Show()
-		buttonNext.SetLabel("Quit")
+		buttonNext.SetLabel("_Quit")
 		buttonNext.Show()
 	}
 }
@@ -356,6 +356,7 @@ func newButton(name string, label string, fn cdk.SignalListenerFn) ctk.Button {
 		}
 	}
 	b.SetName(name)
+	b.SetUseUnderline(true)
 	b.SetSensitive(true)
 	if Debug {
 		b.SetBoolProperty(cdk.PropertyDebug, true)
