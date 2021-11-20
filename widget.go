@@ -309,8 +309,8 @@ func (w *CWidget) Unparent() {
 // mapped when their toplevel container is realized and mapped.
 func (w *CWidget) Show() {
 	if !w.HasFlags(VISIBLE) {
+		w.SetFlags(VISIBLE)
 		if r := w.Emit(SignalShow, w); r == enums.EVENT_PASS {
-			w.SetFlags(VISIBLE)
 			w.Invalidate()
 		}
 	}
@@ -320,8 +320,8 @@ func (w *CWidget) Show() {
 // to the user).
 func (w *CWidget) Hide() {
 	if w.HasFlags(VISIBLE) {
+		w.UnsetFlags(VISIBLE)
 		if r := w.Emit(SignalHide, w); r == enums.EVENT_PASS {
-			w.UnsetFlags(VISIBLE)
 			w.Invalidate()
 		}
 	}
@@ -348,6 +348,8 @@ func (w *CWidget) ShowAll() {
 // 	accelKey	GDK keyval of the accelerator
 // 	accelMods	modifier key combination of the accelerator
 // 	accelFlags	flag accelerators, e.g. GTK_ACCEL_VISIBLE
+//
+// Method stub, unimplemented
 func (w *CWidget) AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods ModifierType, accelFlags AccelFlags) {
 }
 
@@ -359,6 +361,8 @@ func (w *CWidget) AddAccelerator(accelSignal string, accelGroup AccelGroup, acce
 // 	accelKey	GDK keyval of the accelerator
 // 	accelMods	modifier key combination of the accelerator
 // 	returns	whether an accelerator was installed and could be removed
+//
+// Method stub, unimplemented
 func (w *CWidget) RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods ModifierType) (value bool) {
 	return false
 }
@@ -381,6 +385,8 @@ func (w *CWidget) RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMo
 // Parameters:
 // 	accelPath	path used to look up the accelerator.
 // 	accelGroup	a AccelGroup.
+//
+// Method stub, unimplemented
 func (w *CWidget) SetAccelPath(accelPath string, accelGroup AccelGroup) {}
 
 // Determines whether an accelerator that activates the signal identified by
@@ -393,6 +399,8 @@ func (w *CWidget) SetAccelPath(accelPath string, accelGroup AccelGroup) {}
 //
 // Returns:
 // 	TRUE if the accelerator can be activated.
+//
+// Method stub, unimplemented
 func (w *CWidget) CanActivateAccel(signalId int) (value bool) {
 	return false
 }
@@ -474,15 +482,15 @@ func (w *CWidget) GrabFocus() {
 			if tl := w.GetWindow(); tl != nil {
 				if focused := tl.GetFocus(); focused != nil {
 					if fw, ok := focused.(Widget); ok && fw.ObjectID() != w.ObjectID() {
-						fw.Emit(SignalLostFocus)
 						fw.UnsetState(StateSelected)
-						fw.LogDebug("has lost focus")
+						fw.Emit(SignalLostFocus)
+						// fw.Invalidate()
 					}
 				}
 				tl.SetFocus(w)
-				w.Emit(SignalGainedFocus)
 				w.SetState(StateSelected)
-				w.LogDebug("has taken focus")
+				w.Emit(SignalGainedFocus)
+				// w.Invalidate()
 			}
 		}
 	} else {
@@ -570,8 +578,8 @@ func (w *CWidget) SetParent(parent Container) {
 		}
 		if err := w.SetStructProperty(PropertyParent, parent); err != nil {
 			w.LogErr(err)
-		} else {
-			if cw, ok := parent.(Widget); parent != nil && ok && w.HasFlags(PARENT_SENSITIVE) {
+		} else if parent != nil && w.ObjectID() != parent.ObjectID() {
+			if cw, ok := parent.(Widget); ok && w.HasFlags(PARENT_SENSITIVE) {
 				cw.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
 				cw.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
 			}
@@ -1082,6 +1090,8 @@ func (w *CWidget) HasScreen() (value bool) {
 // 	width	return location for width, or NULL.
 // 	height	return location for height, or NULL.
 func (w *CWidget) GetSizeRequest() (width, height int) {
+	w.RLock()
+	defer w.RUnlock()
 	var err error
 	if width, err = w.GetIntProperty(PropertyWidthRequest); err != nil {
 		w.LogErr(err)
@@ -1535,6 +1545,8 @@ func (w *CWidget) IsToplevel() (value bool) {
 // 	window	a Window
 //
 // Emits: SignalSetWindow, Argv=[Widget instance, given window]
+//
+// Locking: write [indirect]
 func (w *CWidget) SetWindow(window Window) {
 	if f := w.Emit(SignalSetWindow, w, window); f == enums.EVENT_PASS {
 		if err := w.SetStructProperty(PropertyWindow, window); err != nil {
@@ -1767,38 +1779,46 @@ func (w *CWidget) GetState() (value StateType) {
 	return w.state
 }
 
-// This function is for use in widget implementations. Sets the state of a
-// widget (insensitive, prelighted, etc.) Usually you should set the state
-// using wrapper functions such as SetSensitive.
+// SetState used in widget implementations. Sets the state of a widget
+// (insensitive, prelighted, etc). Usually you should set the state using
+// wrapper functions such as SetSensitive. If the state given is StateNone,
+// this will reset the state flags to only StateNormal. This method emits a
+// set-state signal initially and if the listeners return EVENT_PASS, the change
+// is applied.
+//
 // Parameters:
 // 	state	new state for widget
-//
-// Adds the given state bitmask to the Widget instance. This method emits a
-// set-state signal initially and if the listeners return EVENT_PASS, the change
-// is applied
-//
-// Emit: SignalSetState, Argv=[Widget instance, given state to set]
 func (w *CWidget) SetState(state StateType) {
 	if f := w.Emit(SignalSetState, w, state); f == enums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		w.state = StateType(cbits.Set(uint64(w.state), uint64(state)))
+		if state == StateNone {
+			w.state = StateNormal
+		} else {
+			w.state = StateType(cbits.Set(uint64(w.state), uint64(state)))
+		}
 	}
 }
 
-// Returns TRUE if the Widget has the given StateType, FALSE otherwise
+// HasState returns TRUE if the Widget has the given StateType, FALSE otherwise.
+// Passing StateNone will always return FALSE.
 func (w *CWidget) HasState(s StateType) bool {
+	if s == StateNone {
+		return false
+	}
 	w.flagsLock.RLock()
 	defer w.flagsLock.RUnlock()
 	return w.state.HasBit(s)
 }
 
-// Removes the given state bitmask from the Widget instance. This method emits
-// an unset-state signal initially and if the listeners return EVENT_PASS, the
-// change is applied
-//
-// Emit: SignalUnsetState, Argv=[Widget instance, given state to unset]
+// UnsetState clears the given state bitmask from the Widget instance. If the
+// given state is StateNone, no action is taken. This method emits an
+// unset-state signal initially and if the listeners return EVENT_PASS, the
+// change is applied.
 func (w *CWidget) UnsetState(state StateType) {
+	if state == StateNone {
+		return
+	}
 	if f := w.Emit(SignalUnsetState, w, state); f == enums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
@@ -1906,15 +1926,20 @@ func (w *CWidget) IsVisible() bool {
 }
 
 func (w *CWidget) HasEventFocus() bool {
-	if window := w.GetWindow(); window != nil {
+	oid := w.ObjectID()
+	window := w.GetWindow()
+	w.RLock()
+	if window != nil {
 		if ef := window.GetEventFocus(); ef != nil {
 			if wef, ok := ef.(Widget); ok {
-				if wef.ObjectID() == w.ObjectID() {
+				if wef.ObjectID() == oid {
+					w.RUnlock()
 					return true
 				}
 			}
 		}
 	}
+	w.RUnlock()
 	return false
 }
 
@@ -1977,25 +2002,25 @@ func (w *CWidget) GetWidgetAt(p *ptypes.Point2I) Widget {
 }
 
 func (w *CWidget) lostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	if w.IsDrawable() && w.IsVisible() && w.IsSensitive() {
-		w.LogDebug("lost focus")
+	if w.IsDrawable() && w.IsVisible() {
 		if w.HasState(StateSelected) {
 			w.UnsetState(StateSelected)
-			w.Invalidate()
-			return enums.EVENT_STOP
 		}
+		w.Invalidate()
+		w.LogDebug("lost focus")
+		return enums.EVENT_STOP
 	}
 	return enums.EVENT_PASS
 }
 
 func (w *CWidget) gainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	if w.IsDrawable() && w.IsVisible() && w.IsSensitive() {
-		w.LogDebug("gained focus")
+	if w.IsDrawable() && w.IsVisible() {
 		if !w.HasState(StateSelected) {
 			w.SetState(StateSelected)
-			w.Invalidate()
-			return enums.EVENT_STOP
 		}
+		w.Invalidate()
+		w.LogDebug("gained focus")
+		return enums.EVENT_STOP
 	}
 	return enums.EVENT_PASS
 }
@@ -2004,6 +2029,7 @@ func (w *CWidget) enter(_ []interface{}, _ ...interface{}) enums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
 		if !w.HasState(StatePrelight) {
 			w.SetState(StatePrelight)
+			w.LogDebug("mouse enter")
 			return enums.EVENT_STOP
 		}
 	}
@@ -2014,6 +2040,7 @@ func (w *CWidget) leave(_ []interface{}, _ ...interface{}) enums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
 		if w.HasState(StatePrelight) {
 			w.UnsetState(StatePrelight)
+			w.LogDebug("mouse leave")
 			return enums.EVENT_STOP
 		}
 	}
