@@ -234,8 +234,6 @@ func (w *CWidget) Init() (already bool) {
 		fg, bg := getDefContentColors(state)
 		_ = w.InstallCssProperty(CssPropertyColor, state, cdk.ColorProperty, true, fg)
 		_ = w.InstallCssProperty(CssPropertyBackgroundColor, state, cdk.ColorProperty, true, bg)
-		_ = w.InstallCssProperty(CssPropertyBackgroundFillContent, state, cdk.StringProperty, true, " ")
-		_ = w.InstallCssProperty(CssPropertyBorder, state, cdk.BoolProperty, true, false)
 		fg, bg = getDefBorderColors(state)
 		_ = w.InstallCssProperty(CssPropertyBorderColor, state, cdk.ColorProperty, true, fg)
 		_ = w.InstallCssProperty(CssPropertyBorderBackgroundColor, state, cdk.ColorProperty, true, bg)
@@ -246,14 +244,6 @@ func (w *CWidget) Init() (already bool) {
 		_ = w.InstallCssProperty(CssPropertyDim, state, cdk.BoolProperty, true, false)
 		_ = w.InstallCssProperty(CssPropertyItalic, state, cdk.BoolProperty, true, false)
 		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
-		_ = w.InstallCssProperty(CssPropertyBorderTopLeftContent, state, cdk.StringProperty, true, string(paint.RuneULCorner))
-		_ = w.InstallCssProperty(CssPropertyBorderTopContent, state, cdk.StringProperty, true, string(paint.RuneHLine))
-		_ = w.InstallCssProperty(CssPropertyBorderTopRightContent, state, cdk.StringProperty, true, string(paint.RuneURCorner))
-		_ = w.InstallCssProperty(CssPropertyBorderLeftContent, state, cdk.StringProperty, true, string(paint.RuneVLine))
-		_ = w.InstallCssProperty(CssPropertyBorderRightContent, state, cdk.StringProperty, true, string(paint.RuneVLine))
-		_ = w.InstallCssProperty(CssPropertyBorderBottomLeftContent, state, cdk.StringProperty, true, string(paint.RuneLLCorner))
-		_ = w.InstallCssProperty(CssPropertyBorderBottomContent, state, cdk.StringProperty, true, string(paint.RuneHLine))
-		_ = w.InstallCssProperty(CssPropertyBorderBottomRightContent, state, cdk.StringProperty, true, string(paint.RuneLRCorner))
 	}
 	w.flagsLock = &sync.RWMutex{}
 	w.state = StateNormal
@@ -1612,8 +1602,7 @@ func (w *CWidget) GetMapped() (value bool) {
 
 func (w *CWidget) GetTheme() (theme paint.Theme) {
 	theme = w.CObject.GetTheme()
-	// apply the css properties?
-	apply := func(state StateType, content, border paint.Style) (paint.Style, paint.Style) {
+	applyStyles := func(state StateType, content, border paint.Style) (paint.Style, paint.Style) {
 		var wColor, wBackgroundColor paint.Color
 		var wBorderColor, wBorderBackgroundColor paint.Color
 		var wBold, wBlink, wReverse, wUnderline, wDim, wItalic, wStrike bool
@@ -1632,26 +1621,11 @@ func (w *CWidget) GetTheme() (theme paint.Theme) {
 		modBorder := border.Foreground(wBorderColor).Background(wBorderBackgroundColor).Bold(wBold).Blink(wBlink).Reverse(wReverse).Underline(wUnderline).Dim(wDim).Italic(wItalic).Strike(wStrike)
 		return modContent, modBorder
 	}
-	theme.Content.Normal, theme.Border.Normal = apply(StateNormal, theme.Content.Normal, theme.Border.Normal)
-	theme.Content.Active, theme.Border.Active = apply(StateActive, theme.Content.Active, theme.Border.Active)
-	theme.Content.Selected, theme.Border.Selected = apply(StateSelected, theme.Content.Selected, theme.Border.Selected)
-	theme.Content.Prelight, theme.Border.Prelight = apply(StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
-	theme.Content.Insensitive, theme.Border.Insensitive = apply(StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
-
-	// var wBorder bool
-	// var wBorderTopLeftContent, wBorderTopContent, wBorderTopRightContent string
-	// var wBorderLeftContent, wBackgroundFillContent, wBorderRightContent string
-	// var wBorderBottomLeftContent, wBorderBottomContent, wBorderBottomRightContent string
-	// wBorder, _ = w.GetCssBool(CssPropertyBorder)
-	// wBorderTopLeftContent, _ = w.GetCssString(CssPropertyBorderTopLeftContent)
-	// wBorderTopContent, _ = w.GetCssString(CssPropertyBorderTopContent)
-	// wBorderTopRightContent, _ = w.GetCssString(CssPropertyBorderTopRightContent)
-	// wBorderLeftContent, _ = w.GetCssString(CssPropertyBorderLeftContent)
-	// wBackgroundFillContent, _ = w.GetCssString(CssPropertyBackgroundFillContent)
-	// wBorderRightContent, _ = w.GetCssString(CssPropertyBorderRightContent)
-	// wBorderBottomLeftContent, _ = w.GetCssString(CssPropertyBorderBottomLeftContent)
-	// wBorderBottomContent, _ = w.GetCssString(CssPropertyBorderBottomContent)
-	// wBorderBottomRightContent, _ = w.GetCssString(CssPropertyBorderBottomRightContent)
+	theme.Content.Normal, theme.Border.Normal = applyStyles(StateNormal, theme.Content.Normal, theme.Border.Normal)
+	theme.Content.Active, theme.Border.Active = applyStyles(StateActive, theme.Content.Active, theme.Border.Active)
+	theme.Content.Selected, theme.Border.Selected = applyStyles(StateSelected, theme.Content.Selected, theme.Border.Selected)
+	theme.Content.Prelight, theme.Border.Prelight = applyStyles(StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
+	theme.Content.Insensitive, theme.Border.Insensitive = applyStyles(StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
 	return
 }
 
@@ -2595,8 +2569,6 @@ const CssPropertyColor cdk.Property = "color"
 
 const CssPropertyBackgroundColor cdk.Property = "background-color"
 
-const CssPropertyBackgroundFillContent cdk.Property = "background-fill-content"
-
 const CssPropertyBorder cdk.Property = "border"
 
 const CssPropertyBorderColor cdk.Property = "border-color"
@@ -2616,19 +2588,3 @@ const CssPropertyDim cdk.Property = "dim"
 const CssPropertyItalic cdk.Property = "italic"
 
 const CssPropertyStrike cdk.Property = "strike"
-
-const CssPropertyBorderTopLeftContent cdk.Property = "border-top-left-content"
-
-const CssPropertyBorderTopContent cdk.Property = "border-top-content"
-
-const CssPropertyBorderTopRightContent cdk.Property = "border-top-right-content"
-
-const CssPropertyBorderBottomLeftContent cdk.Property = "border-bottom-left-content"
-
-const CssPropertyBorderBottomRightContent cdk.Property = "border-bottom-right-content"
-
-const CssPropertyBorderLeftContent cdk.Property = "border-left-content"
-
-const CssPropertyBorderRightContent cdk.Property = "border-right-content"
-
-const CssPropertyBorderBottomContent cdk.Property = "border-bottom-content"
