@@ -143,15 +143,15 @@ func (b *CEventBox) GrabFocus() {
 			if tl := b.GetWindow(); tl != nil {
 				if focused := tl.GetFocus(); focused != nil {
 					if fw, ok := focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
-						fw.Emit(SignalLostFocus)
 						fw.UnsetState(StateSelected)
-						fw.LogDebug("has lost focus")
+						fw.Emit(SignalLostFocus)
+						// fw.Invalidate()
 					}
 				}
 				tl.SetFocus(b)
-				b.Emit(SignalGainedFocus)
 				b.SetState(StateSelected)
-				b.LogDebug("has taken focus")
+				b.Emit(SignalGainedFocus)
+				// b.Invalidate()
 			}
 		}
 	} else {
