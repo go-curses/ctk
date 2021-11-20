@@ -3,6 +3,7 @@ package ctk
 import (
 	_ "embed"
 	"fmt"
+	"sync"
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
@@ -57,6 +58,7 @@ type Window interface {
 	Build(builder Builder, element *CBuilderElement) error
 	AddStylesFromString(css string) (err error)
 	ReplaceStylesFromString(css string) (err error)
+	ExportStylesToString() (css string)
 	ApplyStylesTo(widget Widget)
 	SetTitle(title string)
 	SetResizable(resizable bool)
@@ -156,6 +158,7 @@ type CWindow struct {
 	accelGroups    []*CAccelGroup
 	mnemonics      []*mnemonicEntry
 	mnemonicMod    cdk.ModMask
+	mnemonicLock   *sync.RWMutex
 
 	styleSheet *cStyleSheet
 }
@@ -208,6 +211,7 @@ func (w *CWindow) Init() (already bool) {
 	w.accelGroups = make([]*CAccelGroup, 0)
 	w.mnemonics = make([]*mnemonicEntry, 0)
 	w.mnemonicMod = cdk.ModAlt
+	w.mnemonicLock = &sync.RWMutex{}
 	_ = w.InstallProperty(PropertyAcceptFocus, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyDecorated, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyDefaultHeight, cdk.IntProperty, true, -1)
@@ -215,6 +219,7 @@ func (w *CWindow) Init() (already bool) {
 	_ = w.InstallProperty(PropertyDeletable, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyDestroyWithParent, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyFocusOnMap, cdk.BoolProperty, true, true)
+	_ = w.InstallProperty(PropertyFocusedWidget, cdk.StructProperty, true, nil)
 	_ = w.InstallProperty(PropertyGravity, cdk.StructProperty, true, GravityNorthWest)
 	_ = w.InstallProperty(PropertyHasToplevelFocus, cdk.BoolProperty, false, false)
 	_ = w.InstallProperty(PropertyIcon, cdk.StructProperty, true, nil)
@@ -293,19 +298,28 @@ func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 }
 
 func (w *CWindow) AddStylesFromString(css string) (err error) {
+	w.Lock()
 	if err = w.styleSheet.ParseString(css); err != nil {
 		w.LogErr(err)
 	}
+	w.Unlock()
 	return
 }
 
 func (w *CWindow) ReplaceStylesFromString(css string) (err error) {
+	w.Lock()
 	var ss *cStyleSheet
 	if ss, err = newStyleSheetFromString(DefaultStyles); err != nil {
 		w.LogErr(err)
 	} else {
 		w.styleSheet = ss
 	}
+	w.Unlock()
+	return
+}
+
+func (w *CWindow) ExportStylesToString() (css string) {
+	css = w.styleSheet.String()
 	return
 }
 
@@ -547,11 +561,13 @@ func (w *CWindow) ListTopLevels() (value []Window) {
 // 	keyval	the mnemonic
 // 	target	the widget that gets activated by the mnemonic
 func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
+	w.mnemonicLock.Lock()
 	for _, entry := range w.mnemonics {
 		if entry.key == keyval {
 			if widget, ok := entry.target.(Widget); ok {
 				if tw, ok := target.(Widget); ok {
 					if widget.ObjectID() == tw.ObjectID() {
+						w.mnemonicLock.Unlock()
 						return
 					}
 				}
@@ -566,6 +582,7 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 	} else {
 		w.LogError("target is not a Widget: %v (%T)", target, target)
 	}
+	w.mnemonicLock.Unlock()
 }
 
 // Removes a mnemonic from this window.
@@ -573,6 +590,7 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 // 	keyval	the mnemonic
 // 	target	the widget that gets activated by the mnemonic
 func (w *CWindow) RemoveMnemonic(keyval rune, target interface{}) {
+	w.mnemonicLock.Lock()
 	if tw, ok := target.(Widget); ok {
 		var mnemonics []*mnemonicEntry
 		for _, entry := range w.mnemonics {
@@ -588,12 +606,14 @@ func (w *CWindow) RemoveMnemonic(keyval rune, target interface{}) {
 	} else {
 		w.LogError("target is not a Widget: %v (%T)", target, target)
 	}
+	w.mnemonicLock.Unlock()
 }
 
 // Removes all mnemonics from this window for the target Widget.
 // Parameters:
 // 	target	the widget that gets activated by the mnemonic
 func (w *CWindow) RemoveWidgetMnemonics(target interface{}) {
+	w.mnemonicLock.Lock()
 	if tw, ok := target.(Widget); ok {
 		var mnemonics []*mnemonicEntry
 		for _, entry := range w.mnemonics {
@@ -607,6 +627,7 @@ func (w *CWindow) RemoveWidgetMnemonics(target interface{}) {
 	} else {
 		w.LogError("target is not a Widget: %v (%T)", target, target)
 	}
+	w.mnemonicLock.Unlock()
 }
 
 // Activates the targets associated with the mnemonic.
@@ -615,16 +636,19 @@ func (w *CWindow) RemoveWidgetMnemonics(target interface{}) {
 // 	modifier	the modifiers
 // 	returns	TRUE if the activation is done.
 func (w *CWindow) MnemonicActivate(keyval rune, modifier cdk.ModMask) (activated bool) {
+	w.mnemonicLock.Lock()
 	if modifier == w.mnemonicMod {
 		for _, entry := range w.mnemonics {
 			if entry.key == keyval {
 				if sa, ok := entry.target.(Widget); ok && sa.IsSensitive() && sa.IsVisible() {
+					w.mnemonicLock.Unlock()
 					sa.Activate()
 					return true
 				}
 			}
 		}
 	}
+	w.mnemonicLock.Unlock()
 	return
 }
 
@@ -661,12 +685,25 @@ func (w *CWindow) PropagateKeyEvent(event cdk.EventKey) (value bool) {
 // 	the currently focused widget, or NULL if there is none.
 // 	[transfer none]
 func (w *CWindow) GetFocus() (focus interface{}) {
-	if w.focused != nil {
-		return w.focused
+	var err error
+	if focus, err = w.GetStructProperty(PropertyFocusedWidget); err != nil {
+		w.LogErr(err)
+	} else {
+		return
 	}
+	// w.RLock()
+	// if w.focused != nil {
+	// 	focus = w.focused
+	// 	w.RUnlock()
+	// 	return
+	// }
+	// w.RUnlock()
 	fc, _ := w.GetFocusChain()
 	if len(fc) > 0 {
-		return fc[0]
+		// w.Lock()
+		// w.focused = fc[0]
+		focus = fc[0]
+		// w.Unlock()
 	}
 	return
 }
@@ -680,10 +717,27 @@ func (w *CWindow) GetFocus() (focus interface{}) {
 // Parameters:
 // 	focus	widget to be the new focus widget, or NULL to unset
 func (w *CWindow) SetFocus(focus interface{}) {
-	if fw, ok := focus.(Sensitive); ok && fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
-		w.focused = focus
-	} else {
+	if transient := w.GetTransientFor(); transient != nil && w.ObjectID() != transient.ObjectID() {
+		transient.SetFocus(focus)
+		return
+	}
+	if focus == nil {
+		w.Lock()
 		w.focused = nil
+		w.Unlock()
+	} else if fw, ok := focus.(Sensitive); ok {
+		if fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
+			if err := w.SetStructProperty(PropertyFocusedWidget, focus); err != nil {
+				w.LogErr(err)
+			}
+			w.Lock()
+			w.focused = focus
+			w.Unlock()
+		} else {
+			w.LogError("cannot focus, not visible or not sensitive")
+		}
+	} else {
+		w.LogError("does not implement Sensitive interface: %v", focus)
 	}
 }
 
@@ -895,7 +949,9 @@ func (w *CWindow) SetDeletable(setting bool) {
 // 	modifier	the modifier mask used to activate
 // mnemonics on this window.
 func (w *CWindow) SetMnemonicModifier(modifier cdk.ModMask) {
+	w.mnemonicLock.Lock()
 	w.mnemonicMod = modifier
+	w.mnemonicLock.Unlock()
 }
 
 // By setting the type hint for the window, you allow the window manager to
@@ -1045,7 +1101,10 @@ func (w *CWindow) GetDestroyWithParent() (value bool) {
 // Returns:
 // 	the modifier mask used to activate mnemonics on this window.
 func (w *CWindow) GetMnemonicModifier() (value cdk.ModMask) {
-	return w.mnemonicMod
+	w.mnemonicLock.RLock()
+	value = w.mnemonicMod
+	w.mnemonicLock.RUnlock()
+	return
 }
 
 // Returns whether the window is modal. See SetModal.
@@ -1140,7 +1199,14 @@ func (w *CWindow) GetRole() (value string) {
 // 	width	return location for width, or NULL.
 // 	height	return location for height, or NULL.
 func (w *CWindow) GetSize() (width, height int) {
-	return w.display.Screen().Size()
+	w.RLock()
+	if w.display != nil {
+		if screen := w.display.Screen(); screen != nil {
+			width, height = screen.Size()
+		}
+	}
+	w.RUnlock()
+	return
 }
 
 // Retrieves the title of the window. See SetTitle.
@@ -1402,8 +1468,9 @@ func (w *CWindow) GetVBox() (vbox VBox) {
 }
 
 func (w *CWindow) GetNextFocus() (next interface{}) {
-	fc, _ := w.GetFocusChain()
+	fc, _ := w.CBin.GetFocusChain()
 	if focused := w.GetFocus(); focused != nil {
+		w.RLock()
 		if wFocused, ok := focused.(Widget); ok {
 			found := false
 			for _, fci := range fc {
@@ -1414,14 +1481,16 @@ func (w *CWindow) GetNextFocus() (next interface{}) {
 						}
 					} else {
 						next = fci
+						w.RUnlock()
 						return
 					}
 				}
 			}
-			if found && len(fc) > 0 {
+			if len(fc) > 0 {
 				next = fc[0]
 			}
 		}
+		w.RUnlock()
 	} else if len(fc) > 0 {
 		next = fc[0]
 	}
@@ -1432,15 +1501,14 @@ func (w *CWindow) GetPreviousFocus() (previous interface{}) {
 	fc, _ := w.CBin.GetFocusChain()
 	nfc := len(fc)
 	if focused := w.GetFocus(); focused != nil {
+		w.RLock()
 		if wFocused, ok := focused.(Widget); ok {
 			found := false
 			for _, fci := range fc {
 				if fcw, ok := fci.(Widget); ok {
-					if !found {
-						if fcw.ObjectID() == wFocused.ObjectID() {
-							found = true
-							break
-						}
+					if !found && fcw.ObjectID() == wFocused.ObjectID() {
+						found = true
+						break
 					}
 					previous = fci
 				}
@@ -1449,10 +1517,9 @@ func (w *CWindow) GetPreviousFocus() (previous interface{}) {
 				previous = fc[nfc-1]
 			}
 		}
+		w.RUnlock()
 	} else if nfc > 0 {
 		previous = fc[nfc-1]
-	} else {
-		previous = nil
 	}
 	return
 }
@@ -1464,8 +1531,9 @@ func (w *CWindow) FocusNext() enums.EventFlag {
 		}
 	}
 	if next := w.GetNextFocus(); next != nil {
-		if nw, ok := next.(Sensitive); ok {
+		if nw, ok := next.(Widget); ok {
 			nw.GrabFocus()
+			w.SetFocus(next)
 			return enums.EVENT_STOP
 		}
 	}
@@ -1482,6 +1550,7 @@ func (w *CWindow) FocusPrevious() enums.EventFlag {
 	if prev := w.GetPreviousFocus(); prev != nil {
 		if pw, ok := prev.(Sensitive); ok {
 			pw.GrabFocus()
+			w.SetFocus(prev)
 			return enums.EVENT_STOP
 		}
 	}
@@ -1508,8 +1577,6 @@ func (w *CWindow) SetEventFocus(o interface{}) {
 
 func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
-		// w.Lock()
-		// defer w.Unlock()
 		switch e := evt.(type) {
 		case *cdk.EventError:
 			if f := w.Emit(SignalError, w, e); f == enums.EVENT_PASS {
@@ -1523,7 +1590,6 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 				// check focused
 				if fi := w.GetFocus(); fi != nil {
 					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
-						sw.LogDebug("ProcessEvent(EventKey): %v", evt)
 						if f := sw.ProcessEvent(evt); f == enums.EVENT_STOP {
 							return enums.EVENT_STOP
 						}
@@ -1558,13 +1624,15 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 							var wantRefresh bool
 							if f := w.hoverFocus.Emit(SignalLeave); f == enums.EVENT_STOP {
 								wantRefresh = true
+								w.hoverFocus.Invalidate()
 							}
-							w.hoverFocus.LogDebug("signal leave")
 							if f := mw.Emit(SignalEnter); f == enums.EVENT_STOP {
 								wantRefresh = true
+								mw.Invalidate()
 							}
-							mw.LogDebug("signal enter")
+							w.Lock()
 							w.hoverFocus = mw
+							w.Unlock()
 							if wantRefresh {
 								if d := w.GetDisplay(); d != nil {
 									d.RequestDraw()
@@ -1573,10 +1641,14 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 							}
 						}
 					} else {
+						w.Lock()
 						w.hoverFocus = mw
+						w.Unlock()
 					}
-					if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
-						return ms.ProcessEvent(e)
+					if ms, ok := mw.(Sensitive); ok {
+						if ms.IsSensitive() && ms.IsVisible() {
+							return ms.ProcessEvent(e)
+						}
 					}
 				}
 			}
@@ -1615,7 +1687,6 @@ func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) enums.Even
 			child.LogErr(err)
 		}
 	}
-	// return w.Emit(SignalInvalidate, w)
 	return enums.EVENT_PASS
 }
 
@@ -1642,25 +1713,33 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) enums.EventFla
 
 func (w *CWindow) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		w.Lock()
-		defer w.Unlock()
 		size := surface.GetSize()
 		if !w.IsVisible() || size.W == 0 || size.H == 0 {
 			w.LogDebug("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
-		if w.GetTitle() != "" {
-			surface.FillBorderTitle(false, w.GetTitle(), enums.JUSTIFY_CENTER, w.GetThemeRequest())
-		} else {
-			surface.FillBorder(false, true, w.GetThemeRequest())
-		}
+
+		title := w.GetTitle()
+		theme := w.GetThemeRequest()
 		child := w.GetChild()
+
+		w.Lock()
+		defer w.Unlock()
+
+		if title != "" {
+			surface.FillBorderTitle(false, title, enums.JUSTIFY_CENTER, theme)
+		} else {
+			surface.FillBorder(false, true, theme)
+		}
+
 		if child != nil && child.IsVisible() {
-			child.Draw()
-			if err := surface.Composite(child.ObjectID()); err != nil {
-				w.LogError("composite error: %v", err)
+			if f := child.Draw(); f == enums.EVENT_STOP {
+				if err := surface.Composite(child.ObjectID()); err != nil {
+					w.LogError("composite error: %v", err)
+				}
 			}
 		}
+
 		if debug, _ := w.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorNavy, w.ObjectInfo())
 		}
@@ -1810,6 +1889,8 @@ const PropertyUrgencyHint cdk.Property = "urgency-hint"
 // Flags: Read / Write
 // Default value: GTK_WIN_POS_NONE
 const PropertyWindowPosition cdk.Property = "window-position"
+
+const PropertyFocusedWidget = "focused-widget"
 
 // The ::activate-default signal is a which gets emitted when the user
 // activates the default widget of window .
