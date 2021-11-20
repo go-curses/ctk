@@ -134,6 +134,7 @@ func NewButton() *CButton {
 func NewButtonWithLabel(text string) (b *CButton) {
 	b = NewButton()
 	label := NewLabel(text)
+	label.Show()
 	b.Add(label)
 	label.SetTheme(DefaultButtonTheme)
 	label.UnsetFlags(CAN_FOCUS)
@@ -144,7 +145,6 @@ func NewButtonWithLabel(text string) (b *CButton) {
 	label.SetJustify(enums.JUSTIFY_CENTER)
 	label.SetAlignment(0.5, 0.5)
 	label.SetSingleLineMode(true)
-	label.Show()
 	return b
 }
 
@@ -213,6 +213,8 @@ func (b *CButton) Init() (already bool) {
 	_ = b.InstallBuildableProperty(PropertyYAlign, cdk.FloatProperty, true, 0.5)
 	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)
 	b.Connect(SignalCdkEvent, ButtonCdkEventHandle, b.event)
+	b.Connect(SignalLostFocus, ButtonLostFocusHandle, b.lostFocus)
+	b.Connect(SignalGainedFocus, ButtonGainedFocusHandle, b.gainedFocus)
 	b.Connect(SignalInvalidate, ButtonInvalidateHandle, b.invalidate)
 	b.Connect(SignalResize, ButtonResizeHandle, b.resize)
 	b.Connect(SignalDraw, ButtonDrawHandle, b.draw)
@@ -595,17 +597,15 @@ func (b *CButton) GrabFocus() {
 			if tl := b.GetWindow(); tl != nil {
 				if focused := tl.GetFocus(); focused != nil {
 					if fw, ok := focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
-						fw.Emit(SignalLostFocus)
 						fw.UnsetState(StateSelected)
-						fw.Invalidate()
-						fw.LogDebug("has lost focus")
+						fw.Emit(SignalLostFocus)
+						// fw.Invalidate()
 					}
 				}
 				tl.SetFocus(b)
-				b.Emit(SignalGainedFocus)
 				b.SetState(StateSelected)
-				b.Invalidate()
-				b.LogDebug("has taken focus")
+				b.Emit(SignalGainedFocus)
+				// b.Invalidate()
 			}
 		}
 	} else {
@@ -695,13 +695,23 @@ func (b *CButton) setProperty(data []interface{}, argv ...interface{}) enums.Eve
 }
 
 func (b *CButton) lostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
-	_ = b.Invalidate()
-	return enums.EVENT_PASS
+	b.UnsetState(StateSelected)
+	if child := b.GetChild(); child != nil {
+		child.UnsetState(StateSelected)
+		child.Invalidate()
+	}
+	b.Invalidate()
+	return enums.EVENT_STOP
 }
 
 func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
-	_ = b.Invalidate()
-	return enums.EVENT_PASS
+	b.SetState(StateSelected)
+	if child := b.GetChild(); child != nil {
+		child.SetState(StateSelected)
+		child.Invalidate()
+	}
+	b.Invalidate()
+	return enums.EVENT_STOP
 }
 
 func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag {
@@ -712,9 +722,6 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag
 			switch e.State() {
 			case cdk.BUTTON_PRESS, cdk.DRAG_START:
 				if b.HasPoint(pos) {
-					if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
-						b.GrabFocus()
-					}
 					b.GrabEventFocus()
 					b.SetPressed(true)
 					b.LogDebug("pressed")
@@ -737,6 +744,9 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag
 						return enums.EVENT_STOP
 					}
 					b.ReleaseEventFocus()
+					if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
+						b.GrabFocus()
+					}
 					if f := b.Clicked(); f == enums.EVENT_PASS {
 						b.Activate()
 					}
@@ -976,6 +986,10 @@ const SignalReleased cdk.Signal = "released"
 const ButtonSetPropertyHandle = "button-set-property-handler"
 
 const ButtonCdkEventHandle = "button-cdk-event-handler"
+
+const ButtonLostFocusHandle = "button-lost-focus-handler"
+
+const ButtonGainedFocusHandle = "button-gained-focus-handler"
 
 const ButtonInvalidateHandle = "button-invalidate-handler"
 
