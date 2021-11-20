@@ -5,6 +5,7 @@ package ctk
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/tdewolff/parse/v2"
 	tcss "github.com/tdewolff/parse/v2/css"
@@ -14,6 +15,8 @@ type cStyleSheet struct {
 	Lexer      *tcss.Lexer
 	Rules      []*StyleSheetRule
 	MediaRules []*StyleSheetMedia
+
+	sync.RWMutex
 }
 
 func newStyleSheet() *cStyleSheet {
@@ -33,20 +36,23 @@ func newStyleSheetFromString(css string) (*cStyleSheet, error) {
 	return ss, nil
 }
 
-func (s cStyleSheet) String() string {
+func (s *cStyleSheet) String() string {
 	str := ""
+	s.RLock()
 	for _, r := range s.Rules {
 		str += r.String() + "\n"
 	}
 	for _, m := range s.MediaRules {
 		str += m.String() + "\n"
 	}
+	s.RUnlock()
 	return str
 }
 
 func (s *cStyleSheet) ApplyStylesTo(w Widget) {
 	selector := w.CssFullPath()
 	styles := s.SelectProperties(selector)
+	s.RLock()
 	for s, _ := range styles {
 		for k, v := range styles[s] {
 			if err := w.SetCssPropertyFromStyle(k+":"+s, v.Value); err != nil {
@@ -54,11 +60,13 @@ func (s *cStyleSheet) ApplyStylesTo(w Widget) {
 			}
 		}
 	}
+	s.RUnlock()
 }
 
 func (s *cStyleSheet) SelectProperties(path string) (properties map[string]map[string]*StyleSheetProperty) {
 	properties = make(map[string]map[string]*StyleSheetProperty)
 	selector := newStyleSheetSelectorFromPath(path)
+	s.RLock()
 	for _, rule := range s.Rules {
 		rSelect := rule.Selector
 		grouped := parseStyleSheetSelectorGroup(rSelect)
@@ -73,10 +81,13 @@ func (s *cStyleSheet) SelectProperties(path string) (properties map[string]map[s
 			}
 		}
 	}
+	s.RUnlock()
 	return
 }
 
 func (s *cStyleSheet) ParseString(source string) (err error) {
+	s.Lock()
+	defer s.Unlock()
 	s.Lexer = tcss.NewLexer(parse.NewInput(bytes.NewBufferString(source)))
 	for {
 		tt, data := s.Lexer.Next()
