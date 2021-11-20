@@ -103,7 +103,11 @@ func (a *CAlignment) Init() (already bool) {
 
 // Get is a convenience method to return the four main Alignment property values
 // See: Set()
+//
+// Locking: read
 func (a *CAlignment) Get() (xAlign, yAlign, xScale, yScale float64) {
+	a.RLock()
+	defer a.RUnlock()
 	xAlign, _ = a.GetFloatProperty(PropertyXAlign)
 	yAlign, _ = a.GetFloatProperty(PropertyYAlign)
 	xScale, _ = a.GetFloatProperty(PropertyXScale)
@@ -118,10 +122,13 @@ func (a *CAlignment) Get() (xAlign, yAlign, xScale, yScale float64) {
 // 	yAlign	the vertical alignment of the child widget, from 0 (top) to 1 (bottom)
 // 	xScale	the amount that the child widget expands horizontally to fill up unused space, from 0 to 1. A value of 0 indicates that the child widget should never expand. A value of 1 indicates that the child widget will expand to fill all of the space allocated for the Alignment
 // 	yScale	the amount that the child widget expands vertically to fill up unused space, from 0 to 1. The values are similar to xScale
+//
+// Locking: write
 func (a *CAlignment) Set(xAlign, yAlign, xScale, yScale float64) {
 	xa, ya, xs, ys := a.Get()
 	if xa != xAlign || ya != yAlign || xs != xScale || ys != yScale {
 		a.Freeze()
+		a.Lock()
 		if err := a.SetFloatProperty(PropertyXAlign, xAlign); err != nil {
 			a.LogErr(err)
 		}
@@ -134,6 +141,7 @@ func (a *CAlignment) Set(xAlign, yAlign, xScale, yScale float64) {
 		if err := a.SetFloatProperty(PropertyYScale, yScale); err != nil {
 			a.LogErr(err)
 		}
+		a.Unlock()
 		a.Thaw()
 		a.Emit(SignalChanged)
 	}
@@ -141,7 +149,11 @@ func (a *CAlignment) Set(xAlign, yAlign, xScale, yScale float64) {
 
 // GetPadding is a convenience method to return the four padding property values
 // See: SetPadding()
+//
+// Locking: read
 func (a *CAlignment) GetPadding() (paddingTop, paddingBottom, paddingLeft, paddingRight int) {
+	a.RLock()
+	defer a.RUnlock()
 	paddingTop, _ = a.GetIntProperty(PropertyTopPadding)
 	paddingBottom, _ = a.GetIntProperty(PropertyBottomPadding)
 	paddingLeft, _ = a.GetIntProperty(PropertyLeftPadding)
@@ -159,10 +171,13 @@ func (a *CAlignment) GetPadding() (paddingTop, paddingBottom, paddingLeft, paddi
 // 	paddingBottom	the padding at the bottom of the widget
 // 	paddingLeft	    the padding at the left of the widget
 // 	paddingRight	the padding at the right of the widget.
+//
+// Locking: write
 func (a *CAlignment) SetPadding(paddingTop, paddingBottom, paddingLeft, paddingRight int) {
 	t, b, l, r := a.GetPadding()
 	if t != paddingTop || b != paddingBottom || l != paddingLeft || r != paddingRight {
 		a.Freeze()
+		a.Lock()
 		if err := a.SetIntProperty(PropertyXAlign, paddingTop); err != nil {
 			a.LogErr(err)
 		}
@@ -175,6 +190,7 @@ func (a *CAlignment) SetPadding(paddingTop, paddingBottom, paddingLeft, paddingR
 		if err := a.SetIntProperty(PropertyYScale, paddingRight); err != nil {
 			a.LogErr(err)
 		}
+		a.Unlock()
 		a.Thaw()
 		a.Emit(SignalChanged)
 	}
@@ -183,19 +199,27 @@ func (a *CAlignment) SetPadding(paddingTop, paddingBottom, paddingLeft, paddingR
 // Add will set the current child to the Widget instance given, connect two
 // signal handlers for losing and gaining focus and finally resize the
 // Alignment instance to accommodate the new child Widget.
+//
+// Locking: write
 func (a *CAlignment) Add(w Widget) {
 	a.CBin.Add(w)
+	a.Lock()
 	w.Connect(SignalLostFocus, AlignmentLostFocusHandle, a.childLostFocus)
 	w.Connect(SignalGainedFocus, AlignmentGainedFocusHandle, a.childGainedFocus)
+	a.Unlock()
 	a.Resize()
 }
 
 // Remove will remove the given Widget from the Alignment instance,
 // disconnecting any connected focus signal handlers and finally resize the
 // Alignment instance to accommodate the lack of content.
+//
+// Locking: write
 func (a *CAlignment) Remove(w Widget) {
+	a.Lock()
 	_ = w.Disconnect(SignalLostFocus, AlignmentLostFocusHandle)
 	_ = w.Disconnect(SignalGainedFocus, AlignmentGainedFocusHandle)
+	a.Unlock()
 	a.CBin.Remove(w)
 	a.Resize()
 }
@@ -211,8 +235,6 @@ func (a *CAlignment) childGainedFocus(_ []interface{}, _ ...interface{}) enums.E
 }
 
 func (a *CAlignment) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
-	a.Lock()
-	defer a.Unlock()
 	alloc := a.GetAllocation()
 	if alloc.W <= 0 && alloc.H <= 0 {
 		if child := a.GetChild(); child != nil {
@@ -224,6 +246,7 @@ func (a *CAlignment) resize(data []interface{}, argv ...interface{}) enums.Event
 	if child := a.GetChild(); child != nil {
 		xAlign, yAlign, xScale, yScale := a.Get()
 		origin := a.GetOrigin()
+		a.Lock()
 		size := ptypes.NewRectangle(child.GetSizeRequest())
 		if size.W <= -1 || size.W > alloc.W {
 			size.W = alloc.W
@@ -251,6 +274,7 @@ func (a *CAlignment) resize(data []interface{}, argv ...interface{}) enums.Event
 		child.SetOrigin(origin.X, origin.Y)
 		child.SetAllocation(*size)
 		child.Resize()
+		a.Unlock()
 	}
 	a.Invalidate()
 	return enums.EVENT_PASS
@@ -261,44 +285,49 @@ func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) enums.E
 	style := theme.Content.Normal
 	origin := a.GetOrigin()
 	if child := a.GetChild(); child != nil {
+		a.Lock()
 		childOrigin := child.GetOrigin()
 		childOrigin.SubPoint(origin)
 		childSize := child.GetAllocation()
 		if err := memphis.ConfigureSurface(child.ObjectID(), childOrigin, childSize, style); err != nil {
 			child.LogErr(err)
 		}
+		a.Unlock()
 	}
 	return enums.EVENT_PASS
 }
 
 func (a *CAlignment) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		a.Lock()
-		defer a.Unlock()
 		alloc := a.GetAllocation()
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			a.LogTrace("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
 
-		// render the box and border, with widget
 		theme := a.GetThemeRequest()
 		boxOrigin := ptypes.MakePoint2I(0, 0)
 		boxSize := alloc
 
+		a.Lock()
 		surface.BoxWithTheme(boxOrigin, boxSize, false, true, theme)
+		a.Unlock()
 
 		if child := a.GetChild(); child != nil {
+			a.Lock()
 			if f := child.Draw(); f == enums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					a.LogError("composite error: %v", err)
 				}
 			}
+			a.Unlock()
 		}
 
+		a.Lock()
 		if debug, _ := a.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, a.ObjectInfo())
 		}
+		a.Unlock()
 		return enums.EVENT_STOP
 	}
 	return enums.EVENT_PASS
