@@ -85,7 +85,11 @@ func (a *CArrow) Init() bool {
 }
 
 // GetArrowType is a convenience method for returning the ArrowType property
+//
+// Locking: read
 func (a *CArrow) GetArrowType() (arrow ArrowType) {
+	a.RLock()
+	defer a.RUnlock()
 	arrow = ArrowRight // default
 	var ok bool
 	if sa, err := a.GetStructProperty(PropertyArrowType); err != nil {
@@ -100,20 +104,30 @@ func (a *CArrow) GetArrowType() (arrow ArrowType) {
 //
 // Parameters:
 // 	arrowType	a valid ArrowType.
+//
+// Locking: write
 func (a *CArrow) SetArrowType(arrow ArrowType) {
+	a.Lock()
 	if err := a.SetStructProperty(PropertyArrowType, arrow); err != nil {
+		a.Unlock()
 		a.LogErr(err)
 	} else {
+		a.Unlock()
 		a.Invalidate()
 	}
 }
 
 // GetArrowRune is a Curses-specific method for returning the go `rune`
 // character and its byte width.
+//
+// Locking: read
 func (a *CArrow) GetArrowRune() (r rune, width int) {
 	theme := a.GetTheme()
 	arrowRunes := theme.Border.ArrowRunes
-	switch a.GetArrowType() {
+	arrowType := a.GetArrowType()
+	a.RLock()
+	defer a.RUnlock()
+	switch arrowType {
 	case ArrowUp:
 		r = arrowRunes.Up
 	case ArrowLeft:
@@ -130,10 +144,14 @@ func (a *CArrow) GetArrowRune() (r rune, width int) {
 // GetSizeRequest returns the requested size of the Drawable Widget. This method
 // is used by Container Widgets to resolve the surface space allocated for their
 // child Widget instances.
+//
+// Locking: read
 func (a *CArrow) GetSizeRequest() (width, height int) {
 	size := ptypes.NewRectangle(a.CWidget.GetSizeRequest())
 	_, runeWidth := a.GetArrowRune()
 	xPad, yPad := a.GetPadding()
+	a.RLock()
+	defer a.RUnlock()
 	if size.W <= -1 {
 		size.W = runeWidth // variable width rune supported
 		size.W += xPad * 2
@@ -148,18 +166,21 @@ func (a *CArrow) GetSizeRequest() (width, height int) {
 
 func (a *CArrow) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		a.Lock()
-		defer a.Unlock()
 		alloc := a.GetAllocation()
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			a.LogTrace("not visible, zero width or zero height")
 			return enums.EVENT_PASS
 		}
+		style := a.GetThemeRequest().Content.Normal
 		r, _ := a.GetArrowRune()
 		xAlign, yAlign := a.GetAlignment()
 		xPad, yPad := a.GetPadding()
 		size := ptypes.MakeRectangle(alloc.W-(xPad*2), alloc.H-(yPad*2))
 		point := ptypes.MakePoint2I(xPad, yPad)
+
+		a.Lock()
+		defer a.Unlock()
+
 		if size.W < alloc.W {
 			delta := alloc.W - size.W
 			point.X = int(float64(delta) * xAlign)
@@ -168,7 +189,6 @@ func (a *CArrow) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 			delta := alloc.H - size.H
 			point.Y = int(float64(delta) * yAlign)
 		}
-		style := a.GetThemeRequest().Content.Normal
 		if err := surface.SetRune(point.X, point.Y, r, style); err != nil {
 			a.LogError("set rune error: %v", err)
 		}
