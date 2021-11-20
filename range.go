@@ -232,12 +232,15 @@ func (r *CRange) SetInverted(setting bool) {
 // 	step	step size
 // 	page	page size
 func (r *CRange) SetIncrements(step int, page int) {
-	if adjustment := r.GetAdjustment(); adjustment != nil {
+	adjustment := r.GetAdjustment()
+	r.Lock()
+	if adjustment != nil {
 		adjustment.SetStepIncrement(step)
 		adjustment.SetPageIncrement(page)
 	} else {
 		r.LogError("missing adjustment")
 	}
+	r.Unlock()
 }
 
 // SetRange updates the allowable values in the Range, and clamps the range
@@ -248,22 +251,28 @@ func (r *CRange) SetIncrements(step int, page int) {
 // 	min	minimum range value
 // 	max	maximum range value
 func (r *CRange) SetRange(min, max int) {
-	if adjustment := r.GetAdjustment(); adjustment != nil {
+	adjustment := r.GetAdjustment()
+	r.Lock()
+	if adjustment != nil {
 		adjustment.SetLower(min)
 		adjustment.SetUpper(max)
 	} else {
 		r.LogError("missing adjustment")
 	}
+	r.Unlock()
 }
 
 // GetValue returns the current value of the range.
 func (r *CRange) GetValue() (value int) {
+	adjustment := r.GetAdjustment()
+	r.RLock()
 	value = -1
-	if adjustment := r.GetAdjustment(); adjustment != nil {
+	if adjustment != nil {
 		value = adjustment.GetValue()
 	} else {
 		r.LogError("missing adjustment")
 	}
+	r.RUnlock()
 	return
 }
 
@@ -274,18 +283,27 @@ func (r *CRange) GetValue() (value int) {
 // Parameters:
 // 	value	new value of the range
 func (r *CRange) SetValue(value int) {
-	if adjustment := r.GetAdjustment(); adjustment != nil {
-		if r.GetRestrictToFillLevel() {
+	adjustment := r.GetAdjustment()
+	restrictToFillLevel := r.GetRestrictToFillLevel()
+	r.Lock()
+	previousValue := -1
+	valueChanged := false
+	if adjustment != nil {
+		if restrictToFillLevel {
 			// 0.0 == lower, 1.0 == upper
 			max := int(r.GetFillLevel() * float64(adjustment.GetUpper()))
 			value = cmath.ClampI(value, 0, max)
 		}
 		value = cmath.ClampI(value, adjustment.GetLower(), adjustment.GetUpper())
-		previousValue := adjustment.GetValue()
+		previousValue = adjustment.GetValue()
 		if previousValue != value {
 			adjustment.SetValue(value)
-			r.Emit(SignalRangeValueChanged, r, previousValue, value)
+			valueChanged = true
 		}
+	}
+	r.Unlock()
+	if valueChanged {
+		r.Emit(SignalRangeValueChanged, r, previousValue, value)
 	}
 }
 
@@ -358,7 +376,10 @@ func (r *CRange) SetUpperStepperSensitivity(sensitivity SensitivityType) {
 
 // GetFlippable returns the value set by SetFlippable.
 func (r *CRange) GetFlippable() (value bool) {
-	return r.flippable
+	r.RLock()
+	value = r.flippable
+	r.RUnlock()
+	return
 }
 
 // SetFlippable updates whether a range is flippable. If the range is flippable,
@@ -371,7 +392,9 @@ func (r *CRange) GetFlippable() (value bool) {
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (r *CRange) SetFlippable(flippable bool) {
+	r.Lock()
 	r.flippable = flippable
+	r.Unlock()
 }
 
 // GetMinSliderSize returns the minimum slider size. This method is useful
@@ -407,7 +430,10 @@ func (r *CRange) GetSliderRange() (sliderStart int, sliderEnd int) {
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (r *CRange) GetSliderSizeFixed() (value bool) {
-	return r.sliderSizeFixed
+	r.RLock()
+	value = r.sliderSizeFixed
+	r.RUnlock()
+	return
 }
 
 // SetMinSliderSize updates the minimum size of the range's slider. This
@@ -428,30 +454,38 @@ func (r *CRange) SetMinSliderSize(minSize bool) {}
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (r *CRange) SetSliderSizeFixed(sizeFixed bool) {
+	r.Lock()
 	r.sliderSizeFixed = sizeFixed
+	r.Unlock()
 }
 
 // GetIncrements returns the step and page sizes for the range. The step size is
 // used when the user clicks the Scrollbar arrows or moves Scale via arrow keys.
 // The page size is used for example when moving via Page Up or Page Down keys.
 func (r *CRange) GetIncrements() (step int, page int) {
+	adjustment := r.GetAdjustment()
+	r.RLock()
 	step, page = -1, -1
-	if adjustment := r.GetAdjustment(); adjustment != nil {
+	if adjustment != nil {
 		step, page = adjustment.GetStepIncrement(), adjustment.GetPageIncrement()
 	} else {
 		r.LogError("missing adjustment")
 	}
+	r.RUnlock()
 	return
 }
 
 // GetRange returns the allowable values in the Range.
 func (r *CRange) GetRange() (min, max int) {
+	adjustment := r.GetAdjustment()
+	r.RLock()
 	min, max = -1, -1
-	if adjustment := r.GetAdjustment(); adjustment != nil {
+	if adjustment != nil {
 		min, max = adjustment.GetLower(), adjustment.GetUpper()
 	} else {
 		r.LogError("missing adjustment")
 	}
+	r.RUnlock()
 	return
 }
 
@@ -459,10 +493,12 @@ func (r *CRange) GetRange() (min, max int) {
 // mainly for Range subclasses.
 // See: SetMinSliderLength()
 func (r *CRange) GetMinSliderLength() (length int) {
+	r.RLock()
 	length = r.minSliderLength
 	if r.minSliderLength <= -1 {
 		length = 1
 	}
+	r.RUnlock()
 	return
 }
 
@@ -472,35 +508,48 @@ func (r *CRange) GetMinSliderLength() (length int) {
 // Parameters:
 // 	minSize	The slider's minimum size
 func (r *CRange) SetMinSliderLength(length int) {
+	r.Lock()
 	r.minSliderLength = length
+	r.Unlock()
 }
 
 // GetSliderLength returns the length of the scrollbar or scale thumb.
 func (r *CRange) GetSliderLength() (length int) {
+	r.RLock()
 	length = r.sliderLength
+	r.RUnlock()
 	return
 }
 
 // SetSliderLength updates the length of the scrollbar or scale thumb. Sets
 // fixed slider length to true. Set to -1 for variable slider length.
 func (r *CRange) SetSliderLength(length int) {
+	fixed := r.GetSliderSizeFixed()
+	r.Lock()
 	if length <= -1 {
 		r.sliderLength = -1
-		r.SetSliderSizeFixed(false)
+		fixed = false
 	} else if r.sliderLength != length {
-		r.SetSliderSizeFixed(true)
 		r.sliderLength = length
+		fixed = true
 	}
+	r.Unlock()
+	r.SetSliderSizeFixed(fixed)
 }
 
 // GetStepperSize returns the length of step buttons at ends.
 func (r *CRange) GetStepperSize() (size int) {
-	return r.stepperSize
+	r.RLock()
+	size = r.stepperSize
+	r.RUnlock()
+	return
 }
 
 // SetStepperSize updates the length of step buttons at ends.
 func (r *CRange) SetStepperSize(size int) {
+	r.Lock()
 	r.stepperSize = size
+	r.Unlock()
 }
 
 // GetStepperSpacing returns the spacing between the stepper buttons and thumb.
@@ -508,7 +557,10 @@ func (r *CRange) SetStepperSize(size int) {
 // trough-under-steppers style property to TRUE as well. Also, stepper-spacing
 // won't have any effect if there are no steppers.
 func (r *CRange) GetStepperSpacing() (spacing int) {
-	return r.stepperSpacing
+	r.RLock()
+	spacing = r.stepperSpacing
+	r.RUnlock()
+	return
 }
 
 // SetStepperSpacing updates the spacing between the stepper buttons and thumb.
@@ -516,7 +568,9 @@ func (r *CRange) GetStepperSpacing() (spacing int) {
 // trough-under-steppers style property to TRUE as well. Also, stepper-spacing
 // won't have any effect if there are no steppers.
 func (r *CRange) SetStepperSpacing(spacing int) {
+	r.Lock()
 	r.stepperSpacing = spacing
+	r.Unlock()
 }
 
 // GetTroughUnderSteppers returns whether to draw the trough across the full
@@ -524,7 +578,10 @@ func (r *CRange) SetStepperSpacing(spacing int) {
 // setting the stepper-spacing style property to any value > 0 will
 // automatically enable trough-under-steppers too.
 func (r *CRange) GetTroughUnderSteppers() (underSteppers bool) {
-	return r.troughUnderSteppers
+	r.RLock()
+	underSteppers = r.troughUnderSteppers
+	r.RUnlock()
+	return
 }
 
 // SetTroughUnderSteppers updates whether to draw the trough across the full
@@ -532,7 +589,9 @@ func (r *CRange) GetTroughUnderSteppers() (underSteppers bool) {
 // setting the stepper-spacing style property to any value > 0 will
 // automatically enable trough-under-steppers too.
 func (r *CRange) SetTroughUnderSteppers(underSteppers bool) {
+	r.Lock()
 	r.troughUnderSteppers = underSteppers
+	r.Unlock()
 }
 
 // The Adjustment that contains the current value of this range object.
