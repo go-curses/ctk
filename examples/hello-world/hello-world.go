@@ -46,8 +46,9 @@ func main() {
 			// being centered
 			align.Set(0.5, 0.5, 0.0, 0.0)
 			// a nice button for us to press
-			button := ctk.NewButtonWithLabel("Curses<u><i>!</i></u>")
+			button := ctk.NewButtonWithLabel("_Curses<u><i>!</i></u>")
 			button.SetUseMarkup(true)    // enable markup in the label
+			button.SetUseUnderline(true) // enable mnemonics
 			button.SetSizeRequest(11, 3) // request a certain size
 			// make the button quit the application when activated by connecting
 			// a handler to the button's activate signal
