@@ -18,4 +18,5 @@ type Sensitive interface {
 	IsSensitive() bool
 	SetSensitive(sensitive bool)
 	ProcessEvent(evt cdk.Event) enums.EventFlag
+	Activate() bool
 }
