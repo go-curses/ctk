@@ -12,12 +12,23 @@ func TestWidget(t *testing.T) {
 		So(cw.Init(), ShouldEqual, false)
 		So(cw.Init(), ShouldEqual, true)
 	})
-	Convey("widget states/flags", t, func() {
+
+	Convey("widget states", t, func() {
 		So(cw.GetState(), ShouldEqual, StateNormal)
 		cw.SetState(StateActive)
-		So(cw.GetState(), ShouldEqual, StateActive)
+		So(cw.GetState(), ShouldEqual, StateNormal|StateActive)
 		cw.UnsetState(StateActive)
+		cw.SetState(StateActive)
+		So(cw.GetState(), ShouldEqual, StateNormal|StateActive)
+		cw.SetState(StateNone)
 		So(cw.GetState(), ShouldEqual, StateNormal)
+		cw.SetState(StateActive)
+		So(cw.GetState(), ShouldEqual, StateNormal|StateActive)
+		cw.UnsetState(StateNone)
+		So(cw.GetState(), ShouldEqual, StateNormal|StateActive)
+	})
+
+	Convey("widget flags", t, func() {
 		So(cw.GetFlags(), ShouldEqual, NULL_WIDGET_FLAG)
 		cw.SetFlags(TOPLEVEL)
 		So(cw.GetFlags(), ShouldEqual, TOPLEVEL)
@@ -26,6 +37,7 @@ func TestWidget(t *testing.T) {
 		cw.UnsetFlags(VISIBLE)
 		So(cw.GetFlags(), ShouldEqual, TOPLEVEL)
 	})
+
 	Convey("widget safe methods", t, func() {
 		w := NewWindowWithTitle("test")
 		cw.SetWindow(w)
