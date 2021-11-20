@@ -79,7 +79,11 @@ func (b *CBin) Init() (already bool) {
 
 // GetChild is a convenience method to return the first child in the Bin
 // Container. Returns the Widget or `nil` if the Bin contains no child widget.
+//
+// Locking: read
 func (b *CBin) GetChild() (value Widget) {
+	b.RLock()
+	defer b.RUnlock()
 	if len(b.children) > 0 {
 		value = b.children[0]
 	}
@@ -88,12 +92,12 @@ func (b *CBin) GetChild() (value Widget) {
 
 // Add the given widget to the Bin, if the Bin is full (has one child already)
 // the given Widget replaces the existing Widget.
+//
+// Locking: write
 func (b *CBin) Add(w Widget) {
-	if len(b.children) > 0 {
-		children := b.GetChildren()
-		for _, child := range children {
-			b.Remove(child)
-		}
+	children := b.GetChildren()
+	for _, child := range children {
+		b.Remove(child)
 	}
 	b.CContainer.Add(w)
 }
