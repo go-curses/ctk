@@ -87,13 +87,13 @@ func main() {
 		Name:      "msgbox",
 		Usage:     "display a message with an OK button, each string following msgbox is a new line and concatenated into the message",
 		ArgsUsage: "[message lines]",
-		Action:    app.MainActionFn,
+		Action:    app.CliActionFn,
 	})
 	app.AddCommand(&cli.Command{
 		Name:      "yesno",
 		Usage:     "display a yes/no prompt with a message (see msgbox)",
 		ArgsUsage: "[message lines]",
-		Action:    app.MainActionFn,
+		Action:    app.CliActionFn,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "default",
