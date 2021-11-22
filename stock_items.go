@@ -118,8 +118,8 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockClose:          {ID: StockClose, Label: "_Close"},
 	StockConnect:        {ID: StockConnect, Label: "C_onnect"},
 	StockConvert:        {ID: StockConvert, Label: "_Convert"},
-	StockCopy:           {ID: StockCopy, Label: "_Copy"},
-	StockCut:            {ID: StockCut, Label: "Cu_t"},
+	StockCopy:           {ID: StockCopy, Label: "_Copy", Key: cdk.KeySmallC, Mods: ControlMask},
+	StockCut:            {ID: StockCut, Label: "Cu_t", Key: cdk.KeySmallX, Mods: ControlMask},
 	StockDelete:         {ID: StockDelete, Label: "_Delete"},
 	StockDirectory:      {ID: StockDirectory, Label: "_Directory"},
 	StockDiscard:        {ID: StockDiscard, Label: "_Discard"},
@@ -127,7 +127,7 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockExecute:        {ID: StockExecute, Label: "_Execute"},
 	StockEdit:           {ID: StockEdit, Label: "_Edit"},
 	StockFile:           {ID: StockFile, Label: "_File"},
-	StockFind:           {ID: StockFind, Label: "_Find"},
+	StockFind:           {ID: StockFind, Label: "_Find", Key: cdk.KeySmallF, Mods: ControlMask},
 	StockFindAndReplace: {ID: StockFindAndReplace, Label: "Find and _Replace"},
 	StockGotoBottom:     {ID: StockGotoBottom, Label: "_Bottom"},
 	StockGotoFirst:      {ID: StockGotoFirst, Label: "_First"},
@@ -157,21 +157,21 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockMediaRecord:    {ID: StockMediaRecord, Label: "_Record"},
 	StockMediaRewind:    {ID: StockMediaRewind, Label: "R_ewind"},
 	StockMediaStop:      {ID: StockMediaStop, Label: "_Stop"},
-	StockNew:            {ID: StockNew, Label: "_New"},
+	StockNew:            {ID: StockNew, Label: "_New", Key: cdk.KeySmallN, Mods: ControlMask},
 	StockNo:             {ID: StockNo, Label: "_No"},
 	StockOk:             {ID: StockOk, Label: "_OK"},
-	StockOpen:           {ID: StockOpen, Label: "_Open"},
-	StockPaste:          {ID: StockPaste, Label: "_Paste"},
+	StockOpen:           {ID: StockOpen, Label: "_Open", Key: cdk.KeySmallO, Mods: ControlMask},
+	StockPaste:          {ID: StockPaste, Label: "_Paste", Key: cdk.KeySmallV, Mods: ControlMask},
 	StockPreferences:    {ID: StockPreferences, Label: "_Preferences"},
 	StockProperties:     {ID: StockProperties, Label: "_Properties"},
-	StockQuit:           {ID: StockQuit, Label: "_Quit"},
-	StockRedo:           {ID: StockRedo, Label: "_Redo"},
+	StockQuit:           {ID: StockQuit, Label: "_Quit", Key: cdk.KeySmallQ, Mods: ControlMask},
+	StockRedo:           {ID: StockRedo, Label: "_Redo", Key: cdk.KeySmallZ, Mods: ControlMask | ShiftMask},
 	StockRefresh:        {ID: StockRefresh, Label: "_Refresh"},
 	StockRemove:         {ID: StockRemove, Label: "_Remove"},
 	StockRevertToSaved:  {ID: StockRevertToSaved, Label: "_Revert"},
-	StockSave:           {ID: StockSave, Label: "_Save"},
-	StockSaveAs:         {ID: StockSaveAs, Label: "Save _As"},
-	StockSelectAll:      {ID: StockSelectAll, Label: "Select _All"},
+	StockSave:           {ID: StockSave, Label: "_Save", Key: cdk.KeySmallS, Mods: ControlMask},
+	StockSaveAs:         {ID: StockSaveAs, Label: "Save _As", Key: cdk.KeySmallS, Mods: ControlMask | ShiftMask},
+	StockSelectAll:      {ID: StockSelectAll, Label: "Select _All", Key: cdk.KeySmallA, Mods: ControlMask | ShiftMask},
 	StockSelectColor:    {ID: StockSelectColor, Label: "_Color"},
 	StockSelectFont:     {ID: StockSelectFont, Label: "_Font"},
 	StockSortAscending:  {ID: StockSortAscending, Label: "_Ascending"},
@@ -180,7 +180,7 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockStrikethrough:  {ID: StockStrikethrough, Label: "_Strikethrough"},
 	StockUndelete:       {ID: StockUndelete, Label: "_Undelete"},
 	StockUnderline:      {ID: StockUnderline, Label: "_Underline"},
-	StockUndo:           {ID: StockUndo, Label: "_Undo"},
+	StockUndo:           {ID: StockUndo, Label: "_Undo", Key: cdk.KeySmallZ, Mods: ControlMask},
 	StockYes:            {ID: StockYes, Label: "_Yes"},
 	StockZoom100:        {ID: StockZoom100, Label: "_Normal Size"},
 	StockZoomFit:        {ID: StockZoomFit, Label: "Best _Fit"},
@@ -189,11 +189,11 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 }
 
 type StockItem struct {
-	ID         StockID
-	Label      string
-	Modifier   ModifierType
-	KeyVal     cdk.Key
-	I18nDomain string
+	ID    StockID
+	Label string
+	Key   cdk.Key
+	Mods  ModifierType
+	I18n  string
 }
 
 // Registers each of the stock items in items. If an item already exists with
@@ -210,6 +210,12 @@ func ListStockIDs() (list []StockID) {
 	for id := range ctkStockItemRegistry {
 		list = append(list, id)
 	}
+	return
+}
+
+// ValidStockId returns TRUE if the given StockID has been registered.
+func ValidStockId(id StockID) (ok bool) {
+	_, ok = ctkStockItemRegistry[id]
 	return
 }
 
