@@ -12,7 +12,7 @@ func TestCtk(t *testing.T) {
 	Convey("Checking CDK Rigging", t, func() {
 		Convey("typical", cdk.WithApp(
 			TestingWithCtkWindow,
-			func(app cdk.App) {
+			func(app cdk.Application) {
 				So(app.Version(), ShouldEqual, "v0.0.0")
 				d := app.Display()
 				w := d.ActiveWindow()
