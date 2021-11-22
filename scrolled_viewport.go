@@ -500,25 +500,7 @@ func (s *CScrolledViewport) CancelEvent() {
 // when a Widget interface reference is passed as a generic interface{}
 // argument.
 func (s *CScrolledViewport) GrabFocus() {
-	if s.CanFocus() && s.IsVisible() && s.IsSensitive() {
-		if r := s.Emit(SignalGrabFocus, s); r == enums.EVENT_PASS {
-			if tl := s.GetWindow(); tl != nil {
-				if focused := tl.GetFocus(); focused != nil {
-					if fw, ok := focused.(Widget); ok && fw.ObjectID() != s.ObjectID() {
-						fw.UnsetState(StateSelected)
-						fw.Emit(SignalLostFocus)
-						fw.Invalidate()
-					}
-				}
-				tl.SetFocus(s)
-				s.SetState(StateSelected)
-				s.Emit(SignalGainedFocus)
-				s.Invalidate()
-			}
-		}
-	} else {
-		s.LogError("cannot grab focus: can't focus, invisible or insensitive")
-	}
+	s.InternalGrabFocus(s)
 }
 
 // GrabEventFocus will emit a grab-event-focus signal and if all signal handlers

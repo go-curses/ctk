@@ -301,25 +301,7 @@ func (f *CFrame) SetShadowType(shadowType ShadowType) {
 // when a Widget interface reference is passed as a generic interface{}
 // argument.
 func (f *CFrame) GrabFocus() {
-	if f.CanFocus() && f.IsVisible() && f.IsSensitive() {
-		if r := f.Emit(SignalGrabFocus, f); r == enums.EVENT_PASS {
-			if tl := f.GetWindow(); tl != nil {
-				if focused := tl.GetFocus(); focused != nil {
-					if fw, ok := focused.(Widget); ok && fw.ObjectID() != f.ObjectID() {
-						fw.UnsetState(StateSelected)
-						fw.Emit(SignalLostFocus)
-						fw.Invalidate()
-					}
-				}
-				tl.SetFocus(f)
-				f.SetState(StateSelected)
-				f.Emit(SignalGainedFocus)
-				f.Invalidate()
-			}
-		}
-	} else {
-		f.LogError("cannot grab focus: can't focus, invisible or insensitive")
-	}
+	f.InternalGrabFocus(f)
 }
 
 // Add will add the given Widget to the Frame. As the Frame Widget is of Bin

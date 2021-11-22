@@ -597,25 +597,7 @@ func (b *CButton) GetFocusChain() (focusableWidgets []interface{}, explicitlySet
 // when a Widget interface reference is passed as a generic interface{}
 // argument.
 func (b *CButton) GrabFocus() {
-	if b.CanFocus() && b.IsVisible() && b.IsSensitive() {
-		if r := b.Emit(SignalGrabFocus, b); r == enums.EVENT_PASS {
-			if tl := b.GetWindow(); tl != nil {
-				if focused := tl.GetFocus(); focused != nil {
-					if fw, ok := focused.(Widget); ok && fw.ObjectID() != b.ObjectID() {
-						fw.UnsetState(StateSelected)
-						fw.Emit(SignalLostFocus)
-						// fw.Invalidate()
-					}
-				}
-				tl.SetFocus(b)
-				b.SetState(StateSelected)
-				b.Emit(SignalGainedFocus)
-				// b.Invalidate()
-			}
-		}
-	} else {
-		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
-	}
+	b.InternalGrabFocus(b)
 }
 
 // GrabEventFocus will emit a grab-event-focus signal and if all signal handlers

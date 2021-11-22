@@ -468,6 +468,10 @@ func (w *CWidget) IsFocus() (value bool) {
 // Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
 // Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
 func (w *CWidget) GrabFocus() {
+	w.InternalGrabFocus(w)
+}
+
+func (w *CWidget) InternalGrabFocus(widget interface{}) {
 	if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
 		if r := w.Emit(SignalGrabFocus, w); r == enums.EVENT_PASS {
 			if tl := w.GetWindow(); tl != nil {
@@ -478,7 +482,7 @@ func (w *CWidget) GrabFocus() {
 						// fw.Invalidate()
 					}
 				}
-				tl.SetFocus(w)
+				tl.SetFocus(widget)
 				w.SetState(StateSelected)
 				w.Emit(SignalGainedFocus)
 				// w.Invalidate()
