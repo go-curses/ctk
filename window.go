@@ -1600,7 +1600,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 					return enums.EVENT_STOP
 				}
 				// check focus change
-				switch e.Key() {
+				switch cdk.Key(e.Rune()) {
 				case cdk.KeyBacktab:
 					w.LogDebug("shift+tab key caught")
 					if e.Modifiers().Has(cdk.ModShift) {
