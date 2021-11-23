@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/ptypes"
+	cmath "github.com/go-curses/cdk/lib/math"
+	"github.com/gofrs/uuid"
 )
 
-// CDK type-tag for AccelGroup objects
 const TypeAccelGroup cdk.CTypeTag = "ctk-accel-group"
 
 func init() {
@@ -20,32 +20,30 @@ func init() {
 //
 // An AccelGroup represents a group of keyboard accelerators, typically
 // attached to a toplevel Window (with Window.AddAccelGroup). Usually
-// you won't need to create a AccelGroup directly; instead, when using
-// ItemFactory, CTK automatically sets up the accelerators for your menus in
-// the item factory's AccelGroup. Note that accelerators are different from
-// mnemonics. Accelerators are shortcuts for activating a menu item; they
-// appear alongside the menu item they're a shortcut for. For example
-// "Ctrl+Q" might appear alongside the "Quit" menu item. Mnemonics are
-// shortcuts for GUI elements such as text entries or buttons; they appear as
-// underlined characters. See Label.NewWithMnemonic. Menu items can
-// have both accelerators and mnemonics, of course.
-//
-// Note that usage of  within CTK is unimplemented at this time
+// you won't need to create a AccelGroup directly; instead CTK automatically
+// sets up the accelerators for your menus in the item factory's AccelGroup.
+// Note that accelerators are different from mnemonics. Accelerators are
+// shortcuts for activating a menu item; they appear alongside the menu item
+// they're a shortcut for. For example "Ctrl+Q" might appear alongside the
+// "Quit" menu item. Mnemonics are shortcuts for GUI elements such as text
+// entries or buttons; they appear as underlined characters. Menu items can have
+// both accelerators and mnemonics, of course.
+// See: Label.NewWithMnemonic()
 type AccelGroup interface {
 	Object
 
 	Init() (already bool)
-	AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags AccelFlags, closure GClosure) (id int)
-	ConnectByPath(accelPath string, closure GClosure)
-	AccelGroupActivate(acceleratable Object, keyval cdk.Key, modifier cdk.ModMask) (activated bool)
-	AccelDisconnect(id int) (removed bool)
+	AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags AccelFlags, handle string, closure GClosure) (id uuid.UUID)
+	ConnectByPath(accelPath string, handle string, closure GClosure)
+	AccelGroupActivate(keyval cdk.Key, modifier cdk.ModMask) (activated bool)
+	AccelDisconnect(id uuid.UUID) (removed bool)
 	DisconnectKey(accelKey cdk.Key, accelMods cdk.ModMask) (removed bool)
-	Query(accelKey cdk.Key, accelMods cdk.ModMask) (entries []*AccelGroupEntry)
-	Activate(accelQuark ptypes.QuarkID, acceleratable Object, accelKey cdk.Key, accelMods cdk.ModMask) (value bool)
-	Lock()
-	Unlock()
+	Query(accelKey cdk.Key, accelMods cdk.ModMask) (entries []*CAccelGroupEntry)
+	Activate(accelKey cdk.Key, accelMods cdk.ModMask) (value bool)
+	LockGroup()
+	UnlockGroup()
 	GetIsLocked() (locked bool)
-	FromAccelClosure(closure GClosure) (value AccelGroup)
+	// FromAccelClosure(closure GClosure) (value AccelGroup)
 	GetModifierMask() (value cdk.ModMask)
 	Find(findFunc AccelGroupFindFunc, data interface{}) (key *AccelKey)
 	AcceleratorValid(keyval cdk.Key, modifiers cdk.ModMask) (valid bool)
@@ -59,11 +57,11 @@ type AccelGroup interface {
 // The CAccelGroup structure implements the AccelGroup interface and is
 // exported to facilitate type embedding with custom implementations. No member
 // variables are exported as the interface methods are the only intended means
-// of interacting with AccelGroup objects
+// of interacting with AccelGroup objects.
 type CAccelGroup struct {
 	CObject
 
-	entries map[int]*AccelGroupEntry
+	entries map[uuid.UUID]*CAccelGroupEntry
 	locking int
 }
 
@@ -90,7 +88,7 @@ func (a *CAccelGroup) Init() (already bool) {
 		return true
 	}
 	a.CObject.Init()
-	a.entries = make(map[int]*AccelGroupEntry, 0)
+	a.entries = make(map[uuid.UUID]*CAccelGroupEntry, 0)
 	a.locking = 0
 	_ = a.InstallProperty(PropertyIsLocked, cdk.BoolProperty, false, false)
 	_ = a.InstallProperty(PropertyModifierMask, cdk.StructProperty, false, nil)
@@ -105,22 +103,18 @@ func (a *CAccelGroup) Init() (already bool) {
 // closure can only be connected to one accelerator group.
 //
 // Parameters:
-// 	accelGroup	the accelerator group to install an accelerator in
 // 	accelKey	key value of the accelerator
 // 	accelMods	modifier combination of the accelerator
 // 	accelFlags	a flag mask to configure this accelerator
+//	handle	string to tag the closure for later use
 // 	closure	code to be executed upon accelerator activation
-func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags AccelFlags, closure GClosure) (id int) {
+func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags AccelFlags, handle string, closure GClosure) (id uuid.UUID) {
+	a.CObject.Lock()
 	key := MakeAccelKey(accelKey, accelMods, accelFlags)
-	age := NewAccelGroupEntry(key, closure, ptypes.QuarkFromString(accelMods.String()))
-	next := 0
-	for idx, _ := range a.entries {
-		if next <= idx {
-			next = idx + 1
-		}
-	}
-	a.entries[next] = age
-	id = next
+	age := NewAccelGroupEntry(key, handle, closure)
+	id, _ = uuid.NewV4()
+	a.entries[id] = age
+	a.CObject.Unlock()
 	return
 }
 
@@ -128,17 +122,36 @@ func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, acce
 // path to look up the appropriate key and modifiers (see AccelMapAddEntry).
 // When accel_group is being activated in response to a call to
 // AccelGroupsActivate, closure will be invoked if the accel_key and accel_mods
-// from AccelGroupsActivate match the key and modifiers for the path. The
-// signature used for the closure is that of AccelGroupActivate. Note that
-// accel_path string will be stored in a cdk.Quark.
+// from AccelGroupsActivate match the key and modifiers for the path.
 //
 // Parameters:
-// 	accelGroup	the accelerator group to install an accelerator in
 // 	accelPath	path used for determining key and modifiers.
+//	handle 	string to tag the closure for later use
 // 	closure	code to be executed upon accelerator activation
-func (a *CAccelGroup) ConnectByPath(accelPath string, closure GClosure) {}
+func (a *CAccelGroup) ConnectByPath(accelPath string, handle string, closure GClosure) {
+	accelMap := GetAccelMap()
+	if accelerator, ok := accelMap.LookupEntry(accelPath); ok {
+		a.AccelConnect(accelerator.Key(), accelerator.Mods(), ACCEL_VISIBLE, handle, closure)
+	} else {
+		a.LogError("accelerator path not found: %v", accelPath)
+	}
+}
 
-func (a *CAccelGroup) AccelGroupActivate(acceleratable Object, keyval cdk.Key, modifier cdk.ModMask) (activated bool) {
+// AccelGroupActivate queries for entries matching the given keyval and
+// modifier, then calling Closure functions for each entry found until one of
+// them returns TRUE or the list of entries is exhausted, returning FALSE.
+//
+// Parameters:
+// 	accelKey	key value of the accelerator
+// 	accelMods	modifier combination of the accelerator
+func (a *CAccelGroup) AccelGroupActivate(keyval cdk.Key, modifier cdk.ModMask) (activated bool) {
+	entries := a.Query(keyval, modifier)
+	for _, entry := range entries {
+		if entry.Closure(keyval, modifier, entry.AccelKey.GetFlags()) {
+			activated = true
+			break
+		}
+	}
 	return false
 }
 
@@ -147,7 +160,9 @@ func (a *CAccelGroup) AccelGroupActivate(acceleratable Object, keyval cdk.Key, m
 // Parameters:
 // 	accelGroup	the accelerator group to remove an accelerator from
 // 	closure	handle for the closure code to remove
-func (a *CAccelGroup) AccelDisconnect(id int) (removed bool) {
+func (a *CAccelGroup) AccelDisconnect(id uuid.UUID) (removed bool) {
+	a.Lock()
+	defer a.Unlock()
 	if _, ok := a.entries[id]; ok {
 		delete(a.entries, id)
 		return true
@@ -158,13 +173,14 @@ func (a *CAccelGroup) AccelDisconnect(id int) (removed bool) {
 // DisconnectKey removes an accelerator previously installed through Connect.
 //
 // Parameters:
-// 	accelGroup	the accelerator group to install an accelerator in
 // 	accelKey	key value of the accelerator
 // 	accelMods	modifier combination of the accelerator
 func (a *CAccelGroup) DisconnectKey(accelKey cdk.Key, accelMods cdk.ModMask) (removed bool) {
+	a.Lock()
+	defer a.Unlock()
 	for id, entry := range a.entries {
-		if entry.Accelerator.Key == accelKey {
-			if entry.Accelerator.Mods == accelMods {
+		if entry.AccelKey.GetKey() == accelKey {
+			if entry.AccelKey.GetMods() == accelMods {
 				delete(a.entries, id)
 				return true
 			}
@@ -180,9 +196,11 @@ func (a *CAccelGroup) DisconnectKey(accelKey cdk.Key, accelMods cdk.ModMask) (re
 // 	accelGroup	the accelerator group to query
 // 	accelKey	key value of the accelerator
 // 	accelMods	modifier combination of the accelerator
-func (a *CAccelGroup) Query(accelKey cdk.Key, accelMods cdk.ModMask) (entries []*AccelGroupEntry) {
+func (a *CAccelGroup) Query(accelKey cdk.Key, accelMods cdk.ModMask) (entries []*CAccelGroupEntry) {
+	a.RLock()
+	defer a.RUnlock()
 	for _, entry := range a.entries {
-		if entry.Accelerator.Key == accelKey && entry.Accelerator.Mods == accelMods {
+		if entry.Match(accelKey, accelMods) {
 			entries = append(entries, entry)
 		}
 	}
@@ -193,54 +211,55 @@ func (a *CAccelGroup) Query(accelKey cdk.Key, accelMods cdk.ModMask) (entries []
 // and accel_mods, and activates it.
 //
 // Parameters:
-// 	accelQuark	the quark for the accelerator name
-// 	acceleratable	the CObject, usually a Window, on which to activate the accelerator.
 // 	accelKey	accelerator keyval from a key event
 // 	accelMods	keyboard state mask from a key event
-func (a *CAccelGroup) Activate(accelQuark ptypes.QuarkID, acceleratable Object, accelKey cdk.Key, accelMods cdk.ModMask) (value bool) {
+func (a *CAccelGroup) Activate(accelKey cdk.Key, accelMods cdk.ModMask) (value bool) {
+	a.RLock()
+	defer a.RUnlock()
 	for _, entry := range a.entries {
-		if entry.Accelerator.Key == accelKey && entry.Accelerator.Mods == accelMods {
-			return entry.Closure(acceleratable, accelKey, accelMods, entry.Accelerator.Flags)
+		if entry.AccelKey.GetKey() == accelKey && entry.AccelKey.GetMods() == accelMods {
+			return entry.Closure(accelKey, accelMods, entry.AccelKey.GetFlags())
 		}
 	}
 	return false
 }
 
-// Lock locks the given accelerator group. Locking an accelerator group prevents
-// the accelerators contained within it to be changed during runtime. Refer
-// to AccelMapChangeEntry about runtime accelerator changes. If
-// called more than once, accel_group remains locked until
-// Unlock has been called an equivalent number of times.
-func (a *CAccelGroup) Lock() {
+// LockGroup locks the given accelerator group. Locking an accelerator group
+// prevents the accelerators contained within it to be changed during runtime.
+// Refer o AccelMap.ChangeEntry() about runtime accelerator changes. If called
+// more than once, accel_group remains locked until UnlockGroup has been called
+// an equivalent number of times.
+func (a *CAccelGroup) LockGroup() {
+	a.Lock()
+	defer a.Unlock()
 	a.locking += 1
-	_ = a.SetBoolProperty(PropertyIsLocked, true)
+	if a.locking == 1 {
+		if err := a.SetBoolProperty(PropertyIsLocked, true); err != nil {
+			a.LogErr(err)
+		}
+	}
 }
 
-// Unlock releases the last call to Lock on this accel_group.
-func (a *CAccelGroup) Unlock() {
-	a.locking -= 1
-	if a.locking <= 0 {
-		_ = a.SetBoolProperty(PropertyIsLocked, false)
+// UnlockGroup releases the last call to LockGroup.
+func (a *CAccelGroup) UnlockGroup() {
+	a.Lock()
+	defer a.Unlock()
+	a.locking = cmath.FloorI(a.locking-1, 0)
+	if a.locking == 0 {
+		if err := a.SetBoolProperty(PropertyIsLocked, true); err != nil {
+			a.LogErr(err)
+		}
 	}
 }
 
 // GetIsLocked checks if the group is locked or not. Locks are added and removed
-// using Lock and Unlock.
+// using LockGroup and UnlockGroup.
 func (a *CAccelGroup) GetIsLocked() (locked bool) {
 	var err error
 	if locked, err = a.GetBoolProperty(PropertyIsLocked); err != nil {
 		a.LogErr(err)
 	}
 	return
-}
-
-// FromAccelClosure finds the AccelGroup to which closure is connected.
-// See: Connect()
-//
-// Parameters:
-// 	closure	a GClosure handle
-func (a *CAccelGroup) FromAccelClosure(closure GClosure) (value AccelGroup) {
-	return nil
 }
 
 // GetModifierMask returns a cdk.ModMask representing the mask for this
@@ -278,13 +297,12 @@ func (a *CAccelGroup) AcceleratorValid(keyval cdk.Key, modifiers cdk.ModMask) (v
 }
 
 // AcceleratorParse parses a string representing an accelerator. The format
-// looks like "<Control>a" or "<Shift><Alt>F1" or "<Release>z" (the last one is
-// for key release). The parser is fairly liberal and allows lower or upper
-// case, and also abbreviations such as "<Ctl>" and "<Ctrl>". Key names are
-// parsed using KeyvalFromName. For character keys the name is not the symbol,
-// but the lowercase name, e.g. one would use "<Ctrl>minus" instead of
-// "<Ctrl>-". If the parse fails, accelerator_key and accelerator_mods will be
-// set to 0 (zero).
+// looks like "<Control>a" or "<Shift><Alt>F1". The parser is fairly liberal and
+// allows lower or upper case, and also abbreviations such as "<Ctl>" and
+// "<Ctrl>". Key names are parsed using KeyvalFromName. For character keys the
+// name is not the symbol, but the lowercase name, e.g. one would use
+// "<Ctrl>minus" instead of "<Ctrl>-". If the parse fails, accelerator_key and
+// accelerator_mods will be set to 0 (zero).
 //
 // Parameters:
 // 	accelerator	string representing an accelerator
@@ -302,7 +320,7 @@ func (a *CAccelGroup) AcceleratorParse(accelerator string) (acceleratorKey cdk.K
 // 	acceleratorKey	accelerator keyval
 // 	acceleratorMods	accelerator modifier mask
 func (a *CAccelGroup) AcceleratorName(acceleratorKey cdk.Key, acceleratorMods cdk.ModMask) (value string) {
-	return fmt.Sprintf("%v %v", acceleratorMods.String(), cdk.LookupKeyName(acceleratorKey))
+	return fmt.Sprintf("%v%v", acceleratorMods.String(), cdk.LookupKeyName(acceleratorKey))
 }
 
 // AcceleratorGetLable converts an accelerator keyval and modifier mask into a
@@ -312,7 +330,7 @@ func (a *CAccelGroup) AcceleratorName(acceleratorKey cdk.Key, acceleratorMods cd
 // 	acceleratorKey	accelerator keyval
 // 	acceleratorMods	accelerator modifier mask
 func (a *CAccelGroup) AcceleratorGetLabel(acceleratorKey cdk.Key, acceleratorMods cdk.ModMask) (value string) {
-	return fmt.Sprintf("%v %v", acceleratorMods.String(), cdk.LookupKeyName(acceleratorKey))
+	return fmt.Sprintf("%v%v", acceleratorMods.String(), cdk.LookupKeyName(acceleratorKey))
 }
 
 // AcceleratorSetDefaultMask updates the modifiers that will be considered
@@ -351,7 +369,7 @@ const PropertyModifierMask cdk.Property = "modifier-mask"
 // not meant to be used by applications.
 const SignalAccelActivate cdk.Signal = "accel-activate"
 
-// The accel-changed signal is emitted when a AccelGroupEntry is added to
+// The accel-changed signal is emitted when a CAccelGroupEntry is added to
 // or removed from the accel group. Widgets like AccelLabel which display
 // an associated accelerator should connect to this signal, and rebuild their
 // visual representation if the accel_closure is theirs.
@@ -364,7 +382,3 @@ const SignalAccelChanged cdk.Signal = "accel-changed"
 type GClosure = func(argv ...interface{}) (handled bool)
 
 type AccelGroupFindFunc = func(key AccelKey, closure GClosure, data []interface{}) bool
-
-// func (a *CAccelGroup) GtkAccelGroupFindFunc(key AccelKey, closure GClosure, data interface{}) (value bool) {
-// 	return false
-// }
