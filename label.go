@@ -936,6 +936,9 @@ func (l *CLabel) refreshMnemonics() {
 			}
 		}
 	}
+	if !GetDefaultSettings().GetEnableMnemonics() {
+		return
+	}
 	if l.GetUseUnderline() {
 		if w := l.GetWindow(); w != nil {
 			if keyval := l.GetMnemonicKeyVal(); keyval > 0 {
