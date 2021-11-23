@@ -46,6 +46,9 @@ var (
 //go:embed demo-app.styles
 var demoAppStyles string
 
+//go:embed demo-app.accelmap
+var demoAppAccelMap string
+
 func init() {
 	cdk.Build.Profiling = cstrings.IsTrue(IncludeProfiling)
 	cdk.Build.LogFile = cstrings.IsTrue(IncludeLogFile)
@@ -89,13 +92,32 @@ func setupUi(manager cdk.Display) error {
 	}
 	// note that screen is captured at this time!
 	manager.CaptureCtrlC()
+	accelMap := ctk.GetAccelMap()
+	accelMap.LoadFromString(demoAppAccelMap)
 	w := ctk.NewWindowWithTitle(APP_TITLE)
+	w.SetName("Demo-App-Window")
 	w.Show()
 	w.SetSensitive(true)
 	if err := w.AddStylesFromString(demoAppStyles); err != nil {
 		w.LogErr(err)
 	}
 	manager.SetActiveWindow(w)
+	ag := ctk.NewAccelGroup()
+	// ag.AccelConnect(cdk.KeySmallQ, cdk.ModCtrl, ctk.ACCEL_VISIBLE, "quit-accel", func(argv ...interface{}) (handled bool) {
+	// 	ag.LogDebug("quit-accelerator called")
+	// 	manager.RequestQuit()
+	// 	return
+	// })
+	ag.ConnectByPath(
+		"<Demo-App-Window>/File/Quit",
+		"quit-accel",
+		func(argv ...interface{}) (handled bool) {
+			ag.LogDebug("quit-accelerator called")
+			manager.RequestQuit()
+			return
+		},
+	)
+	w.AddAccelGroup(ag)
 	vbox := w.GetVBox()
 	vbox.SetHomogeneous(true)
 	// vbox.SetBoolProperty("debug", true)
