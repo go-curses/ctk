@@ -6,7 +6,6 @@ import (
 	"github.com/go-curses/cdk"
 )
 
-// CDK type-tag for <%= src.Name %> objects
 const Type<%= src.Name %> cdk.CTypeTag = "<%= src.PackageName %>-<%= src.Tag %>"
 
 func init() {
@@ -26,17 +25,17 @@ type <%= src.Name %> interface {
 // The C<%= src.Name %> structure implements the <%= src.Name %> interface and is
 // exported to facilitate type embedding with custom implementations. No member
 // variables are exported as the interface methods are the only intended means
-// of interacting with <%= src.Name %> objects
+// of interacting with <%= src.Name %> objects.
 type C<%= src.Name %> struct {
 	C<%= src.Parent %>
 }<%= if (src.Constructor.String()) { %>
 
-// Default constructor for <%= src.Name %> objects
+// Make<%= src.Name %> is used by the Buildable system to construct a new <%= src.Name %>.
 func Make<%= src.Name %>() *C<%= src.Name %> {
 	return New<%= src.Name %>(<%= for (idx, arg) in src.Constructor.Argv { %><%= if (idx > 0) { %>, <% } %><%= arg.Value %><% } %>)
 }
 
-// Constructor for <%= src.Name %> objects
+// <%= src.Constructor.Name %> is the constructor for new <%= src.Name %> instances.
 func <%= src.Constructor.String() %> {
 	<%= src.This %> := new(C<%= src.Name %>)
 	<%= src.This %>.Init()
@@ -50,10 +49,12 @@ func <%= src.Constructor.String() %> {
 	return <%= src.This %>
 }<% } %><% } %>
 
-// <%= src.Name %> object initialization. This must be called at least once to setup
-// the necessary defaults and allocate any memory structures. Calling this more
-// than once is safe though unnecessary. Only the first call will result in any
-// effect upon the <%= src.Name %> instance
+// Init initializes an <%= src.Name %> object. This must be called at least once to
+// set up the necessary defaults and allocate any memory structures. Calling
+// this more than once is safe though unnecessary. Only the first call will
+// result in any effect upon the <%= src.Name %> instance. Init is used in the
+// New<%= src.Name %> constructor and only necessary when implementing a derivative
+// <%= src.Name %> type.
 func (<%= src.This %> *C<%= src.Name %>) Init() (already bool) {
 	if <%= src.This %>.InitTypeItem(Type<%= src.Name %>, <%= src.This %>) {
 		return true
