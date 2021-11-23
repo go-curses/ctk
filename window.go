@@ -155,7 +155,7 @@ type CWindow struct {
 	focused        interface{}
 	eventFocus     interface{}
 	hoverFocus     Widget
-	accelGroups    []*CAccelGroup
+	accelGroups    *CAccelGroups
 	mnemonics      []*mnemonicEntry
 	mnemonicMod    cdk.ModMask
 	mnemonicLock   *sync.RWMutex
@@ -208,7 +208,7 @@ func (w *CWindow) Init() (already bool) {
 	w.origin.X = 0
 	w.origin.Y = 0
 	w.SetTheme(paint.DefaultColorTheme)
-	w.accelGroups = make([]*CAccelGroup, 0)
+	w.accelGroups = NewAccelGroups()
 	w.mnemonics = make([]*mnemonicEntry, 0)
 	w.mnemonicMod = cdk.ModAlt
 	w.mnemonicLock = &sync.RWMutex{}
@@ -282,9 +282,6 @@ func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 					} else {
 						contentBox.PackEnd(newChildWidget, expand, fill, padding)
 					}
-					// } else {
-					// 	contentBox.Add(newChildWidget)
-					// }
 					if newChildWidget.HasFlags(HAS_FOCUS) {
 						newChildWidget.GrabFocus()
 					}
@@ -363,18 +360,27 @@ func (w *CWindow) GetResizable() (value bool) {
 	return
 }
 
-// Associate accel_group with window , such that calling
-// AccelGroupsActivate on window will activate accelerators in
-// accel_group .
+// AddAccelGroup associates accel_group with window, such that calling
+// AccelGroupsActivate on the window will activate accelerators in
+// accel_group.
+//
 // Parameters:
-// 	window	window to attach accelerator group to
 // 	accelGroup	a AccelGroup
-func (w *CWindow) AddAccelGroup(accelGroup AccelGroup) {}
+func (w *CWindow) AddAccelGroup(accelGroup AccelGroup) {
+	w.Lock()
+	w.accelGroups.AddAccelGroup(w, accelGroup)
+	w.Unlock()
+}
 
-// Reverses the effects of AddAccelGroup.
+// RemoveAccelGroup reverses the effects of AddAccelGroup.
+//
 // Parameters:
 // 	accelGroup	a AccelGroup
-func (w *CWindow) RemoveAccelGroup(accelGroup AccelGroup) {}
+func (w *CWindow) RemoveAccelGroup(accelGroup AccelGroup) {
+	w.Lock()
+	w.accelGroups.RemoveAccelGroup(w, accelGroup)
+	w.Unlock()
+}
 
 // Activates the current focused widget within the window.
 // Returns:
@@ -1333,7 +1339,7 @@ func (w *CWindow) HasGroup() (value bool) {
 // managers are free to ignore this; most window managers ignore requests for
 // initial window positions (instead using a user-defined placement
 // algorithm) and honor requests after the window has already been shown.
-// Note: the position is the position of the gravity-determined reference
+// Note the position is the position of the gravity-determined reference
 // point for the window. The gravity determines two things: first, the
 // location of the reference point in root window coordinates; and second,
 // which point on the window is positioned at the reference point. By default
@@ -1585,16 +1591,13 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 			}
 		case *cdk.EventKey:
 			if f := w.Emit(SignalEventKey, w, e); f == enums.EVENT_PASS {
+				// check for mnemonics
 				if w.MnemonicActivate(e.Rune(), e.Modifiers()) {
 					return enums.EVENT_STOP
 				}
-				// check focused
-				if fi := w.GetFocus(); fi != nil {
-					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
-						if f := sw.ProcessEvent(evt); f == enums.EVENT_STOP {
-							return enums.EVENT_STOP
-						}
-					}
+				// check for accelerators
+				if w.accelGroups.Activate(w, e.Key(), e.Modifiers()) {
+					return enums.EVENT_STOP
 				}
 				// check focus change
 				switch e.Key() {
@@ -1614,6 +1617,14 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) enums.EventFlag
 						w.FocusNext()
 					}
 					return enums.EVENT_STOP
+				}
+				// check focused
+				if fi := w.GetFocus(); fi != nil {
+					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
+						if f := sw.ProcessEvent(evt); f == enums.EVENT_STOP {
+							return enums.EVENT_STOP
+						}
+					}
 				}
 			}
 		case *cdk.EventMouse:
