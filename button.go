@@ -748,13 +748,8 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag
 				b.CancelEvent()
 				return enums.EVENT_STOP
 			}
-			switch e.Key() {
-			case cdk.KeyRune:
-				if e.Rune() != ' ' {
-					break
-				}
-				fallthrough
-			case cdk.KeyEnter:
+			switch cdk.Key(e.Rune()) {
+			case cdk.KeyEnter, cdk.KeySpace:
 				if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
 					b.GrabFocus()
 				}
