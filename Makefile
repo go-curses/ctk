@@ -258,3 +258,44 @@ profile.mem: dev
 				echo "# missing /tmp/${DEV_EXAMPLE}.cdk.pprof/mem.pprof"; \
 			fi ; \
 		fi
+
+%:
+	@if [ -f $@ -o -f $@.build.log ]; \
+	then \
+		echo -n "# cleaning $@... "; \
+		rm -f $@ $@.build.log; \
+		echo "done."; \
+	fi; \
+	if [ -d examples/$@ ]; \
+	then \
+		echo -n "# building example $@... "; \
+		cd examples/$@; \
+		( go build -v \
+				-tags `echo "debug example-$@" | perl -pe 's/-/_/g'` \
+				-o ../../$@ \
+			2>&1 ) > ../../$@.build.log; \
+		cd ../..; \
+		if [ -f $@ ]; \
+		then \
+			echo "done."; \
+		else \
+			echo "fail.\n#\tsee ./$@.build.log"; \
+		fi; \
+	elif [ -d cmd/$@ ]; \
+	then \
+		echo -n "# building command $@... "; \
+		cd cmd/$@; \
+		( go build -v \
+				-tags `echo "cmd-$@" | perl -pe 's/-/_/g'` \
+				-o ../../$@ \
+			2>&1 ) > ../../$@.build.log; \
+		cd ../..; \
+		if [ -f $@ ]; \
+		then \
+			echo "done."; \
+		else \
+			echo "fail.\n#\tsee ./$@.build.log"; \
+		fi; \
+	else \
+		echo "not a command or example: $@"; \
+	fi
