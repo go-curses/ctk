@@ -642,6 +642,9 @@ func (w *CWindow) RemoveWidgetMnemonics(target interface{}) {
 // 	modifier	the modifiers
 // 	returns	TRUE if the activation is done.
 func (w *CWindow) MnemonicActivate(keyval rune, modifier cdk.ModMask) (activated bool) {
+	if !GetDefaultSettings().GetEnableMnemonics() {
+		return false
+	}
 	w.mnemonicLock.Lock()
 	if modifier == w.mnemonicMod {
 		for _, entry := range w.mnemonics {
