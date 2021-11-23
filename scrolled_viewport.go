@@ -592,7 +592,6 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums
 				if f := vs.ProcessEvent(evt); f == enums.EVENT_STOP {
 					s.Unlock()
 					s.Invalidate()
-					s.GrabFocus()
 					return enums.EVENT_STOP
 				}
 			}
@@ -600,7 +599,6 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums
 				if f := hs.ProcessEvent(evt); f == enums.EVENT_STOP {
 					s.Unlock()
 					s.Invalidate()
-					s.GrabFocus()
 					return enums.EVENT_STOP
 				}
 			}
