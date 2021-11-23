@@ -121,7 +121,7 @@ examples: clean-examples
 			echo -n "#\tbuilding example $$tgt... "; \
 			cd examples/$$tgt; \
 			( go build -v \
-					-tags `echo "debug example-$$tgt" | perl -pe 's/-/_/g'` \
+					-tags "debug `echo "example-$$tgt" | perl -pe 's/-/_/g'`" \
 					-o ../../$$tgt \
 				2>&1 ) > ../../$$tgt.build.log; \
 			cd ../..; \
@@ -185,7 +185,7 @@ dev: clean
 		echo -n "# building: ${DEV_EXAMPLE} [dev]... "; \
 		cd examples/${DEV_EXAMPLE}; \
 		( go build -v \
-				-tags `echo "debug example-${DEV_EXAMPLE}" | perl -pe 's/-/_/g'` \
+				-tags "debug `echo "example-${DEV_EXAMPLE}" | perl -pe 's/-/_/g'`" \
 				-ldflags="-X 'main.IncludeProfiling=true'" \
 				-gcflags=all="-N -l" \
 				-o ../../${DEV_EXAMPLE} \
@@ -271,7 +271,7 @@ profile.mem: dev
 		echo -n "# building example $@... "; \
 		cd examples/$@; \
 		( go build -v \
-				-tags `echo "debug example-$@" | perl -pe 's/-/_/g'` \
+				-tags "debug `echo "example-$@" | perl -pe 's/-/_/g'`" \
 				-o ../../$@ \
 			2>&1 ) > ../../$@.build.log; \
 		cd ../..; \
