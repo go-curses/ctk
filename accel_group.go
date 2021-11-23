@@ -379,6 +379,4 @@ const SignalAccelActivate cdk.Signal = "accel-activate"
 // 	accelClosure GClosure	the GClosure of the accelerator
 const SignalAccelChanged cdk.Signal = "accel-changed"
 
-type GClosure = func(argv ...interface{}) (handled bool)
-
 type AccelGroupFindFunc = func(key AccelKey, closure GClosure, data []interface{}) bool

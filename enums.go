@@ -1675,3 +1675,7 @@ const (
 	EXTENSION_EVENTS_ALL
 	EXTENSION_EVENTS_CURSOR
 )
+
+type GCallback = func()
+
+type GClosure = func(argv ...interface{}) (handled bool)
