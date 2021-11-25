@@ -134,7 +134,7 @@ examples: clean-examples
 			echo -n "#\tbuilding example $$tgt... "; \
 			cd examples/$$tgt; \
 			( go build -v \
-					-tags "debug `echo "example-$$tgt" | perl -pe 's/-/_/g'`" \
+					-tags "`echo "example-$$tgt" | perl -pe 's/-/_/g'`" \
 					-o ../../$$tgt \
 				2>&1 ) > ../../$$tgt.build.log; \
 			cd ../..; \
@@ -284,7 +284,7 @@ profile.mem: dev
 		echo -n "# building example $@... "; \
 		cd examples/$@; \
 		( go build -v \
-				-tags "debug `echo "example-$@" | perl -pe 's/-/_/g'`" \
+				-tags "`echo "example-$@" | perl -pe 's/-/_/g'`" \
 				-o ../../$@ \
 			2>&1 ) > ../../$@.build.log; \
 		cd ../..; \
