@@ -468,28 +468,27 @@ func (w *CWidget) IsFocus() (value bool) {
 // Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
 // Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
 func (w *CWidget) GrabFocus() {
-	w.InternalGrabFocus(w)
-}
-
-func (w *CWidget) InternalGrabFocus(widget interface{}) {
-	if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
-		if r := w.Emit(SignalGrabFocus, w); r == enums.EVENT_PASS {
-			if tl := w.GetWindow(); tl != nil {
-				if focused := tl.GetFocus(); focused != nil {
-					if fw, ok := focused.(Widget); ok && fw.ObjectID() != w.ObjectID() {
-						fw.UnsetState(StateSelected)
-						fw.Emit(SignalLostFocus)
-						// fw.Invalidate()
+	if item := cdk.TypesManager.GetTypeItemByID(w.ObjectID()); item != nil {
+		if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
+			if r := w.Emit(SignalGrabFocus, w); r == cenums.EVENT_PASS {
+				if tl := w.GetWindow(); tl != nil {
+					if focused := tl.GetFocus(); focused != nil {
+						if fw, ok := focused.(Widget); ok && fw.ObjectID() != w.ObjectID() {
+							fw.UnsetState(enums.StateSelected)
+							fw.Emit(SignalLostFocus)
+							// fw.Invalidate()
+						}
 					}
+					tl.SetFocus(item)
+					w.SetState(enums.StateSelected)
+					w.Emit(SignalGainedFocus)
 				}
-				tl.SetFocus(widget)
-				w.SetState(StateSelected)
-				w.Emit(SignalGainedFocus)
-				// w.Invalidate()
 			}
+		} else {
+			w.LogError("cannot grab focus: can't focus, invisible or insensitive")
 		}
 	} else {
-		w.LogError("cannot grab focus: can't focus, invisible or insensitive")
+		w.LogError("failed to get item for this Widget: %v", w.ObjectID())
 	}
 }
 
@@ -1931,12 +1930,16 @@ func (w *CWidget) HasEventFocus() bool {
 // when a Widget interface reference is passed as a generic interface{}
 // argument.
 func (w *CWidget) GrabEventFocus() {
-	if window := w.GetWindow(); window != nil {
-		if f := w.Emit(SignalGrabEventFocus, w, window); f == enums.EVENT_PASS {
-			window.SetEventFocus(w)
+	if item := cdk.TypesManager.GetTypeItemByID(w.ObjectID()); item != nil {
+		if window := w.GetWindow(); window != nil {
+			if f := w.Emit(SignalGrabEventFocus, w, window); f == cenums.EVENT_PASS {
+				window.SetEventFocus(item)
+			}
+		} else {
+			w.LogError("cannot grab focus: can't focus, invisible or insensitive")
 		}
 	} else {
-		w.LogError("cannot grab focus: can't focus, invisible or insensitive")
+		w.LogError("failed to get item for this Widget: %v", w.ObjectID())
 	}
 }
 
