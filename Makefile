@@ -25,6 +25,8 @@ help:
 	@echo "  unlocal     - remove go.mod local CDK package replacements"
 	@echo
 	@echo "build targets:"
+	@echo "  deps        - install stringer and bitmasker tools"
+	@echo "  generate    - run go generate"
 	@echo "  examples    - builds all examples"
 	@echo "  build       - build the go-ctk command"
 	@echo "  build-all   - build all commands"
@@ -111,6 +113,17 @@ build-all: clean-cmd
 			fi; \
 		fi; \
 	done
+
+deps:
+	@echo "# installing dependencies..."
+	@echo "#\tinstalling stringer"
+	@GO111MODULE=off go install golang.org/x/tools/cmd/stringer
+	@echo "#\tinstalling bitmasker"
+	@GO111MODULE=off go install github.com/go-curses/bitmasker
+
+generate:
+	@echo "# generate go sources..."
+	@go generate -v ./...
 
 examples: clean-examples
 	@echo "# building all examples..."
