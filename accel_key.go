@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 type AccelKey interface {
 	GetKey() cdk.Key
 	GetMods() cdk.ModMask
-	GetFlags() AccelFlags
+	GetFlags() enums.AccelFlags
 	Match(key cdk.Key, mods cdk.ModMask) (match bool)
 	String() string
 }
@@ -17,10 +18,10 @@ type AccelKey interface {
 type CAccelKey struct {
 	Key   cdk.Key
 	Mods  cdk.ModMask
-	Flags AccelFlags
+	Flags enums.AccelFlags
 }
 
-func MakeAccelKey(key cdk.Key, mods cdk.ModMask, flags AccelFlags) (accelKey AccelKey) {
+func MakeAccelKey(key cdk.Key, mods cdk.ModMask, flags enums.AccelFlags) (accelKey AccelKey) {
 	accelKey = &CAccelKey{
 		Key:   key,
 		Mods:  mods,
@@ -37,7 +38,7 @@ func (a *CAccelKey) GetMods() cdk.ModMask {
 	return a.Mods
 }
 
-func (a *CAccelKey) GetFlags() AccelFlags {
+func (a *CAccelKey) GetFlags() enums.AccelFlags {
 	return a.Flags
 }
 

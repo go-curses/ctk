@@ -3,11 +3,13 @@ package ctk
 import (
 	"fmt"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/log"
-	"github.com/gofrs/uuid"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeContainer cdk.CTypeTag = "ctk-container"
@@ -92,7 +94,7 @@ type CContainer struct {
 	CWidget
 
 	children      []Widget
-	resizeMode    enums.ResizeMode
+	resizeMode    cenums.ResizeMode
 	properties    []*cdk.CProperty
 	property      map[uuid.UUID][]*cdk.CProperty
 	focusChain    []interface{}
@@ -122,8 +124,8 @@ func (c *CContainer) Init() (already bool) {
 		return true
 	}
 	c.CWidget.Init()
-	c.flags = NULL_WIDGET_FLAG
-	c.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	c.flags = enums.NULL_WIDGET_FLAG
+	c.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	_ = c.InstallProperty(PropertyBorderWidth, cdk.IntProperty, true, 0)
 	_ = c.InstallProperty(PropertyChild, cdk.StructProperty, true, nil)
 	_ = c.InstallProperty(PropertyResizeMode, cdk.StructProperty, true, nil)
@@ -156,13 +158,13 @@ func (c *CContainer) Build(builder Builder, element *CBuilderElement) error {
 }
 
 // SetOrigin emits an origin signal and if all signal handlers return
-// enums.EVENT_PASS, updates the Container origin field.
+// cenums.EVENT_PASS, updates the Container origin field.
 //
 // Note that this method's behaviour may change.
 //
 // Locking: write
 func (c *CContainer) SetOrigin(x, y int) {
-	if f := c.Emit(SignalOrigin, c, ptypes.MakePoint2I(x, y)); f == enums.EVENT_PASS {
+	if f := c.Emit(SignalOrigin, c, ptypes.MakePoint2I(x, y)); f == cenums.EVENT_PASS {
 		children := c.GetChildren()
 		c.Lock()
 		c.origin.Set(x, y)
@@ -209,7 +211,7 @@ func (c *CContainer) ShowAll() {
 // Box.PackStart() and Table.Attach() as an alternative to Container.Add() in
 // those cases. A Widget may be added to only one container at a time; you can't
 // place the same widget inside two different containers. This method emits an
-// add signal initially and if the listeners return enums.EVENT_PASS then the
+// add signal initially and if the listeners return cenums.EVENT_PASS then the
 // change is applied.
 //
 // Parameters:
@@ -218,7 +220,7 @@ func (c *CContainer) ShowAll() {
 // Locking: write
 func (c *CContainer) Add(w Widget) {
 	// TODO: if can default and no default yet, set
-	if f := c.Emit(SignalAdd, c, w); f == enums.EVENT_PASS {
+	if f := c.Emit(SignalAdd, c, w); f == cenums.EVENT_PASS {
 		window := c.GetWindow()
 		log.DebugDF(1, "child=%v", w.ObjectName())
 		w.SetParent(c)
@@ -259,7 +261,7 @@ func (c *CContainer) AddWithProperties(widget Widget, argv ...interface{}) {
 
 // Remove the given Widget from the Container. Widget must be inside Container.
 // This method emits a remove signal initially and if the listeners return
-// enums.EVENT_PASS, the change is applied.
+// cenums.EVENT_PASS, the change is applied.
 //
 // Parameters:
 // 	widget	a current child of container
@@ -270,7 +272,7 @@ func (c *CContainer) Remove(w Widget) {
 	resize := false
 	for _, child := range c.GetChildren() {
 		if child.ObjectID() == w.ObjectID() {
-			if f := c.Emit(SignalRemove, c, child); f == enums.EVENT_PASS {
+			if f := c.Emit(SignalRemove, c, child); f == cenums.EVENT_PASS {
 				_ = w.Disconnect(SignalLostFocus, ContainerLostFocusHandle)
 				_ = w.Disconnect(SignalGainedFocus, ContainerGainedFocusHandle)
 				_ = w.Disconnect(SignalShow, ContainerChildShowHandle)
@@ -693,24 +695,24 @@ func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-func (c *CContainer) childShow(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (c *CContainer) childShow(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	c.Resize()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (c *CContainer) childHide(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (c *CContainer) childHide(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	c.Resize()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (c *CContainer) childLostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (c *CContainer) childLostFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	c.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (c *CContainer) childGainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (c *CContainer) childGainedFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	c.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // The width of the empty border outside the containers children.

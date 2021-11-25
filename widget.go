@@ -4,11 +4,11 @@ import (
 	"sync"
 
 	"github.com/go-curses/cdk"
-	cbits "github.com/go-curses/cdk/lib/bits"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeWidget cdk.CTypeTag = "ctk-widget"
@@ -46,8 +46,8 @@ type Widget interface {
 	Show()
 	Hide()
 	ShowAll()
-	AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods ModifierType, accelFlags AccelFlags)
-	RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods ModifierType) (value bool)
+	AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods enums.ModifierType, accelFlags enums.AccelFlags)
+	RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods enums.ModifierType) (value bool)
 	SetAccelPath(accelPath string, accelGroup AccelGroup)
 	CanActivateAccel(signalId int) (value bool)
 	Activate() (value bool)
@@ -55,10 +55,10 @@ type Widget interface {
 	IsFocus() (value bool)
 	GrabFocus()
 	GrabDefault()
-	SetState(state StateType)
+	SetState(state enums.StateType)
 	SetSensitive(sensitive bool)
 	CssFullPath() (path string)
-	CssState() (state StateType)
+	CssState() (state enums.StateType)
 	SetParent(parent Container)
 	SetParentWindow(parentWindow Window)
 	GetParentWindow() (value Window)
@@ -70,10 +70,10 @@ type Widget interface {
 	GetPointer(x int, y int)
 	IsAncestor(ancestor Widget) (value bool)
 	TranslateCoordinates(destWidget Widget, srcX int, srcY int, destX int, destY int) (value bool)
-	SetDirection(dir TextDirection)
-	GetDirection() (value TextDirection)
-	SetDefaultDirection(dir TextDirection)
-	GetDefaultDirection() (value TextDirection)
+	SetDirection(dir enums.TextDirection)
+	GetDirection() (value enums.TextDirection)
+	SetDefaultDirection(dir enums.TextDirection)
+	GetDefaultDirection() (value enums.TextDirection)
 	Path() (path string)
 	ClassPath(pathLength int, path string, pathReversed string)
 	GetCompositeName() (value string)
@@ -82,7 +82,7 @@ type Widget interface {
 	SetScrollAdjustments(hAdjustment Adjustment, vAdjustment Adjustment) (value bool)
 	SendExpose(event cdk.Event) (value int)
 	SendFocusChange(event cdk.Event) (value bool)
-	ChildFocus(direction DirectionType) (value bool)
+	ChildFocus(direction enums.DirectionType) (value bool)
 	ChildNotify(childProperty string)
 	FreezeChildNotify()
 	GetChildVisible() (value bool)
@@ -99,7 +99,7 @@ type Widget interface {
 	AddMnemonicLabel(label Widget)
 	RemoveMnemonicLabel(label Widget)
 	ErrorBell()
-	KeynavFailed(direction DirectionType) (value bool)
+	KeynavFailed(direction enums.DirectionType) (value bool)
 	GetTooltipMarkup() (value string)
 	SetTooltipMarkup(markup string)
 	GetTooltipText() (value string)
@@ -118,7 +118,7 @@ type Widget interface {
 	GetHasWindow() (value bool)
 	GetSensitive() (value bool)
 	IsSensitive() bool
-	GetState() (value StateType)
+	GetState() (value enums.StateType)
 	GetVisible() (value bool)
 	SetVisible(visible bool)
 	HasDefault() (value bool)
@@ -132,12 +132,12 @@ type Widget interface {
 	GetTheme() (theme paint.Theme)
 	GetThemeRequest() (theme paint.Theme)
 	SetTheme(theme paint.Theme)
-	HasState(s StateType) bool
-	UnsetState(v StateType)
-	GetFlags() WidgetFlags
-	HasFlags(f WidgetFlags) bool
-	UnsetFlags(v WidgetFlags)
-	SetFlags(v WidgetFlags)
+	HasState(s enums.StateType) bool
+	UnsetState(v enums.StateType)
+	GetFlags() enums.WidgetFlags
+	HasFlags(f enums.WidgetFlags) bool
+	UnsetFlags(v enums.WidgetFlags)
+	SetFlags(v enums.WidgetFlags)
 	IsParentFocused() bool
 	IsFocused() bool
 	CanFocus() bool
@@ -149,7 +149,7 @@ type Widget interface {
 	ReleaseEventFocus()
 	GetTopParent() (parent Container)
 	GetWidgetAt(p *ptypes.Point2I) Widget
-	Draw() enums.EventFlag
+	Draw() cenums.EventFlag
 }
 
 // The CWidget structure implements the Widget interface and is exported
@@ -161,8 +161,8 @@ type CWidget struct {
 
 	display   cdk.Display
 	parent    interface{}
-	state     StateType
-	flags     WidgetFlags
+	state     enums.StateType
+	flags     enums.WidgetFlags
 	flagsLock *sync.RWMutex
 }
 
@@ -197,37 +197,37 @@ func (w *CWidget) Init() (already bool) {
 	_ = w.InstallProperty(PropertyVisible, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyWidthRequest, cdk.IntProperty, true, -1)
 	_ = w.InstallProperty(PropertyWindow, cdk.StructProperty, true, nil)
-	getDefContentColors := func(state StateType) (fg, bg paint.Color) {
+	getDefContentColors := func(state enums.StateType) (fg, bg paint.Color) {
 		switch state {
-		case StateNormal:
+		case enums.StateNormal:
 			fg, bg, _ = paint.DefaultColorTheme.Content.Normal.Decompose()
-		case StateActive:
+		case enums.StateActive:
 			fg, bg, _ = paint.DefaultColorTheme.Content.Active.Decompose()
-		case StatePrelight:
+		case enums.StatePrelight:
 			fg, bg, _ = paint.DefaultColorTheme.Content.Prelight.Decompose()
-		case StateSelected:
+		case enums.StateSelected:
 			fg, bg, _ = paint.DefaultColorTheme.Content.Selected.Decompose()
-		case StateInsensitive:
+		case enums.StateInsensitive:
 			fg, bg, _ = paint.DefaultColorTheme.Content.Insensitive.Decompose()
 		}
 		return
 	}
-	getDefBorderColors := func(state StateType) (fg, bg paint.Color) {
+	getDefBorderColors := func(state enums.StateType) (fg, bg paint.Color) {
 		switch state {
-		case StateNormal:
+		case enums.StateNormal:
 			fg, bg, _ = paint.DefaultColorTheme.Border.Normal.Decompose()
-		case StateActive:
+		case enums.StateActive:
 			fg, bg, _ = paint.DefaultColorTheme.Border.Active.Decompose()
-		case StatePrelight:
+		case enums.StatePrelight:
 			fg, bg, _ = paint.DefaultColorTheme.Border.Prelight.Decompose()
-		case StateSelected:
+		case enums.StateSelected:
 			fg, bg, _ = paint.DefaultColorTheme.Border.Selected.Decompose()
-		case StateInsensitive:
+		case enums.StateInsensitive:
 			fg, bg, _ = paint.DefaultColorTheme.Border.Insensitive.Decompose()
 		}
 		return
 	}
-	for _, state := range []StateType{StateNormal, StateActive, StatePrelight, StateSelected, StateInsensitive} {
+	for _, state := range []enums.StateType{enums.StateNormal, enums.StateActive, enums.StatePrelight, enums.StateSelected, enums.StateInsensitive} {
 		_ = w.InstallCssProperty(CssPropertyClass, state, cdk.StringProperty, true, "")
 		_ = w.InstallCssProperty(CssPropertyWidth, state, cdk.IntProperty, true, -1)
 		_ = w.InstallCssProperty(CssPropertyHeight, state, cdk.IntProperty, true, -1)
@@ -246,8 +246,8 @@ func (w *CWidget) Init() (already bool) {
 		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
 	}
 	w.flagsLock = &sync.RWMutex{}
-	w.state = StateNormal
-	w.flags = NULL_WIDGET_FLAG
+	w.state = enums.StateNormal
+	w.flags = enums.NULL_WIDGET_FLAG
 	w.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
 	w.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
 	w.Connect(SignalEnter, WidgetEnterHandle, w.enter)
@@ -282,7 +282,7 @@ func (w *CWidget) Destroy() {
 func (w *CWidget) Unparent() {
 	if w.parent != nil {
 		if parent, ok := w.parent.(Container); ok {
-			if f := w.Emit(SignalUnparent, w, w.parent); f == enums.EVENT_PASS {
+			if f := w.Emit(SignalUnparent, w, w.parent); f == cenums.EVENT_PASS {
 				parent.Remove(w)
 			}
 		}
@@ -298,9 +298,9 @@ func (w *CWidget) Unparent() {
 // immediately realized and mapped; other shown widgets are realized and
 // mapped when their toplevel container is realized and mapped.
 func (w *CWidget) Show() {
-	if !w.HasFlags(VISIBLE) {
-		w.SetFlags(VISIBLE)
-		if r := w.Emit(SignalShow, w); r == enums.EVENT_PASS {
+	if !w.HasFlags(enums.VISIBLE) {
+		w.SetFlags(enums.VISIBLE)
+		if r := w.Emit(SignalShow, w); r == cenums.EVENT_PASS {
 			w.Invalidate()
 		}
 	}
@@ -309,9 +309,9 @@ func (w *CWidget) Show() {
 // Hide reverses the effects of Show, causing the widget to be hidden (invisible
 // to the user).
 func (w *CWidget) Hide() {
-	if w.HasFlags(VISIBLE) {
-		w.UnsetFlags(VISIBLE)
-		if r := w.Emit(SignalHide, w); r == enums.EVENT_PASS {
+	if w.HasFlags(enums.VISIBLE) {
+		w.UnsetFlags(enums.VISIBLE)
+		if r := w.Emit(SignalHide, w); r == cenums.EVENT_PASS {
 			w.Invalidate()
 		}
 	}
@@ -340,7 +340,7 @@ func (w *CWidget) ShowAll() {
 // 	accelFlags	flag accelerators, e.g. GTK_ACCEL_VISIBLE
 //
 // Method stub, unimplemented
-func (w *CWidget) AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods ModifierType, accelFlags AccelFlags) {
+func (w *CWidget) AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods enums.ModifierType, accelFlags enums.AccelFlags) {
 }
 
 // Removes an accelerator from widget , previously installed with
@@ -353,7 +353,7 @@ func (w *CWidget) AddAccelerator(accelSignal string, accelGroup AccelGroup, acce
 // 	returns	whether an accelerator was installed and could be removed
 //
 // Method stub, unimplemented
-func (w *CWidget) RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods ModifierType) (value bool) {
+func (w *CWidget) RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods enums.ModifierType) (value bool) {
 	return false
 }
 
@@ -403,7 +403,7 @@ func (w *CWidget) CanActivateAccel(signalId int) (value bool) {
 // 	TRUE if the widget was activatable
 func (w *CWidget) Activate() (value bool) {
 	if w.IsVisible() && w.IsSensitive() {
-		if f := w.Emit(SignalActivate, w); f == enums.EVENT_STOP {
+		if f := w.Emit(SignalActivate, w); f == cenums.EVENT_STOP {
 			value = true
 		}
 	}
@@ -418,7 +418,7 @@ func (w *CWidget) Activate() (value bool) {
 //
 // Emits: SignalReparent, Argv=[Widget instance, new parent]
 func (w *CWidget) Reparent(parent Container) {
-	if r := w.Emit(SignalReparent, w, parent); r == enums.EVENT_PASS {
+	if r := w.Emit(SignalReparent, w, parent); r == cenums.EVENT_PASS {
 		if w.parent != nil {
 			if pc, ok := w.parent.(Container); ok {
 				pc.Remove(w)
@@ -507,11 +507,11 @@ func (w *CWidget) GrabDefault() {}
 // 	sensitive	TRUE to make the widget sensitive
 // Emits: SignalSetSensitive, Argv=[Widget instance, given sensitive bool]
 func (w *CWidget) SetSensitive(sensitive bool) {
-	if f := w.Emit(SignalSetSensitive, w, sensitive); f == enums.EVENT_PASS {
+	if f := w.Emit(SignalSetSensitive, w, sensitive); f == cenums.EVENT_PASS {
 		if !sensitive {
-			w.SetState(StateInsensitive)
+			w.SetState(enums.StateInsensitive)
 		} else {
-			w.UnsetState(StateInsensitive)
+			w.UnsetState(enums.StateInsensitive)
 		}
 		if err := w.SetBoolProperty(PropertySensitive, sensitive); err != nil {
 			w.LogErr(err)
@@ -539,20 +539,24 @@ func (w *CWidget) CssFullPath() (selector string) {
 	return
 }
 
-func (w *CWidget) CssState() (state StateType) {
-	flag := uint64(w.state)
+func (w *CWidget) CssState() (state enums.StateType) {
 	if w.IsDrawable() && w.IsVisible() {
 		if w.IsSensitive() {
 			if w.IsFocus() {
-				flag = cbits.Set(flag, uint64(StateSelected))
+				w.RLock()
+				state = w.state.Set(enums.StateSelected)
+				w.RUnlock()
 			} else {
-				flag = cbits.Set(flag, uint64(StateNormal))
+				w.RLock()
+				state = state.Set(enums.StateNormal)
+				w.RUnlock()
 			}
 		} else {
-			flag = cbits.Set(flag, uint64(StateInsensitive))
+			w.RLock()
+			state = w.state.Set(enums.StateInsensitive)
+			w.RUnlock()
 		}
 	}
-	state = StateType(flag)
 	return
 }
 
@@ -563,8 +567,8 @@ func (w *CWidget) CssState() (state StateType) {
 // Parameters:
 // 	parent	parent container
 func (w *CWidget) SetParent(parent Container) {
-	if f := w.Emit(SignalSetParent, w, w.parent, parent); f == enums.EVENT_PASS {
-		if w.HasFlags(PARENT_SENSITIVE) && w.parent != nil {
+	if f := w.Emit(SignalSetParent, w, w.parent, parent); f == cenums.EVENT_PASS {
+		if w.HasFlags(enums.PARENT_SENSITIVE) && w.parent != nil {
 			if parent, ok := w.parent.(Widget); ok {
 				_ = parent.Disconnect(SignalLostFocus, WidgetLostFocusHandle)
 				_ = parent.Disconnect(SignalGainedFocus, WidgetGainedFocusHandle)
@@ -573,7 +577,7 @@ func (w *CWidget) SetParent(parent Container) {
 		if err := w.SetStructProperty(PropertyParent, parent); err != nil {
 			w.LogErr(err)
 		} else if parent != nil && w.ObjectID() != parent.ObjectID() {
-			if cw, ok := parent.(Widget); ok && w.HasFlags(PARENT_SENSITIVE) {
+			if cw, ok := parent.(Widget); ok && w.HasFlags(enums.PARENT_SENSITIVE) {
 				cw.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
 				cw.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
 			}
@@ -731,14 +735,14 @@ func (w *CWidget) HideOnDelete() (value bool) {
 // SetDefaultDirection will be used.
 // Parameters:
 // 	dir	the new direction
-func (w *CWidget) SetDirection(dir TextDirection) {}
+func (w *CWidget) SetDirection(dir enums.TextDirection) {}
 
 // Gets the reading direction for a particular widget. See
 // SetDirection.
 // Returns:
 // 	the reading direction for the widget.
-func (w *CWidget) GetDirection() (value TextDirection) {
-	return TextDirLtr
+func (w *CWidget) GetDirection() (value enums.TextDirection) {
+	return enums.TextDirLtr
 }
 
 // Sets the default reading direction for widgets where the direction has not
@@ -746,14 +750,14 @@ func (w *CWidget) GetDirection() (value TextDirection) {
 // Parameters:
 // 	dir	the new default direction. This cannot be
 // GTK_TEXT_DIR_NONE.
-func (w *CWidget) SetDefaultDirection(dir TextDirection) {}
+func (w *CWidget) SetDefaultDirection(dir enums.TextDirection) {}
 
 // Obtains the current default reading direction. See
 // SetDefaultDirection.
 // Returns:
 // 	the current default direction.
-func (w *CWidget) GetDefaultDirection() (value TextDirection) {
-	return TextDirLtr
+func (w *CWidget) GetDefaultDirection() (value enums.TextDirection) {
+	return enums.TextDirLtr
 }
 
 // Obtains the full path to widget . The path is simply the name of a widget
@@ -825,7 +829,7 @@ func (w *CWidget) GetCompositeName() (value string) {
 // Parameters:
 // 	appPaintable	TRUE if the application will paint on the widget
 func (w *CWidget) SetAppPaintable(appPaintable bool) {
-	w.SetFlags(APP_PAINTABLE)
+	w.SetFlags(enums.APP_PAINTABLE)
 	if err := w.SetBoolProperty(PropertyAppPaintable, appPaintable); err != nil {
 		w.LogErr(err)
 	}
@@ -895,7 +899,7 @@ func (w *CWidget) SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjus
 // canvas
 //
 // Emits: SignalDraw, Argv=[Object instance, canvas]
-func (w *CWidget) Draw() enums.EventFlag {
+func (w *CWidget) Draw() cenums.EventFlag {
 	if surface, err := memphis.GetSurface(w.ObjectID()); err != nil {
 		w.LogErr(err)
 	} else if w.IsDrawable() {
@@ -970,7 +974,7 @@ func (w *CWidget) SendFocusChange(event cdk.Event) (value bool) {
 // 	direction	direction of focus movement
 // Returns:
 // 	TRUE if focus ended up inside widget
-func (w *CWidget) ChildFocus(direction DirectionType) (value bool) {
+func (w *CWidget) ChildFocus(direction enums.DirectionType) (value bool) {
 	return false
 }
 
@@ -1127,7 +1131,7 @@ func (w *CWidget) SizeRequest() ptypes.Rectangle {
 //
 // Emits: SignalSetSizeRequest, Argv=[Widget instance, given size]
 func (w *CWidget) SetSizeRequest(width, height int) {
-	if f := w.Emit(SignalSetSizeRequest, w, ptypes.MakeRectangle(width, height)); f == enums.EVENT_PASS {
+	if f := w.Emit(SignalSetSizeRequest, w, ptypes.MakeRectangle(width, height)); f == cenums.EVENT_PASS {
 		if err := w.SetIntProperty(PropertyWidthRequest, width); err != nil {
 			w.LogErr(err)
 		}
@@ -1207,7 +1211,7 @@ func (w *CWidget) ErrorBell() {}
 // 	TRUE if stopping keyboard navigation is fine, FALSE if the
 // 	emitting widget should try to handle the keyboard navigation
 // 	attempt in its parent container(s).
-func (w *CWidget) KeynavFailed(direction DirectionType) (value bool) {
+func (w *CWidget) KeynavFailed(direction enums.DirectionType) (value bool) {
 	return false
 }
 
@@ -1446,11 +1450,11 @@ func (w *CWidget) GetSensitive() (value bool) {
 // Returns:
 // 	TRUE if the widget is effectively sensitive
 func (w *CWidget) IsSensitive() bool {
-	if w.HasState(StateInsensitive) {
+	if w.HasState(enums.StateInsensitive) {
 		return false
 	}
 	if parent := w.GetParent(); parent != nil {
-		if parent.HasState(StateInsensitive) {
+		if parent.HasState(enums.StateInsensitive) {
 			return false
 		}
 	}
@@ -1516,7 +1520,7 @@ func (w *CWidget) HasGrab() (value bool) {
 // 	TRUE if widget is drawable, FALSE otherwise
 // Returns TRUE if the APP_PAINTABLE flag is set, FALSE otherwise
 func (w *CWidget) IsDrawable() (value bool) {
-	return w.HasFlags(APP_PAINTABLE)
+	return w.HasFlags(enums.APP_PAINTABLE)
 }
 
 // Determines whether widget is a toplevel widget. Currently only Window
@@ -1525,7 +1529,7 @@ func (w *CWidget) IsDrawable() (value bool) {
 // Returns:
 // 	TRUE if widget is a toplevel, FALSE otherwise
 func (w *CWidget) IsToplevel() (value bool) {
-	return w.HasFlags(TOPLEVEL)
+	return w.HasFlags(enums.TOPLEVEL)
 }
 
 // Sets a widget's window. This function should only be used in a widget's
@@ -1542,7 +1546,7 @@ func (w *CWidget) IsToplevel() (value bool) {
 //
 // Locking: write [indirect]
 func (w *CWidget) SetWindow(window Window) {
-	if f := w.Emit(SignalSetWindow, w, window); f == enums.EVENT_PASS {
+	if f := w.Emit(SignalSetWindow, w, window); f == cenums.EVENT_PASS {
 		if err := w.SetStructProperty(PropertyWindow, window); err != nil {
 			w.LogErr(err)
 		} else if window != nil {
@@ -1605,7 +1609,7 @@ func (w *CWidget) GetMapped() (value bool) {
 
 func (w *CWidget) GetTheme() (theme paint.Theme) {
 	theme = w.CObject.GetTheme()
-	applyStyles := func(state StateType, content, border paint.Style) (paint.Style, paint.Style) {
+	applyStyles := func(state enums.StateType, content, border paint.Style) (paint.Style, paint.Style) {
 		var wColor, wBackgroundColor paint.Color
 		var wBorderColor, wBorderBackgroundColor paint.Color
 		var wBold, wBlink, wReverse, wUnderline, wDim, wItalic, wStrike bool
@@ -1624,11 +1628,11 @@ func (w *CWidget) GetTheme() (theme paint.Theme) {
 		modBorder := border.Foreground(wBorderColor).Background(wBorderBackgroundColor).Bold(wBold).Blink(wBlink).Reverse(wReverse).Underline(wUnderline).Dim(wDim).Italic(wItalic).Strike(wStrike)
 		return modContent, modBorder
 	}
-	theme.Content.Normal, theme.Border.Normal = applyStyles(StateNormal, theme.Content.Normal, theme.Border.Normal)
-	theme.Content.Active, theme.Border.Active = applyStyles(StateActive, theme.Content.Active, theme.Border.Active)
-	theme.Content.Selected, theme.Border.Selected = applyStyles(StateSelected, theme.Content.Selected, theme.Border.Selected)
-	theme.Content.Prelight, theme.Border.Prelight = applyStyles(StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
-	theme.Content.Insensitive, theme.Border.Insensitive = applyStyles(StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
+	theme.Content.Normal, theme.Border.Normal = applyStyles(enums.StateNormal, theme.Content.Normal, theme.Border.Normal)
+	theme.Content.Active, theme.Border.Active = applyStyles(enums.StateActive, theme.Content.Active, theme.Border.Active)
+	theme.Content.Selected, theme.Border.Selected = applyStyles(enums.StateSelected, theme.Content.Selected, theme.Border.Selected)
+	theme.Content.Prelight, theme.Border.Prelight = applyStyles(enums.StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
+	theme.Content.Insensitive, theme.Border.Insensitive = applyStyles(enums.StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
 	return
 }
 
@@ -1646,20 +1650,20 @@ func (w *CWidget) GetThemeRequest() (theme paint.Theme) {
 	instance := &theme
 	modified := theme
 	if w.IsDrawable() && w.IsVisible() {
-		if w.HasState(StateInsensitive) {
+		if w.HasState(enums.StateInsensitive) {
 			modified.Content.Normal = modified.Content.Insensitive
 			modified.Border.Normal = modified.Border.Insensitive
-		} else if w.HasState(StateActive) {
+		} else if w.HasState(enums.StateActive) {
 			modified.Content.Normal = modified.Content.Active
 			modified.Border.Normal = modified.Border.Active
-		} else if w.HasState(StateSelected) {
+		} else if w.HasState(enums.StateSelected) {
 			modified.Content.Normal = modified.Content.Selected
 			modified.Border.Normal = modified.Border.Selected
-		} else if w.HasState(StatePrelight) {
+		} else if w.HasState(enums.StatePrelight) {
 			modified.Content.Normal = modified.Content.Prelight
 			modified.Border.Normal = modified.Border.Prelight
 		}
-		if f := w.Emit(SignalGetThemeRequest, instance, modified); f == enums.EVENT_PASS {
+		if f := w.Emit(SignalGetThemeRequest, instance, modified); f == cenums.EVENT_PASS {
 			theme = modified
 			w.LogTrace("get-theme-request changes applied")
 		}
@@ -1675,9 +1679,9 @@ func (w *CWidget) GetThemeRequest() (theme paint.Theme) {
 // the changes are applied and the Widget.Invalidate() method is called
 func (w *CWidget) SetTheme(theme paint.Theme) {
 	if theme.String() != w.GetTheme().String() {
-		if f := w.Emit(SignalSetTheme, w, theme); f == enums.EVENT_PASS {
+		if f := w.Emit(SignalSetTheme, w, theme); f == cenums.EVENT_PASS {
 			w.CObject.SetTheme(theme)
-			apply := func(state StateType, cs, bs paint.Style) {
+			apply := func(state enums.StateType, cs, bs paint.Style) {
 				fg, bg, attr := cs.Decompose()
 				if prop := w.GetCssProperty(CssPropertyColor, state); prop != nil {
 					if err := prop.Set(fg); err != nil {
@@ -1738,11 +1742,11 @@ func (w *CWidget) SetTheme(theme paint.Theme) {
 				return
 			}
 			// Normal
-			apply(StateNormal, theme.Content.Normal, theme.Border.Normal)
-			apply(StateActive, theme.Content.Active, theme.Border.Active)
-			apply(StateSelected, theme.Content.Selected, theme.Border.Selected)
-			apply(StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
-			apply(StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
+			apply(enums.StateNormal, theme.Content.Normal, theme.Border.Normal)
+			apply(enums.StateActive, theme.Content.Active, theme.Border.Active)
+			apply(enums.StateSelected, theme.Content.Selected, theme.Border.Selected)
+			apply(enums.StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
+			apply(enums.StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
 			w.Invalidate()
 		}
 	}
@@ -1751,7 +1755,7 @@ func (w *CWidget) SetTheme(theme paint.Theme) {
 // Returns the widget's state. See SetState.
 // Returns:
 // 	the state of the widget.
-func (w *CWidget) GetState() (value StateType) {
+func (w *CWidget) GetState() (value enums.StateType) {
 	w.flagsLock.RLock()
 	defer w.flagsLock.RUnlock()
 	return w.state
@@ -1766,56 +1770,56 @@ func (w *CWidget) GetState() (value StateType) {
 //
 // Parameters:
 // 	state	new state for widget
-func (w *CWidget) SetState(state StateType) {
-	if f := w.Emit(SignalSetState, w, state); f == enums.EVENT_PASS {
+func (w *CWidget) SetState(state enums.StateType) {
+	if f := w.Emit(SignalSetState, w, state); f == cenums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		if state == StateNone {
-			w.state = StateNormal
+		if state == enums.StateNone {
+			w.state = enums.StateNormal
 		} else {
-			w.state = StateType(cbits.Set(uint64(w.state), uint64(state)))
+			w.state = w.state.Set(state)
 		}
 	}
 }
 
 // HasState returns TRUE if the Widget has the given StateType, FALSE otherwise.
 // Passing StateNone will always return FALSE.
-func (w *CWidget) HasState(s StateType) bool {
-	if s == StateNone {
+func (w *CWidget) HasState(s enums.StateType) bool {
+	if s == enums.StateNone {
 		return false
 	}
 	w.flagsLock.RLock()
 	defer w.flagsLock.RUnlock()
-	return w.state.HasBit(s)
+	return w.state.Has(s)
 }
 
 // UnsetState clears the given state bitmask from the Widget instance. If the
 // given state is StateNone, no action is taken. This method emits an
 // unset-state signal initially and if the listeners return EVENT_PASS, the
 // change is applied.
-func (w *CWidget) UnsetState(state StateType) {
-	if state == StateNone {
+func (w *CWidget) UnsetState(state enums.StateType) {
+	if state == enums.StateNone {
 		return
 	}
-	if f := w.Emit(SignalUnsetState, w, state); f == enums.EVENT_PASS {
+	if f := w.Emit(SignalUnsetState, w, state); f == cenums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		w.state = StateType(cbits.Clear(uint64(w.state), uint64(state)))
+		w.state = w.state.Clear(state)
 	}
 }
 
 // Returns the current flags for the Widget instance
-func (w *CWidget) GetFlags() WidgetFlags {
+func (w *CWidget) GetFlags() enums.WidgetFlags {
 	w.flagsLock.RLock()
 	defer w.flagsLock.RUnlock()
 	return w.flags
 }
 
 // Returns TRUE if the Widget instance has the given flag, FALSE otherwise
-func (w *CWidget) HasFlags(f WidgetFlags) bool {
+func (w *CWidget) HasFlags(f enums.WidgetFlags) bool {
 	w.flagsLock.RLock()
 	defer w.flagsLock.RUnlock()
-	return w.flags.HasBit(f)
+	return w.flags.Has(f)
 }
 
 // Removes the given flags from the Widget instance. This method emits an
@@ -1823,11 +1827,11 @@ func (w *CWidget) HasFlags(f WidgetFlags) bool {
 // change is applied
 //
 // Emits: SignalUnsetFlags, Argv=[Widget instance, given flags to unset]
-func (w *CWidget) UnsetFlags(v WidgetFlags) {
-	if f := w.Emit(SignalUnsetFlags, w, v); f == enums.EVENT_PASS {
+func (w *CWidget) UnsetFlags(v enums.WidgetFlags) {
+	if f := w.Emit(SignalUnsetFlags, w, v); f == cenums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		w.flags = WidgetFlags(cbits.Clear(uint64(w.flags), uint64(v)))
+		w.flags = w.flags.Clear(v)
 	}
 }
 
@@ -1836,25 +1840,25 @@ func (w *CWidget) UnsetFlags(v WidgetFlags) {
 // applied
 //
 // Emits: SignalSetFlags, Argv=[Widget instance, given flags to set]
-func (w *CWidget) SetFlags(v WidgetFlags) {
-	if f := w.Emit(SignalSetFlags, w, w.flags, v); f == enums.EVENT_PASS {
+func (w *CWidget) SetFlags(v enums.WidgetFlags) {
+	if f := w.Emit(SignalSetFlags, w, w.flags, v); f == cenums.EVENT_PASS {
 		w.flagsLock.Lock()
 		defer w.flagsLock.Unlock()
-		w.flags = WidgetFlags(cbits.Set(uint64(w.flags), uint64(v)))
+		w.flags = w.flags.Set(v)
 	}
 }
 
 // If the Widget instance is PARENT_SENSITIVE and one of it's parents are the
 // focus for the associated Window, return TRUE and FALSE otherwise
 func (w *CWidget) IsParentFocused() bool {
-	if w.HasFlags(PARENT_SENSITIVE) {
+	if w.HasFlags(enums.PARENT_SENSITIVE) {
 		var lastParent Widget
 		parent, _ := w.GetParent().(Widget)
 		for parent != nil {
 			if parent.IsFocus() {
 				return true
 			}
-			if !parent.HasFlags(PARENT_SENSITIVE) || parent.IsToplevel() {
+			if !parent.HasFlags(enums.PARENT_SENSITIVE) || parent.IsToplevel() {
 				// don't recurse
 				break
 			}
@@ -1877,14 +1881,14 @@ func (w *CWidget) IsFocused() bool {
 
 // Returns TRUE if the Widget instance has the CAN_FOCUS flag, FALSE otherwise
 func (w *CWidget) CanFocus() bool {
-	return w.HasFlags(CAN_FOCUS)
+	return w.HasFlags(enums.CAN_FOCUS)
 }
 
 // Returns TRUE if the Widget instance CanDefault() and the HAS_DEFAULT flag is
 // set, returns FALSE otherwise
 func (w *CWidget) IsDefault() bool {
 	if w.CanDefault() {
-		return w.HasFlags(HAS_DEFAULT)
+		return w.HasFlags(enums.HAS_DEFAULT)
 	}
 	return false
 }
@@ -1893,14 +1897,14 @@ func (w *CWidget) IsDefault() bool {
 // set, returns FALSE otherwise
 func (w *CWidget) CanDefault() bool {
 	if w.IsSensitive() {
-		return w.HasFlags(CAN_DEFAULT)
+		return w.HasFlags(enums.CAN_DEFAULT)
 	}
 	return false
 }
 
 // Returns TRUE if the VISIBLE flag is set, FALSE otherwise
 func (w *CWidget) IsVisible() bool {
-	return w.HasFlags(VISIBLE)
+	return w.HasFlags(enums.VISIBLE)
 }
 
 func (w *CWidget) HasEventFocus() bool {
@@ -1947,7 +1951,7 @@ func (w *CWidget) ReleaseEventFocus() {
 	if window := w.GetWindow(); window != nil {
 		if ef := window.GetEventFocus(); ef != nil {
 			if wef, ok := ef.(Widget); ok && wef.ObjectID() == w.ObjectID() {
-				if f := w.Emit(SignalReleaseEventFocus, w, window); f == enums.EVENT_PASS {
+				if f := w.Emit(SignalReleaseEventFocus, w, window); f == cenums.EVENT_PASS {
 					window.SetEventFocus(nil)
 				}
 			}
@@ -1983,50 +1987,50 @@ func (w *CWidget) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-func (w *CWidget) lostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (w *CWidget) lostFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
-		if w.HasState(StateSelected) {
-			w.UnsetState(StateSelected)
+		if w.HasState(enums.StateSelected) {
+			w.UnsetState(enums.StateSelected)
 		}
 		w.Invalidate()
 		w.LogDebug("lost focus")
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (w *CWidget) gainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (w *CWidget) gainedFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
-		if !w.HasState(StateSelected) {
-			w.SetState(StateSelected)
+		if !w.HasState(enums.StateSelected) {
+			w.SetState(enums.StateSelected)
 		}
 		w.Invalidate()
 		w.LogDebug("gained focus")
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (w *CWidget) enter(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (w *CWidget) enter(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
-		if !w.HasState(StatePrelight) {
-			w.SetState(StatePrelight)
+		if !w.HasState(enums.StatePrelight) {
+			w.SetState(enums.StatePrelight)
 			w.LogDebug("mouse enter")
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (w *CWidget) leave(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (w *CWidget) leave(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
-		if w.HasState(StatePrelight) {
-			w.UnsetState(StatePrelight)
+		if w.HasState(enums.StatePrelight) {
+			w.UnsetState(enums.StatePrelight)
 			w.LogDebug("mouse leave")
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // Whether the application will paint directly on the widget.

@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeScrollbar cdk.CTypeTag = "ctk-scrollbar"
@@ -67,12 +68,12 @@ type Scrollbar interface {
 	SetHasSecondaryBackwardStepper(hasSecondaryBackwardStepper bool)
 	GetHasSecondaryForwardStepper() (hasSecondaryForwardStepper bool)
 	SetHasSecondaryForwardStepper(hasSecondaryForwardStepper bool)
-	Forward(step int) enums.EventFlag
-	ForwardStep() enums.EventFlag
-	ForwardPage() enums.EventFlag
-	Backward(step int) enums.EventFlag
-	BackwardStep() enums.EventFlag
-	BackwardPage() enums.EventFlag
+	Forward(step int) cenums.EventFlag
+	ForwardStep() cenums.EventFlag
+	ForwardPage() cenums.EventFlag
+	Backward(step int) cenums.EventFlag
+	BackwardStep() cenums.EventFlag
+	BackwardPage() cenums.EventFlag
 	GetSizeRequest() (width, height int)
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	ValueChanged()
@@ -91,7 +92,7 @@ type Scrollbar interface {
 type CScrollbar struct {
 	CRange
 
-	orientation     enums.Orientation
+	orientation     cenums.Orientation
 	minSliderLength int
 	sliderMoving    bool
 	prevSliderPos   *ptypes.Point2I
@@ -120,10 +121,10 @@ func (s *CScrollbar) Init() (already bool) {
 		return true
 	}
 	s.CRange.Init()
-	s.flags = NULL_WIDGET_FLAG
-	s.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_FOCUS | APP_PAINTABLE)
-	if s.orientation == enums.ORIENTATION_NONE {
-		s.orientation = enums.ORIENTATION_VERTICAL
+	s.flags = enums.NULL_WIDGET_FLAG
+	s.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_FOCUS | enums.APP_PAINTABLE)
+	if s.orientation == cenums.ORIENTATION_NONE {
+		s.orientation = cenums.ORIENTATION_VERTICAL
 	}
 	s.SetTheme(DefaultScrollbarTheme)
 	s.focusedButton = nil
@@ -131,10 +132,10 @@ func (s *CScrollbar) Init() (already bool) {
 	s.hasForwardStepper = true
 	s.hasSecondaryBackwardStepper = false
 	s.hasSecondaryForwardStepper = false
-	s.backwardStepper = s.makeStepperButton(ArrowUp, false)
-	s.forwardStepper = s.makeStepperButton(ArrowDown, true)
-	s.secondaryForwardStepper = s.makeStepperButton(ArrowDown, true)
-	s.secondaryBackwardStepper = s.makeStepperButton(ArrowUp, false)
+	s.backwardStepper = s.makeStepperButton(enums.ArrowUp, false)
+	s.forwardStepper = s.makeStepperButton(enums.ArrowDown, true)
+	s.secondaryForwardStepper = s.makeStepperButton(enums.ArrowDown, true)
+	s.secondaryBackwardStepper = s.makeStepperButton(enums.ArrowUp, false)
 	l := NewLabel("*")
 	l.Show()
 	l.SetSingleLineMode(true)
@@ -223,7 +224,7 @@ func (s *CScrollbar) SetHasSecondaryForwardStepper(hasSecondaryForwardStepper bo
 	s.Unlock()
 }
 
-func (s *CScrollbar) Forward(step int) enums.EventFlag {
+func (s *CScrollbar) Forward(step int) cenums.EventFlag {
 	min, max := s.GetRange()
 	value := s.GetValue()
 	want := value + step
@@ -232,22 +233,22 @@ func (s *CScrollbar) Forward(step int) enums.EventFlag {
 	s.Invalidate()
 	s.LogDebug("Forward: (step: %v, wants: %d, got:%d, range: %d-%d)", step, want, got, min, max)
 	if value != got {
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (s *CScrollbar) ForwardStep() enums.EventFlag {
+func (s *CScrollbar) ForwardStep() cenums.EventFlag {
 	step, _ := s.GetIncrements()
 	return s.Forward(step)
 }
 
-func (s *CScrollbar) ForwardPage() enums.EventFlag {
+func (s *CScrollbar) ForwardPage() cenums.EventFlag {
 	_, page := s.GetIncrements()
 	return s.Forward(page)
 }
 
-func (s *CScrollbar) Backward(step int) enums.EventFlag {
+func (s *CScrollbar) Backward(step int) cenums.EventFlag {
 	min, max := s.GetRange()
 	value := s.GetValue()
 	want := value - step
@@ -256,17 +257,17 @@ func (s *CScrollbar) Backward(step int) enums.EventFlag {
 	s.Invalidate()
 	s.LogDebug("Backward: (step: %v, wants: %d, got:%d, range: %d-%d)", step, want, got, min, max)
 	if value != got {
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (s *CScrollbar) BackwardStep() enums.EventFlag {
+func (s *CScrollbar) BackwardStep() cenums.EventFlag {
 	step, _ := s.GetIncrements()
 	return s.Backward(step)
 }
 
-func (s *CScrollbar) BackwardPage() enums.EventFlag {
+func (s *CScrollbar) BackwardPage() cenums.EventFlag {
 	_, page := s.GetIncrements()
 	return s.Backward(page)
 }
@@ -275,9 +276,9 @@ func (s *CScrollbar) GetSizeRequest() (width, height int) {
 	size := ptypes.NewRectangle(s.CWidget.GetSizeRequest())
 	s.RLock()
 	switch s.orientation {
-	case enums.ORIENTATION_HORIZONTAL:
+	case cenums.ORIENTATION_HORIZONTAL:
 		size.H = 1
-	case enums.ORIENTATION_VERTICAL:
+	case cenums.ORIENTATION_VERTICAL:
 		fallthrough
 	default:
 		size.W = 1
@@ -333,7 +334,7 @@ func (s *CScrollbar) GetAllStepperRegions() (fwd, bwd, sFwd, sBwd ptypes.Region)
 	s.RLock()
 	fwd, bwd, sFwd, sBwd = end, start, start, end
 	switch s.orientation {
-	case enums.ORIENTATION_HORIZONTAL:
+	case cenums.ORIENTATION_HORIZONTAL:
 		if fwd.W == 2 {
 			fwd.X += 1
 			fwd.W = 1
@@ -342,7 +343,7 @@ func (s *CScrollbar) GetAllStepperRegions() (fwd, bwd, sFwd, sBwd ptypes.Region)
 			sFwd.X += 1
 			sFwd.W = 1
 		}
-	case enums.ORIENTATION_VERTICAL:
+	case cenums.ORIENTATION_VERTICAL:
 	default:
 		if fwd.H == 2 {
 			fwd.Y += 1
@@ -362,7 +363,7 @@ func (s *CScrollbar) GetStepperRegions() (start, end ptypes.Region) {
 	origin := s.GetOrigin()
 	s.RLock()
 	switch s.orientation {
-	case enums.ORIENTATION_HORIZONTAL:
+	case cenums.ORIENTATION_HORIZONTAL:
 		start.X, start.Y, start.W, start.H = origin.X, origin.Y, 0, 1
 		if s.hasForwardStepper {
 			start.W += 1
@@ -379,7 +380,7 @@ func (s *CScrollbar) GetStepperRegions() (start, end ptypes.Region) {
 			end.W += 1
 			end.X -= 1
 		}
-	case enums.ORIENTATION_VERTICAL:
+	case cenums.ORIENTATION_VERTICAL:
 		fallthrough
 	default:
 		start.X, start.Y, start.W, start.H = origin.X, origin.Y, 1, 0
@@ -409,10 +410,10 @@ func (s *CScrollbar) GetTroughRegion() (region ptypes.Region) {
 	s.RLock()
 	region = ptypes.MakeRegion(start.X, start.Y, 1, 1)
 	switch s.orientation {
-	case enums.ORIENTATION_HORIZONTAL:
+	case cenums.ORIENTATION_HORIZONTAL:
 		region.X += start.W
 		region.W = alloc.W - start.W - end.W
-	case enums.ORIENTATION_VERTICAL:
+	case cenums.ORIENTATION_VERTICAL:
 		fallthrough
 	default:
 		region.Y += start.H
@@ -436,7 +437,7 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	s.RLock()
 	region = ptypes.MakeRegion(trough.X, trough.Y, 1, 1)
 	switch s.orientation {
-	case enums.ORIENTATION_HORIZONTAL:
+	case cenums.ORIENTATION_HORIZONTAL:
 		if upper == 0 {
 			region.W = trough.W
 		} else {
@@ -460,7 +461,7 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 			region.X += inc
 			region.X = cmath.ClampI(region.X, 0, trough.X+trough.W-1)
 		}
-	case enums.ORIENTATION_VERTICAL:
+	case cenums.ORIENTATION_VERTICAL:
 		fallthrough
 	default:
 		if upper == 0 {
@@ -492,7 +493,7 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	return
 }
 
-func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) enums.EventFlag {
+func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) cenums.EventFlag {
 	// me := NewMouseEvent(e)
 	slider := s.GetSliderRegion()
 	w := s.GetWidgetAt(p)
@@ -505,7 +506,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 					s.Lock()
 					s.focusedButton = wb
 					s.Unlock()
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
 			}
 			if slider.HasPoint(*p) {
@@ -514,7 +515,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 				s.sliderMoving = true
 				s.focusedButton = nil
 				s.Unlock()
-				return enums.EVENT_STOP
+				return cenums.EVENT_STOP
 			}
 		}
 	case cdk.DRAG_START:
@@ -528,9 +529,9 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 	case cdk.DRAG_MOVE:
 		if s.sliderMoving {
 			if s.prevSliderPos != nil {
-				if s.prevSliderPos.X != p.X && s.orientation == enums.ORIENTATION_HORIZONTAL {
+				if s.prevSliderPos.X != p.X && s.orientation == cenums.ORIENTATION_HORIZONTAL {
 					// moved horizontally
-					if s.textDirection == TextDirRtl {
+					if s.textDirection == enums.TextDirRtl {
 						// left=forward, right=backward
 						if p.X > s.prevSliderPos.X {
 							// right=backward
@@ -549,9 +550,9 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 							s.BackwardPage()
 						}
 					}
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
-				if s.prevSliderPos.Y != p.Y && s.orientation == enums.ORIENTATION_VERTICAL {
+				if s.prevSliderPos.Y != p.Y && s.orientation == cenums.ORIENTATION_VERTICAL {
 					// moved vertically
 					// down=forward, up=backward
 					if p.Y > s.prevSliderPos.Y {
@@ -563,7 +564,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 					} else {
 						// neither
 					}
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
 			}
 			s.Lock()
@@ -579,7 +580,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 		s.sliderMoving = false
 		s.prevSliderPos = nil
 		s.Unlock()
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	case cdk.BUTTON_RELEASE:
 		if s.HasEventFocus() {
 			s.ReleaseEventFocus()
@@ -593,7 +594,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 				s.sliderMoving = false
 				s.prevSliderPos = nil
 				s.Unlock()
-				return enums.EVENT_STOP
+				return cenums.EVENT_STOP
 			}
 		}
 		s.Lock()
@@ -602,8 +603,8 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 		s.prevSliderPos = nil
 		s.Unlock()
 		slider := s.GetSliderRegion()
-		if s.orientation == enums.ORIENTATION_HORIZONTAL {
-			if s.textDirection == TextDirRtl {
+		if s.orientation == cenums.ORIENTATION_HORIZONTAL {
+			if s.textDirection == enums.TextDirRtl {
 				if p.X < slider.X {
 					return s.ForwardPage()
 				} else if p.X >= slider.X+slider.W {
@@ -624,10 +625,10 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) e
 			}
 		}
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (s *CScrollbar) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (s *CScrollbar) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
 		case *cdk.EventMouse:
@@ -636,7 +637,7 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) enums.EventF
 		case *cdk.EventKey:
 			if s.HasEventFocus() {
 				s.CancelEvent()
-				return enums.EVENT_STOP
+				return cenums.EVENT_STOP
 			}
 			adjustment := s.GetAdjustment()
 			s.Lock()
@@ -647,7 +648,7 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) enums.EventF
 				s.LogError("missing adjustment")
 			}
 			switch s.orientation {
-			case enums.ORIENTATION_HORIZONTAL:
+			case cenums.ORIENTATION_HORIZONTAL:
 				switch e.Key() {
 				case cdk.KeyLeft:
 					if e.Modifiers().Has(cdk.ModShift) {
@@ -664,7 +665,7 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) enums.EventF
 					s.Unlock()
 					return s.Forward(step)
 				}
-			case enums.ORIENTATION_VERTICAL:
+			case cenums.ORIENTATION_VERTICAL:
 				fallthrough
 			default:
 				switch e.Key() {
@@ -685,21 +686,21 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) enums.EventF
 			s.Unlock()
 		}
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (s *CScrollbar) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (s *CScrollbar) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	s.resizeSteppers()
 	s.resizeSlider()
 	s.Invalidate()
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
 func (s *CScrollbar) resizeSteppers() {
 	fwd, bwd, sFwd, sBwd := s.GetAllStepperRegions()
-	aFwd, aBwd := ArrowDown, ArrowUp
-	if s.orientation == enums.ORIENTATION_HORIZONTAL {
-		aFwd, aBwd = ArrowRight, ArrowLeft
+	aFwd, aBwd := enums.ArrowDown, enums.ArrowUp
+	if s.orientation == cenums.ORIENTATION_HORIZONTAL {
+		aFwd, aBwd = enums.ArrowRight, enums.ArrowLeft
 	}
 	s.resizeStepper(
 		aFwd, aBwd,
@@ -727,14 +728,14 @@ func (s *CScrollbar) resizeSteppers() {
 	)
 }
 
-func (s *CScrollbar) makeStepperButton(arrow ArrowType, forward bool) *CButton {
+func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) *CButton {
 	a := NewArrow(arrow)
 	a.Show()
 	a.SetOrigin(0, 0)
 	// a.SetSizeRequest(1, 1)
 	a.SetAllocation(ptypes.MakeRectangle(1, 1))
 	a.SetTheme(DefaultButtonTheme)
-	a.UnsetFlags(CAN_FOCUS)
+	a.UnsetFlags(enums.CAN_FOCUS)
 	b := NewButtonWithWidget(a)
 	b.ShowAll()
 	b.SetFocusOnClick(false)
@@ -743,7 +744,7 @@ func (s *CScrollbar) makeStepperButton(arrow ArrowType, forward bool) *CButton {
 	b.Connect(
 		SignalActivate,
 		fmt.Sprintf("%v.activate", s.ObjectName()),
-		func(data []interface{}, argv ...interface{}) enums.EventFlag {
+		func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			if adjustment := s.GetAdjustment(); adjustment != nil {
 				if forward {
 					s.Forward(adjustment.GetStepIncrement())
@@ -753,13 +754,13 @@ func (s *CScrollbar) makeStepperButton(arrow ArrowType, forward bool) *CButton {
 			} else {
 				s.LogError("missing adjustment")
 			}
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		},
 	)
 	return b
 }
 
-func (s *CScrollbar) resizeStepper(fArrow, bArrow ArrowType, has bool, b *CButton, forward bool, x, y, w, h int) {
+func (s *CScrollbar) resizeStepper(fArrow, bArrow enums.ArrowType, has bool, b *CButton, forward bool, x, y, w, h int) {
 	if has {
 		if bc := b.GetChild(); bc != nil {
 			if ba, ok := bc.(Arrow); ok {
@@ -796,11 +797,11 @@ func (s *CScrollbar) resizeSlider() {
 	s.Unlock()
 }
 
-func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	// s.resizeSteppers()
 	// s.resizeSlider()
 	origin := s.GetOrigin()
-	isSelected := s.HasState(StateSelected)
+	isSelected := s.HasState(enums.StateSelected)
 	size := ptypes.MakeRectangle(1, 1)
 	theme := s.GetThemeRequest()
 	style := theme.Content.Normal
@@ -808,9 +809,9 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) enums.E
 		if b != nil {
 			bid := b.ObjectID()
 			if isSelected {
-				b.SetState(StateSelected)
+				b.SetState(enums.StateSelected)
 			} else {
-				b.UnsetState(StateSelected)
+				b.UnsetState(enums.StateSelected)
 			}
 			local := b.GetOrigin()
 			local.SubPoint(origin)
@@ -825,15 +826,15 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) enums.E
 	doConfigure(s.backwardStepper)
 	doConfigure(s.secondaryForwardStepper)
 	doConfigure(s.secondaryBackwardStepper)
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := s.GetAllocation()
 		if !s.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			s.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 
 		theme := s.GetThemeRequest()
@@ -876,7 +877,7 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) enums.EventFl
 		// draw the stepper buttons
 		drawStepper := func(has bool, b Button, r ptypes.Region) error {
 			if has && b != nil {
-				if f := b.Draw(); f == enums.EVENT_STOP {
+				if f := b.Draw(); f == cenums.EVENT_STOP {
 					return surface.Composite(b.ObjectID())
 				}
 			}
@@ -896,9 +897,9 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) enums.EventFl
 			s.LogError("error compositing secondary forward stepper: %v", err)
 		}
 
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 const ScrollbarEventHandle = "scrollbar-event-handler"

@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 	"github.com/gofrs/uuid"
 )
 
@@ -31,9 +32,9 @@ func init() {
 			}
 			if isTrue {
 				if wmi, err := widget.GetStructProperty(PropertyWrapMode); err == nil {
-					if wm, ok := wmi.(enums.WrapMode); ok {
-						if wm == enums.WRAP_NONE {
-							if err := widget.SetStructProperty(PropertyWrapMode, enums.WRAP_WORD); err != nil {
+					if wm, ok := wmi.(cenums.WrapMode); ok {
+						if wm == cenums.WRAP_NONE {
+							if err := widget.SetStructProperty(PropertyWrapMode, cenums.WRAP_WORD); err != nil {
 								widget.LogErr(err)
 							}
 						}
@@ -66,12 +67,12 @@ type Label interface {
 	SetAttributes(attrs paint.Style)
 	SetMarkup(text string) (parseError error)
 	SetMarkupWithMnemonic(str string) (err error)
-	SetJustify(justify enums.Justification)
+	SetJustify(justify cenums.Justification)
 	SetEllipsize(mode bool)
 	SetWidthChars(nChars int)
 	SetMaxWidthChars(nChars int)
 	SetLineWrap(wrap bool)
-	SetLineWrapMode(wrapMode enums.WrapMode)
+	SetLineWrapMode(wrapMode cenums.WrapMode)
 	GetMnemonicKeyVal() (value rune)
 	GetSelectable() (value bool)
 	GetText() (value string)
@@ -80,13 +81,13 @@ type Label interface {
 	SetSelectable(setting bool)
 	SetTextWithMnemonic(str string)
 	GetAttributes() (value paint.Style)
-	GetJustify() (value enums.Justification)
+	GetJustify() (value cenums.Justification)
 	GetEllipsize() (value bool)
 	GetWidthChars() (value int)
 	GetMaxWidthChars() (value int)
 	GetLabel() (value string)
 	GetLineWrap() (value bool)
-	GetLineWrapMode() (value enums.WrapMode)
+	GetLineWrapMode() (value cenums.WrapMode)
 	GetMnemonicWidget() (value Widget)
 	GetSelectionBounds() (start int, end int, nonEmpty bool)
 	GetUseMarkup() (value bool)
@@ -174,12 +175,12 @@ func (l *CLabel) Init() (already bool) {
 		return true
 	}
 	l.CMisc.Init()
-	l.flags = NULL_WIDGET_FLAG
-	l.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	l.flags = enums.NULL_WIDGET_FLAG
+	l.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
 	_ = l.InstallProperty(PropertyCursorPosition, cdk.IntProperty, false, 0)
 	_ = l.InstallProperty(PropertyEllipsize, cdk.BoolProperty, true, false)
-	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, enums.JUSTIFY_LEFT)
+	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_LEFT)
 	_ = l.InstallProperty(PropertyLabel, cdk.StringProperty, true, "")
 	_ = l.InstallProperty(PropertyMaxWidthChars, cdk.IntProperty, true, -1)
 	_ = l.InstallProperty(PropertyMnemonicKeyVal, cdk.IntProperty, false, rune(0))
@@ -192,7 +193,7 @@ func (l *CLabel) Init() (already bool) {
 	_ = l.InstallProperty(PropertyUseUnderline, cdk.BoolProperty, true, false)
 	_ = l.InstallProperty(PropertyWidthChars, cdk.IntProperty, true, -1)
 	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
-	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, enums.WRAP_WORD)
+	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_WORD)
 	l.Connect(SignalInvalidate, LabelInvalidateHandle, l.invalidate)
 	l.Connect(SignalResize, LabelResizeHandle, l.resize)
 	l.Connect(SignalDraw, LabelDrawHandle, l.draw)
@@ -307,7 +308,7 @@ func (l *CLabel) SetMarkupWithMnemonic(str string) (err error) {
 // 	jtype	a Justification
 //
 // Locking: write
-func (l *CLabel) SetJustify(justify enums.Justification) {
+func (l *CLabel) SetJustify(justify cenums.Justification) {
 	if err := l.SetStructProperty(PropertyJustify, justify); err != nil {
 		l.LogErr(err)
 	}
@@ -377,7 +378,7 @@ func (l *CLabel) SetLineWrap(wrap bool) {
 // 	wrapMode	the line wrapping mode
 //
 // Locking: write
-func (l *CLabel) SetLineWrapMode(wrapMode enums.WrapMode) {
+func (l *CLabel) SetLineWrapMode(wrapMode cenums.WrapMode) {
 	if err := l.SetStructProperty(PropertyWrapMode, wrapMode); err != nil {
 		l.LogErr(err)
 	}
@@ -520,12 +521,12 @@ func (l *CLabel) GetAttributes() (value paint.Style) {
 // See: SetJustify()
 //
 // Locking: read
-func (l *CLabel) GetJustify() (value enums.Justification) {
+func (l *CLabel) GetJustify() (value cenums.Justification) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyJustify); err != nil {
 		l.LogErr(err)
-	} else if value, ok = v.(enums.Justification); !ok {
-		l.LogError("value stored in PropertyJustify is not of enums.Justification type: %v (%T)", v, v)
+	} else if value, ok = v.(cenums.Justification); !ok {
+		l.LogError("value stored in PropertyJustify is not of cenums.Justification type: %v (%T)", v, v)
 	}
 	return
 }
@@ -595,12 +596,12 @@ func (l *CLabel) GetLineWrap() (value bool) {
 // See: SetLineWrapMode()
 //
 // Locking: read
-func (l *CLabel) GetLineWrapMode() (value enums.WrapMode) {
+func (l *CLabel) GetLineWrapMode() (value cenums.WrapMode) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyWrapMode); err != nil {
 		l.LogErr(err)
-	} else if value, ok = v.(enums.WrapMode); !ok {
-		l.LogError("value stored in PropertyWrap is not of enums.WrapMode type: %v (%T)", v, v)
+	} else if value, ok = v.(cenums.WrapMode); !ok {
+		l.LogError("value stored in PropertyWrap is not of cenums.WrapMode type: %v (%T)", v, v)
 	}
 	return
 }
@@ -783,7 +784,7 @@ func (l *CLabel) GetTrackVisitedLinks() (value bool) {
 // configured on the Label instance.
 //
 // Locking: read
-func (l *CLabel) Settings() (singleLineMode bool, lineWrapMode enums.WrapMode, ellipsize bool, justify enums.Justification, maxWidthChars int) {
+func (l *CLabel) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, ellipsize bool, justify cenums.Justification, maxWidthChars int) {
 	singleLineMode = l.GetSingleLineMode()
 	lineWrapMode = l.GetLineWrapMode()
 	ellipsize = l.GetEllipsize()
@@ -978,11 +979,11 @@ func (l *CLabel) refreshTextBuffer() (err error) {
 	return
 }
 
-func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 		l.LogTrace("not visible, zero width or zero height")
-		return enums.EVENT_PASS
+		return cenums.EVENT_PASS
 	}
 
 	theme := l.GetThemeRequest()
@@ -1012,10 +1013,10 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 
 	l.Unlock()
 	l.Invalidate()
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	theme := l.GetThemeRequest()
 	if err := l.refreshTextBuffer(); err != nil {
 		l.LogErr(err)
@@ -1031,15 +1032,15 @@ func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) enums.Event
 		l.LogErr(err)
 	}
 	l.Unlock()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := l.GetAllocation()
 		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			l.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 
 		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
@@ -1051,7 +1052,7 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
 			} else {
-				if f := l.tbuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, enums.ALIGN_TOP); f == enums.EVENT_STOP {
+				if f := l.tbuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
 					if err := surface.CompositeSurface(tSurface); err != nil {
 						l.LogErr(err)
 					}
@@ -1062,9 +1063,9 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if debug, _ := l.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, l.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // A list of style attributes to apply to the text of the label.
@@ -1087,7 +1088,7 @@ const PropertyEllipsize cdk.Property = "ellipsize"
 // other. This does NOT affect the alignment of the label within its
 // allocation. See Misc::xAlign for that.
 // Flags: Read / Write
-// Default value: enums.JUSTIFY_LEFT
+// Default value: cenums.JUSTIFY_LEFT
 const PropertyJustify cdk.Property = "justify"
 
 // The text of the label.

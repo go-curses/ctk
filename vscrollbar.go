@@ -2,7 +2,8 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const (
@@ -29,7 +30,7 @@ func MakeVScrollbar() *CVScrollbar {
 
 func NewVScrollbar() *CVScrollbar {
 	v := &CVScrollbar{}
-	v.orientation = enums.ORIENTATION_VERTICAL
+	v.orientation = cenums.ORIENTATION_VERTICAL
 	v.Init()
 	return v
 }
@@ -39,7 +40,7 @@ func (v *CVScrollbar) Init() (already bool) {
 		return true
 	}
 	v.CScrollbar.Init()
-	v.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_FOCUS | APP_PAINTABLE)
+	v.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_FOCUS | enums.APP_PAINTABLE)
 	v.SetTheme(DefaultScrollbarTheme)
 	return false
 }

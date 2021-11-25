@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeButton cdk.CTypeTag = "ctk-button"
@@ -72,9 +73,9 @@ type Button interface {
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
 	Activate() (value bool)
-	Clicked() enums.EventFlag
-	GetRelief() (value ReliefStyle)
-	SetRelief(newStyle ReliefStyle)
+	Clicked() cenums.EventFlag
+	GetRelief() (value enums.ReliefStyle)
+	SetRelief(newStyle enums.ReliefStyle)
 	GetLabel() (value string)
 	SetLabel(label string)
 	GetUseStock() (value bool)
@@ -89,8 +90,8 @@ type Button interface {
 	SetAlignment(xAlign float64, yAlign float64)
 	GetImage() (value Widget, ok bool)
 	SetImage(image Widget)
-	GetImagePosition() (value PositionType)
-	SetImagePosition(position PositionType)
+	GetImagePosition() (value enums.PositionType)
+	SetImagePosition(position enums.PositionType)
 	GetPressed() bool
 	SetPressed(pressed bool)
 	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
@@ -135,12 +136,12 @@ func NewButtonWithLabel(text string) (b *CButton) {
 	label.Show()
 	b.Add(label)
 	label.SetTheme(DefaultButtonTheme)
-	label.UnsetFlags(CAN_FOCUS)
-	label.UnsetFlags(CAN_DEFAULT)
-	label.UnsetFlags(RECEIVES_DEFAULT)
+	label.UnsetFlags(enums.CAN_FOCUS)
+	label.UnsetFlags(enums.CAN_DEFAULT)
+	label.UnsetFlags(enums.RECEIVES_DEFAULT)
 	label.SetLineWrap(false)
-	label.SetLineWrapMode(enums.WRAP_NONE)
-	label.SetJustify(enums.JUSTIFY_CENTER)
+	label.SetLineWrapMode(cenums.WRAP_NONE)
+	label.SetJustify(cenums.JUSTIFY_CENTER)
 	label.SetAlignment(0.5, 0.5)
 	label.SetSingleLineMode(true)
 	return b
@@ -198,8 +199,8 @@ func (b *CButton) Init() (already bool) {
 		return true
 	}
 	b.CBin.Init()
-	b.flags = NULL_WIDGET_FLAG
-	b.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_DEFAULT | RECEIVES_DEFAULT | CAN_FOCUS | APP_PAINTABLE)
+	b.flags = enums.NULL_WIDGET_FLAG
+	b.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.RECEIVES_DEFAULT | enums.CAN_FOCUS | enums.APP_PAINTABLE)
 	b.SetTheme(DefaultButtonTheme)
 	b.pressed = false
 	_ = b.InstallBuildableProperty(PropertyFocusOnClick, cdk.BoolProperty, true, true)
@@ -248,11 +249,11 @@ func (b *CButton) Build(builder Builder, element *CBuilderElement) error {
 
 // Activate emits a SignalActivate, returning TRUE if the event was handled
 func (b *CButton) Activate() (value bool) {
-	return b.Emit(SignalActivate, b) == enums.EVENT_STOP
+	return b.Emit(SignalActivate, b) == cenums.EVENT_STOP
 }
 
 // Clicked emits a SignalClicked
-func (b *CButton) Clicked() enums.EventFlag {
+func (b *CButton) Clicked() cenums.EventFlag {
 	// TODO: button Clicked() is not defined well
 	return b.Emit(SignalClicked, b)
 }
@@ -261,12 +262,12 @@ func (b *CButton) Clicked() enums.EventFlag {
 // See: SetRelief()
 //
 // Locking: read
-func (b *CButton) GetRelief() (value ReliefStyle) {
+func (b *CButton) GetRelief() (value enums.ReliefStyle) {
 	if v, err := b.GetStructProperty(PropertyRelief); err != nil {
 		b.LogErr(err)
 	} else {
 		var ok bool
-		if value, ok = v.(ReliefStyle); !ok {
+		if value, ok = v.(enums.ReliefStyle); !ok {
 			b.LogError("value stored in relief property is not of type ReliefStyle")
 		}
 	}
@@ -278,7 +279,7 @@ func (b *CButton) GetRelief() (value ReliefStyle) {
 // Note that usage of this within CTK is unimplemented at this time
 //
 // Locking: write
-func (b *CButton) SetRelief(newStyle ReliefStyle) {
+func (b *CButton) SetRelief(newStyle enums.ReliefStyle) {
 	if err := b.SetStructProperty(PropertyRelief, newStyle); err != nil {
 		b.LogErr(err)
 	}
@@ -521,12 +522,12 @@ func (b *CButton) SetImage(image Widget) {
 // See: SetImagePosition()
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (b *CButton) GetImagePosition() (value PositionType) {
+func (b *CButton) GetImagePosition() (value enums.PositionType) {
 	if v, err := b.GetStructProperty(PropertyImagePosition); err != nil {
 		b.LogErr(err)
 	} else {
 		var ok bool
-		if value, ok = v.(PositionType); !ok {
+		if value, ok = v.(enums.PositionType); !ok {
 			b.LogError("value stored in PropertyImagePosition is not a PositionType: %T", v)
 		}
 	}
@@ -541,7 +542,7 @@ func (b *CButton) GetImagePosition() (value PositionType) {
 // 	position	the position
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (b *CButton) SetImagePosition(position PositionType) {
+func (b *CButton) SetImagePosition(position enums.PositionType) {
 	if err := b.SetStructProperty(PropertyImagePosition, position); err != nil {
 		b.LogErr(err)
 	}
@@ -562,15 +563,15 @@ func (b *CButton) SetPressed(pressed bool) {
 	b.pressed = pressed
 	b.Unlock()
 	if pressed {
-		b.SetState(StateActive)
+		b.SetState(enums.StateActive)
 		if child := b.GetChild(); child != nil {
-			child.SetState(StateActive)
+			child.SetState(enums.StateActive)
 		}
 		b.Emit(SignalPressed)
 	} else {
-		b.UnsetState(StateActive)
+		b.UnsetState(enums.StateActive)
 		if child := b.GetChild(); child != nil {
-			child.UnsetState(StateActive)
+			child.UnsetState(enums.StateActive)
 		}
 		b.Emit(SignalReleased)
 	}
@@ -585,10 +586,10 @@ func (b *CButton) GetFocusChain() (focusableWidgets []interface{}, explicitlySet
 }
 
 // CancelEvent emits a cancel-event signal and if the signal handlers all return
-// enums.EVENT_PASS, then set the button as not pressed and release any event
+// cenums.EVENT_PASS, then set the button as not pressed and release any event
 // focus.
 func (b *CButton) CancelEvent() {
-	if f := b.Emit(SignalCancelEvent, b); f == enums.EVENT_PASS {
+	if f := b.Emit(SignalCancelEvent, b); f == cenums.EVENT_PASS {
 		b.SetPressed(false)
 		b.ReleaseEventFocus()
 	}
@@ -630,7 +631,7 @@ func (b *CButton) getBorderRequest() (border bool) {
 	return
 }
 
-func (b *CButton) setProperty(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CButton) setProperty(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if len(argv) == 3 {
 		if key, ok := argv[1].(cdk.Property); ok {
 			switch key {
@@ -644,30 +645,30 @@ func (b *CButton) setProperty(data []interface{}, argv ...interface{}) enums.Eve
 		}
 	}
 	// allow property to be set by other signal handlers
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (b *CButton) lostFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
-	b.UnsetState(StateSelected)
+func (b *CButton) lostFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	b.UnsetState(enums.StateSelected)
 	if child := b.GetChild(); child != nil {
-		child.UnsetState(StateSelected)
+		child.UnsetState(enums.StateSelected)
 		child.Invalidate()
 	}
 	b.Invalidate()
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) enums.EventFlag {
-	b.SetState(StateSelected)
+func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	b.SetState(enums.StateSelected)
 	if child := b.GetChild(); child != nil {
-		child.SetState(StateSelected)
+		child.SetState(enums.StateSelected)
 		child.Invalidate()
 	}
 	b.Invalidate()
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CButton) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
 		case *cdk.EventMouse:
@@ -678,41 +679,41 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag
 					b.GrabEventFocus()
 					b.SetPressed(true)
 					b.LogDebug("pressed")
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
 			case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
 				if b.HasEventFocus() {
 					if !b.HasPoint(pos) {
 						b.LogDebug("out of bounds")
 						b.CancelEvent()
-						return enums.EVENT_STOP
+						return cenums.EVENT_STOP
 					}
 				}
-				return enums.EVENT_PASS
+				return cenums.EVENT_PASS
 			case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
 				if b.HasEventFocus() {
 					if !b.HasPoint(pos) {
 						b.LogDebug("out of bounds")
 						b.CancelEvent()
-						return enums.EVENT_STOP
+						return cenums.EVENT_STOP
 					}
 					b.ReleaseEventFocus()
 					if focusOnClick, err := b.GetBoolProperty(PropertyFocusOnClick); err == nil && focusOnClick {
 						b.GrabFocus()
 					}
-					if f := b.Clicked(); f == enums.EVENT_PASS {
+					if f := b.Clicked(); f == cenums.EVENT_PASS {
 						b.Activate()
 					}
 					b.SetPressed(false)
 					b.LogDebug("released")
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
 			}
 		case *cdk.EventKey:
 			if b.HasEventFocus() {
 				b.LogDebug("keypress cancelling mouse event handling")
 				b.CancelEvent()
-				return enums.EVENT_STOP
+				return cenums.EVENT_STOP
 			}
 			switch cdk.Key(e.Rune()) {
 			case cdk.KeyEnter, cdk.KeySpace:
@@ -721,28 +722,28 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) enums.EventFlag
 				}
 				b.LogTrace("pressed")
 				b.SetPressed(true)
-				if f := b.Clicked(); f == enums.EVENT_PASS {
+				if f := b.Clicked(); f == cenums.EVENT_PASS {
 					b.Activate()
 				}
 				b.SetPressed(false)
 				b.LogTrace("released")
-				return enums.EVENT_STOP
+				return cenums.EVENT_STOP
 			}
 		}
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (b *CButton) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CButton) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if child := b.GetChild(); child != nil {
 		theme := b.GetThemeRequest()
 		child.SetTheme(theme)
 		child.Invalidate()
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (b *CButton) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	theme := b.GetThemeRequest()
 	alloc := b.GetAllocation()
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
@@ -771,10 +772,10 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) enums.EventFla
 				yAlign = 0.0
 			}
 			if w >= size.W {
-				label.SetJustify(enums.JUSTIFY_LEFT)
+				label.SetJustify(cenums.JUSTIFY_LEFT)
 				xAlign = 0.0
 			} else {
-				label.SetJustify(enums.JUSTIFY_CENTER)
+				label.SetJustify(cenums.JUSTIFY_CENTER)
 			}
 			label.SetAlignment(xAlign, yAlign)
 		}
@@ -787,23 +788,23 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) enums.EventFla
 	}
 	b.Unlock()
 	b.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := b.GetAllocation()
 		if !b.IsVisible() || size.W <= 0 || size.H <= 0 {
 			b.LogTrace("not visible, zero width or zero height", surface)
 			surface.Fill(b.GetTheme())
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 
 		var child Widget
 		var label Label
 		if child = b.GetChild(); child == nil {
 			b.LogError("button child (label) not found")
-			// return enums.EVENT_PASS
+			// return cenums.EVENT_PASS
 		} else if v, ok := child.(Label); ok {
 			label = v
 		}
@@ -826,13 +827,13 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		)
 
 		if label != nil {
-			if f := label.Draw(); f == enums.EVENT_STOP {
+			if f := label.Draw(); f == cenums.EVENT_STOP {
 				if err := surface.Composite(label.ObjectID()); err != nil {
 					b.LogError("composite error: %v", err)
 				}
 			}
 		} else if child != nil {
-			if f := child.Draw(); f == enums.EVENT_STOP {
+			if f := child.Draw(); f == cenums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					b.LogError("composite error: %v", err)
 				}
@@ -842,9 +843,9 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		if debug, _ := b.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorRed, b.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // Whether the button grabs focus when it is clicked with the mouse.

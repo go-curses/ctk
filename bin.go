@@ -2,6 +2,7 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeBin cdk.CTypeTag = "ctk-bin"
@@ -72,8 +73,8 @@ func (b *CBin) Init() (already bool) {
 		return true
 	}
 	b.CContainer.Init()
-	b.flags = NULL_WIDGET_FLAG
-	b.SetFlags(PARENT_SENSITIVE)
+	b.flags = enums.NULL_WIDGET_FLAG
+	b.SetFlags(enums.PARENT_SENSITIVE)
 	return false
 }
 

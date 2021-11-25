@@ -2,11 +2,12 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeBox cdk.CTypeTag = "ctk-box"
@@ -34,8 +35,8 @@ type Box interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
-	GetOrientation() (orientation enums.Orientation)
-	SetOrientation(orientation enums.Orientation)
+	GetOrientation() (orientation cenums.Orientation)
+	SetOrientation(orientation cenums.Orientation)
 	GetHomogeneous() (value bool)
 	SetHomogeneous(homogeneous bool)
 	GetSpacing() (value int)
@@ -45,8 +46,8 @@ type Box interface {
 	PackStart(child Widget, expand, fill bool, padding int)
 	PackEnd(child Widget, expand, fill bool, padding int)
 	ReorderChild(child Widget, position int)
-	QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType PackType)
-	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType)
+	QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType enums.PackType)
+	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType)
 	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
 	GetSizeRequest() (width, height int)
 }
@@ -67,14 +68,14 @@ type cBoxChild struct {
 	expand   bool
 	fill     bool
 	padding  int
-	packType PackType
+	packType enums.PackType
 }
 
 // MakeBox is used by the Buildable system to construct a new Box with default
 // settings of: horizontal orientation, dynamically sized (not homogeneous) and
 // no extra spacing.
 func MakeBox() (box *CBox) {
-	box = NewBox(enums.ORIENTATION_HORIZONTAL, false, 0)
+	box = NewBox(cenums.ORIENTATION_HORIZONTAL, false, 0)
 	return
 }
 
@@ -84,7 +85,7 @@ func MakeBox() (box *CBox) {
 //  orientation  the orientation of the Box vertically or horizontally
 //  homogeneous  whether each child receives an equal size allocation or not
 //  spacing      extra spacing to include between children
-func NewBox(orientation enums.Orientation, homogeneous bool, spacing int) *CBox {
+func NewBox(orientation cenums.Orientation, homogeneous bool, spacing int) *CBox {
 	b := new(CBox)
 	b.Init()
 	b.SetOrientation(orientation)
@@ -104,13 +105,13 @@ func (b *CBox) Init() (already bool) {
 		return true
 	}
 	b.CContainer.Init()
-	b.flags = NULL_WIDGET_FLAG
-	b.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	b.flags = enums.NULL_WIDGET_FLAG
+	b.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	_ = b.InstallBuildableProperty(PropertyDebugChildren, cdk.BoolProperty, true, false)
-	_ = b.InstallBuildableProperty(PropertyOrientation, cdk.StructProperty, true, enums.ORIENTATION_HORIZONTAL)
+	_ = b.InstallBuildableProperty(PropertyOrientation, cdk.StructProperty, true, cenums.ORIENTATION_HORIZONTAL)
 	_ = b.InstallBuildableProperty(PropertyHomogeneous, cdk.BoolProperty, true, false)
 	_ = b.InstallBuildableProperty(PropertySpacing, cdk.IntProperty, true, 0)
-	_ = b.InstallChildProperty(PropertyBoxChildPackType, cdk.StructProperty, true, PackStart)
+	_ = b.InstallChildProperty(PropertyBoxChildPackType, cdk.StructProperty, true, enums.PackStart)
 	_ = b.InstallChildProperty(PropertyBoxChildExpand, cdk.BoolProperty, true, false)
 	_ = b.InstallChildProperty(PropertyBoxChildFill, cdk.BoolProperty, true, true)
 	_ = b.InstallChildProperty(PropertyBoxChildPadding, cdk.IntProperty, true, 0)
@@ -134,7 +135,7 @@ func (b *CBox) Build(builder Builder, element *CBuilderElement) error {
 				newChildWidget.Show()
 				if len(child.Packing) > 0 {
 					expand, fill, padding, packType := builder.ParsePacking(child)
-					if packType == PackStart {
+					if packType == enums.PackStart {
 						b.PackStart(newChildWidget, expand, fill, padding)
 					} else {
 						b.PackEnd(newChildWidget, expand, fill, padding)
@@ -142,7 +143,7 @@ func (b *CBox) Build(builder Builder, element *CBuilderElement) error {
 				} else {
 					b.Add(newChildWidget)
 				}
-				if newChildWidget.HasFlags(HAS_FOCUS) {
+				if newChildWidget.HasFlags(enums.HAS_FOCUS) {
 					newChildWidget.GrabFocus()
 				}
 			} else {
@@ -158,13 +159,13 @@ func (b *CBox) Build(builder Builder, element *CBuilderElement) error {
 // See: SetOrientation()
 //
 // Locking: read
-func (b *CBox) GetOrientation() (orientation enums.Orientation) {
+func (b *CBox) GetOrientation() (orientation cenums.Orientation) {
 	b.RLock()
 	defer b.RUnlock()
 	var ok bool
 	if v, err := b.GetStructProperty(PropertyOrientation); err != nil {
 		b.LogErr(err)
-	} else if orientation, ok = v.(enums.Orientation); !ok && v != nil {
+	} else if orientation, ok = v.(cenums.Orientation); !ok && v != nil {
 		b.LogError("invalid value stored in %v: %v (%T)", PropertyOrientation, v, v)
 	}
 	return
@@ -174,10 +175,10 @@ func (b *CBox) GetOrientation() (orientation enums.Orientation) {
 // value.
 //
 // Parameters:
-//  orientation  the desired enums.Orientation to use
+//  orientation  the desired cenums.Orientation to use
 //
 // Locking: write
-func (b *CBox) SetOrientation(orientation enums.Orientation) {
+func (b *CBox) SetOrientation(orientation cenums.Orientation) {
 	b.Lock()
 	if err := b.SetStructProperty(PropertyOrientation, orientation); err != nil {
 		b.LogErr(err)
@@ -287,11 +288,11 @@ func (b *CBox) Remove(w Widget) {
 // Locking: write
 func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
-	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == enums.EVENT_PASS {
+	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == cenums.EVENT_PASS {
 		child.SetParent(b)
 		child.SetWindow(b.GetWindow())
 		b.CContainer.AddWithProperties(child,
-			PropertyBoxChildPackType, PackStart,
+			PropertyBoxChildPackType, enums.PackStart,
 			PropertyBoxChildExpand, expand,
 			PropertyBoxChildFill, fill,
 			PropertyBoxChildPadding, padding,
@@ -324,11 +325,11 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 // Locking: write
 func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
-	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == enums.EVENT_PASS {
+	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == cenums.EVENT_PASS {
 		child.SetParent(b)
 		child.SetWindow(b.GetWindow())
 		b.CContainer.AddWithProperties(child,
-			PropertyBoxChildPackType, PackEnd,
+			PropertyBoxChildPackType, enums.PackEnd,
 			PropertyBoxChildExpand, expand,
 			PropertyBoxChildFill, fill,
 			PropertyBoxChildPadding, padding,
@@ -380,7 +381,7 @@ func (b *CBox) ReorderChild(child Widget, position int) {
 // 	child	the Widget of the child to query
 //
 // Locking: read
-func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType PackType) {
+func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType enums.PackType) {
 	b.RLock()
 	if cps, ok := b.property[child.ObjectID()]; ok {
 		for _, cp := range cps {
@@ -398,7 +399,7 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 					padding = v
 				}
 			case PropertyBoxChildPackType:
-				if v, ok := cp.Value().(PackType); ok {
+				if v, ok := cp.Value().(enums.PackType); ok {
 					packType = v
 				}
 			}
@@ -422,7 +423,7 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 // 	packType	the new value of the “pack-type” child property
 //
 // Locking: write
-func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType) {
+func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType) {
 	if cps, ok := b.property[child.ObjectID()]; ok {
 		b.Lock()
 		defer b.Unlock()
@@ -472,12 +473,12 @@ func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bo
 	b.RLock()
 	var children []interface{}
 	for _, child := range boxChildren {
-		if child.packType == PackStart {
+		if child.packType == enums.PackStart {
 			children = append(children, child.widget)
 		}
 	}
 	for _, child := range boxChildren {
-		if child.packType == PackEnd {
+		if child.packType == enums.PackEnd {
 			children = append(children, child.widget)
 		}
 	}
@@ -520,7 +521,7 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 	b.Lock()
 	defer b.Unlock()
 
-	isVertical := orientation == enums.ORIENTATION_VERTICAL
+	isVertical := orientation == cenums.ORIENTATION_VERTICAL
 	var w, h int
 
 	if isHomogeneous {
@@ -586,7 +587,7 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 	return
 }
 
-func (b *CBox) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CBox) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	origin := b.GetOrigin()
 	style := b.GetThemeRequest().Content.Normal
 	for _, child := range b.getBoxChildren() {
@@ -599,20 +600,20 @@ func (b *CBox) invalidate(data []interface{}, argv ...interface{}) enums.EventFl
 		}
 		b.Unlock()
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CBox) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	children := b.getBoxChildren()
 	numChildren := len(children)
 	if numChildren == 0 {
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
 	spacing := b.GetSpacing()
 	origin := b.GetOrigin().NewClone()
 	alloc := b.GetAllocation().NewClone()
 	orientation := b.GetOrientation()
-	isVertical := orientation == enums.ORIENTATION_VERTICAL
+	isVertical := orientation == cenums.ORIENTATION_VERTICAL
 	homogeneous := b.GetHomogeneous()
 	b.Lock()
 	// intermediaries
@@ -631,7 +632,7 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
 	return b.resizeDynamicAlloc(isVertical, gaps, increment, spacing, numChildren, origin, nextPoint, alloc, children)
 }
 
-func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) enums.EventFlag {
+func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) cenums.EventFlag {
 	style := b.GetThemeRequest().Content.Normal
 	// b.Lock()
 	// defer b.Unlock()
@@ -754,10 +755,10 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		}
 	}
 
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) enums.EventFlag {
+func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) cenums.EventFlag {
 	style := b.GetThemeRequest().Content.Normal
 	// b.Lock()
 	// defer b.Unlock()
@@ -934,15 +935,15 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		}
 	}
 
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := b.GetAllocation()
 		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			b.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 		b.RLock()
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
@@ -956,11 +957,11 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		surface.Fill(theme)
 		for _, child := range children {
 			if child.widget.IsVisible() {
-				if f := child.widget.Draw(); f == enums.EVENT_STOP {
+				if f := child.widget.Draw(); f == cenums.EVENT_STOP {
 					if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
 						child.widget.LogErr(err)
 					} else {
-						if debugChildren && orientation == enums.ORIENTATION_VERTICAL {
+						if debugChildren && orientation == cenums.ORIENTATION_VERTICAL {
 							childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
 						} else if debugChildren {
 							childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
@@ -972,13 +973,13 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 				}
 			}
 		}
-		if debug && orientation == enums.ORIENTATION_VERTICAL {
+		if debug && orientation == cenums.ORIENTATION_VERTICAL {
 			surface.DebugBox(paint.ColorPink, b.ObjectInfo())
 		} else if debug {
 			surface.DebugBox(paint.ColorPurple, b.ObjectInfo())
 		}
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
 func (b *CBox) getBoxChildren() (children []*cBoxChild) {
@@ -988,12 +989,12 @@ func (b *CBox) getBoxChildren() (children []*cBoxChild) {
 	expand := make([]bool, nChildren)
 	fill := make([]bool, nChildren)
 	padding := make([]int, nChildren)
-	packType := make([]PackType, nChildren)
+	packType := make([]enums.PackType, nChildren)
 	for idx, child := range bChildren {
 		b.RUnlock()
 		expand[idx], fill[idx], padding[idx], packType[idx] = b.QueryChildPacking(child)
 		b.RLock()
-		if child.IsVisible() && packType[idx] == PackStart {
+		if child.IsVisible() && packType[idx] == enums.PackStart {
 			children = append(children, &cBoxChild{
 				widget:   child,
 				expand:   expand[idx],
@@ -1004,7 +1005,7 @@ func (b *CBox) getBoxChildren() (children []*cBoxChild) {
 		}
 	}
 	for idx, child := range bChildren {
-		if child.IsVisible() && packType[idx] == PackEnd {
+		if child.IsVisible() && packType[idx] == enums.PackEnd {
 			children = append(children, &cBoxChild{
 				widget:   child,
 				expand:   expand[idx],

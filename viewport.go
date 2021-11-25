@@ -2,11 +2,12 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 // CDK type-tag for Viewport objects
@@ -39,8 +40,8 @@ type Viewport interface {
 	SetHAdjustment(adjustment *CAdjustment)
 	GetVAdjustment() *CAdjustment
 	SetVAdjustment(adjustment *CAdjustment)
-	SetShadowType(shadowType ShadowType)
-	GetShadowType() (value ShadowType)
+	SetShadowType(shadowType enums.ShadowType)
+	GetShadowType() (value enums.ShadowType)
 	GetBinWindow() (value Window)
 	GetViewWindow() (value Window)
 }
@@ -81,8 +82,8 @@ func (v *CViewport) Init() (already bool) {
 		return true
 	}
 	v.CBin.Init()
-	v.flags = NULL_WIDGET_FLAG
-	v.SetFlags(SENSITIVE | PARENT_SENSITIVE | APP_PAINTABLE)
+	v.flags = enums.NULL_WIDGET_FLAG
+	v.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	if v.vAdjustment == nil {
 		v.vAdjustment = NewAdjustment(0, 0, 0, 0, 0, 0)
 	}
@@ -146,11 +147,11 @@ func (v *CViewport) SetVAdjustment(adjustment *CAdjustment) {
 // See: SetShadowType()
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (v *CViewport) GetShadowType() (shadowType ShadowType) {
+func (v *CViewport) GetShadowType() (shadowType enums.ShadowType) {
 	var ok bool
 	if value, err := v.GetStructProperty(PropertyViewportShadowType); err != nil {
 		v.LogErr(err)
-	} else if shadowType, ok = value.(ShadowType); !ok {
+	} else if shadowType, ok = value.(enums.ShadowType); !ok {
 		v.LogError("value stored in %v property is not of ShadowType type: %v (%T)", PropertyViewportShadowType, value, value)
 	}
 	return
@@ -159,7 +160,7 @@ func (v *CViewport) GetShadowType() (shadowType ShadowType) {
 // SetShadowType updates the shadow type of the viewport.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (v *CViewport) SetShadowType(shadowType ShadowType) {
+func (v *CViewport) SetShadowType(shadowType enums.ShadowType) {
 	if err := v.SetStructProperty(PropertyViewportShadowType, shadowType); err != nil {
 		v.LogErr(err)
 	}
@@ -181,19 +182,19 @@ func (v *CViewport) GetViewWindow() (value Window) {
 	return nil
 }
 
-func (v *CViewport) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (v *CViewport) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if child := v.GetChild(); child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(v.GetOrigin())
 		if err := memphis.ConfigureSurface(v.ObjectID(), local, child.GetAllocation(), child.GetThemeRequest().Content.Normal); err != nil {
 			v.LogErr(err)
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (v *CViewport) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	alloc := v.GetAllocation()
 	child := v.GetChild()
 	horizontal, vertical := v.GetHAdjustment(), v.GetVAdjustment()
@@ -210,7 +211,7 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) enums.EventF
 		}
 		v.Invalidate()
 		// return v.Emit(SignalResize, v)
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
 	hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
 	vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
@@ -269,24 +270,24 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) enums.EventF
 			}
 		}
 		v.Invalidate()
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (v *CViewport) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := v.GetAllocation()
 		if !v.IsVisible() || size.W <= 0 || size.H <= 0 {
 			v.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 
 		v.Lock()
 		defer v.Unlock()
 
 		if child := v.GetChild(); child != nil {
-			if f := child.Draw(); f == enums.EVENT_STOP {
+			if f := child.Draw(); f == cenums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					v.LogError("composite error: %v", err)
 				}
@@ -297,9 +298,9 @@ func (v *CViewport) draw(data []interface{}, argv ...interface{}) enums.EventFla
 		if debug, _ := v.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, v.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // The Adjustment that determines the values of the horizontal position

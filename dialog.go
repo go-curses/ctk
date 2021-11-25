@@ -6,13 +6,14 @@ package ctk
 import (
 	"fmt"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
-	"github.com/gofrs/uuid"
-	"github.com/jtolio/gls"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeDialog cdk.CTypeTag = "ctk-dialog"
@@ -53,16 +54,16 @@ type Dialog interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
-	Run() (response chan ResponseType)
-	Response(responseId ResponseType)
-	AddButton(buttonText string, responseId ResponseType) (value Button)
+	Run() (response chan enums.ResponseType)
+	Response(responseId enums.ResponseType)
+	AddButton(buttonText string, responseId enums.ResponseType) (value Button)
 	AddButtons(argv ...interface{})
-	AddActionWidget(child Widget, responseId ResponseType)
-	AddSecondaryActionWidget(child Widget, responseId ResponseType)
-	SetDefaultResponse(responseId ResponseType)
-	SetResponseSensitive(responseId ResponseType, sensitive bool)
-	GetResponseForWidget(widget Widget) (value ResponseType)
-	GetWidgetForResponse(responseId ResponseType) (value Widget)
+	AddActionWidget(child Widget, responseId enums.ResponseType)
+	AddSecondaryActionWidget(child Widget, responseId enums.ResponseType)
+	SetDefaultResponse(responseId enums.ResponseType)
+	SetResponseSensitive(responseId enums.ResponseType, sensitive bool)
+	GetResponseForWidget(widget Widget) (value enums.ResponseType)
+	GetWidgetForResponse(responseId enums.ResponseType) (value Widget)
 	GetActionArea() (value ButtonBox)
 	GetContentArea() (value VBox)
 	Show()
@@ -80,14 +81,14 @@ type Dialog interface {
 type CDialog struct {
 	CWindow
 
-	dialogFlags DialogFlags
-	defResponse ResponseType
+	dialogFlags enums.DialogFlags
+	defResponse enums.ResponseType
 	content     VBox
 	action      ButtonBox
-	widgets     map[ResponseType][]Widget
+	widgets     map[enums.ResponseType][]Widget
 
 	done     chan bool
-	response ResponseType
+	response enums.ResponseType
 }
 
 // MakeDialog is used by the Buildable system to construct a new Dialog.
@@ -121,7 +122,7 @@ func NewDialog() (value *CDialog) {
 // 	parent	Transient parent of the dialog, or `nil`
 // 	flags	from DialogFlags
 // 	argv	response ID with label pairs
-func NewDialogWithButtons(title string, parent Window, flags DialogFlags, argv ...interface{}) (value *CDialog) {
+func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, argv ...interface{}) (value *CDialog) {
 	d := new(CDialog)
 	d.dialogFlags = flags
 	d.Init()
@@ -153,13 +154,13 @@ func (d *CDialog) Init() (already bool) {
 	}
 	d.CWindow.Init()
 	if d.dialogFlags == 0 {
-		d.dialogFlags = DialogModal | DialogDestroyWithParent
+		d.dialogFlags = enums.DialogModal | enums.DialogDestroyWithParent
 	}
-	d.flags = NULL_WIDGET_FLAG
-	d.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	d.flags = enums.NULL_WIDGET_FLAG
+	d.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	d.SetParent(d)
 	d.SetWindow(d)
-	d.defResponse = ResponseNone
+	d.defResponse = enums.ResponseNone
 	vbox := NewVBox(false, 0)
 	vbox.Show()
 	d.Add(vbox)
@@ -170,26 +171,26 @@ func (d *CDialog) Init() (already bool) {
 	d.action.Show()
 	vbox.PackEnd(d.action, false, true, 0)
 	d.done = make(chan bool, 1)
-	d.response = ResponseNone
-	d.Connect(SignalResponse, DialogResponseHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
+	d.response = enums.ResponseNone
+	d.Connect(SignalResponse, DialogResponseHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if len(argv) == 1 {
-			if value, ok := argv[0].(ResponseType); ok {
+			if value, ok := argv[0].(enums.ResponseType); ok {
 				d.response = value
 			} else {
 				d.LogError("response signal received invalid ResponseType: %v (%T)", argv[0], argv[0])
-				d.response = ResponseNone
+				d.response = enums.ResponseNone
 			}
 		} else {
 			d.response = d.defResponse
 		}
 		d.done <- true
-		return enums.EVENT_PASS
+		return cenums.EVENT_PASS
 	})
 	d.Connect(SignalCdkEvent, DialogEventHandle, d.event)
 	d.Connect(SignalInvalidate, DialogInvalidateHandle, d.invalidate)
 	d.Connect(SignalResize, DialogResizeHandle, d.resize)
 	d.Connect(SignalDraw, DialogDrawHandle, d.draw)
-	d.widgets = make(map[ResponseType][]Widget)
+	d.widgets = make(map[enums.ResponseType][]Widget)
 	return false
 }
 
@@ -245,14 +246,14 @@ func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 //
 // After Run returns, you are responsible for hiding or destroying the dialog if
 // you wish to do so.
-func (d *CDialog) Run() (response chan ResponseType) {
+func (d *CDialog) Run() (response chan enums.ResponseType) {
 	d.Show()
-	response = make(chan ResponseType, 1)
+	response = make(chan enums.ResponseType, 1)
 	display := d.GetDisplay()
 	screen := display.Screen()
 	if screen == nil {
 		d.LogError("screen not found")
-		response <- ResponseNone
+		response <- enums.ResponseNone
 		return
 	}
 	parentId := uuid.Nil
@@ -268,7 +269,7 @@ func (d *CDialog) Run() (response chan ResponseType) {
 		d.Resize()
 		display.SetActiveWindow(d)
 	}
-	if d.defResponse != ResponseNone {
+	if d.defResponse != enums.ResponseNone {
 		if ab, ok := d.widgets[d.defResponse]; ok {
 			last := len(ab) - 1
 			if ab[last] != nil {
@@ -278,7 +279,7 @@ func (d *CDialog) Run() (response chan ResponseType) {
 	}
 	display.RequestDraw()
 	display.RequestShow()
-	gls.Go(func() {
+	cdk.Go(func() {
 		// wait for the response event
 		select {
 		case <-d.done:
@@ -301,7 +302,7 @@ func (d *CDialog) Run() (response chan ResponseType) {
 //
 // Parameters:
 // 	responseId	ResponseType identifier
-func (d *CDialog) Response(responseId ResponseType) {
+func (d *CDialog) Response(responseId enums.ResponseType) {
 	d.Emit(SignalResponse, responseId)
 }
 
@@ -323,7 +324,7 @@ func (d *CDialog) GetWindow() Window {
 // Parameters:
 // 	buttonText	text of button, or stock ID
 // 	responseId	response ID for the button
-func (d *CDialog) AddButton(buttonText string, responseId ResponseType) (button Button) {
+func (d *CDialog) AddButton(buttonText string, responseId enums.ResponseType) (button Button) {
 	if item := LookupStockItem(StockID(buttonText)); item != nil {
 		button = NewButtonFromStock(StockID(buttonText))
 	} else {
@@ -356,8 +357,8 @@ func (d *CDialog) AddButtons(argv ...interface{}) {
 				continue
 			}
 		}
-		var responseId ResponseType
-		if responseId, ok = argv[i+1].(ResponseType); !ok {
+		var responseId enums.ResponseType
+		if responseId, ok = argv[i+1].(enums.ResponseType); !ok {
 			d.LogError("invalid ResponseType argument: %v (%T)", argv[i])
 			continue
 		}
@@ -374,11 +375,11 @@ func (d *CDialog) AddButtons(argv ...interface{}) {
 // Parameters:
 // 	child	an activatable widget
 // 	responseId	response ID for child
-func (d *CDialog) AddActionWidget(child Widget, responseId ResponseType) {
-	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (d *CDialog) AddActionWidget(child Widget, responseId enums.ResponseType) {
+	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		d.LogDebug("responding with: %v", responseId)
 		d.Response(responseId)
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	d.action.PackStart(child, false, false, 0)
 	d.widgets[responseId] = append(d.widgets[responseId], child)
@@ -387,11 +388,11 @@ func (d *CDialog) AddActionWidget(child Widget, responseId ResponseType) {
 // AddSecondaryActionWidget is the same as AddActionWidget with the exception of
 // adding the given Widget to the secondary action Button grouping instead of
 // the primary grouping as with AddActionWidget.
-func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId ResponseType) {
-	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId enums.ResponseType) {
+	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		d.LogDebug("responding with: %v", responseId)
 		d.Response(responseId)
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	d.action.PackEnd(child, false, false, 0)
 	d.widgets[responseId] = append(d.widgets[responseId], child)
@@ -404,7 +405,7 @@ func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId ResponseType
 //
 // Parameters:
 // 	responseId	a response ID
-func (d *CDialog) SetDefaultResponse(responseId ResponseType) {
+func (d *CDialog) SetDefaultResponse(responseId enums.ResponseType) {
 	d.Lock()
 	d.defResponse = responseId
 	d.Unlock()
@@ -422,7 +423,7 @@ func (d *CDialog) SetDefaultResponse(responseId ResponseType) {
 // Parameters:
 // 	responseId	a response ID
 // 	setting	TRUE for sensitive
-func (d *CDialog) SetResponseSensitive(responseId ResponseType, sensitive bool) {
+func (d *CDialog) SetResponseSensitive(responseId enums.ResponseType, sensitive bool) {
 	if list, ok := d.widgets[responseId]; ok {
 		for _, w := range list {
 			w.SetSensitive(sensitive)
@@ -436,7 +437,7 @@ func (d *CDialog) SetResponseSensitive(responseId ResponseType, sensitive bool) 
 //
 // Parameters:
 // 	widget	a widget in the action area of dialog
-func (d *CDialog) GetResponseForWidget(widget Widget) (value ResponseType) {
+func (d *CDialog) GetResponseForWidget(widget Widget) (value enums.ResponseType) {
 	for response, widgets := range d.widgets {
 		for _, w := range widgets {
 			if w.ObjectID() == widget.ObjectID() {
@@ -444,7 +445,7 @@ func (d *CDialog) GetResponseForWidget(widget Widget) (value ResponseType) {
 			}
 		}
 	}
-	return ResponseNone
+	return enums.ResponseNone
 }
 
 // GetWidgetForResponse returns the last Widget Button that uses the given
@@ -452,7 +453,7 @@ func (d *CDialog) GetResponseForWidget(widget Widget) (value ResponseType) {
 //
 // Parameters:
 // 	responseId	the response ID used by the dialog widget
-func (d *CDialog) GetWidgetForResponse(responseId ResponseType) (value Widget) {
+func (d *CDialog) GetWidgetForResponse(responseId enums.ResponseType) (value Widget) {
 	if widgets, ok := d.widgets[responseId]; ok {
 		if last := len(widgets) - 1; last > -1 {
 			value = widgets[last]
@@ -473,7 +474,7 @@ func (d *CDialog) GetContentArea() (value VBox) {
 
 // Show ensures that the Dialog, content and action areas are all set to VISIBLE
 func (d *CDialog) Show() {
-	d.SetFlags(VISIBLE)
+	d.SetFlags(enums.VISIBLE)
 	d.CWindow.Show()
 	d.content.Show()
 	d.action.Show()
@@ -482,7 +483,7 @@ func (d *CDialog) Show() {
 // ShowAll calls ShowAll upon the Dialog, content area, action area and all the
 // action Widget children.
 func (d *CDialog) ShowAll() {
-	d.SetFlags(VISIBLE)
+	d.SetFlags(enums.VISIBLE)
 	d.CWindow.ShowAll()
 	d.content.ShowAll()
 	d.action.ShowAll()
@@ -564,7 +565,7 @@ func (d *CDialog) getDialogRegion() (region ptypes.Region) {
 // TODO: set-size-request makes dialog window size, truncated by actual size
 // TODO: local canvas / child alloc and origin issues
 
-func (d *CDialog) event(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		// d.Lock()
 		// defer d.Unlock()
@@ -572,10 +573,10 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) enums.EventFlag
 		case *cdk.EventKey:
 			switch e.Key() {
 			case cdk.KeyEscape:
-				if f := d.Emit(SignalClose); f == enums.EVENT_PASS {
-					d.Response(ResponseClose)
+				if f := d.Emit(SignalClose); f == cenums.EVENT_PASS {
+					d.Response(enums.ResponseClose)
 				}
-				return enums.EVENT_STOP
+				return cenums.EVENT_STOP
 			}
 		case *cdk.EventResize:
 			if tw := d.GetTransientFor(); tw != nil {
@@ -583,38 +584,38 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) enums.EventFlag
 			}
 			return d.Resize()
 		case *cdk.EventMouse:
-			if f := d.Emit(SignalEventMouse, d, evt); f == enums.EVENT_PASS {
+			if f := d.Emit(SignalEventMouse, d, evt); f == cenums.EVENT_PASS {
 				if child := d.GetChild(); child != nil {
 					point := ptypes.NewPoint2I(e.Position())
 					point.AddPoint(d.GetOrigin())
 					if mw := child.GetWidgetAt(point); mw != nil {
 						if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
-							if f := ms.ProcessEvent(evt); f == enums.EVENT_STOP {
-								return enums.EVENT_STOP
+							if f := ms.ProcessEvent(evt); f == cenums.EVENT_STOP {
+								return cenums.EVENT_STOP
 							}
 						}
 					}
 				}
 			}
 		}
-		// do not block parent event handlers with enums.EVENT_STOP, always
+		// do not block parent event handlers with cenums.EVENT_STOP, always
 		// allow event-pass-through so that normal Window events can be handled
 		// without duplicating the features here
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	// d.rebuildFocusChain()
 	origin := d.GetOrigin()
 	alloc := d.GetAllocation()
 	if err := memphis.ConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
 		d.LogErr(err)
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (d *CDialog) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	region := d.getDialogRegion().NewClone()
 	if tf := d.GetTransientFor(); tf != nil {
 		if dm := d.GetDisplay(); dm != nil {
@@ -637,15 +638,15 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) enums.EventFla
 	}
 
 	d.Invalidate()
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (d *CDialog) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := d.GetAllocation()
 		if !d.IsVisible() || size.W == 0 || size.H == 0 {
 			d.LogDebug("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 		d.LogTrace("%v", size)
 		title := d.GetTitle()
@@ -654,11 +655,11 @@ func (d *CDialog) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		d.Lock()
 		defer d.Unlock()
 		if d.GetTitle() != "" {
-			surface.FillBorderTitle(false, title, enums.JUSTIFY_CENTER, theme)
+			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
 		} else {
 			surface.FillBorder(false, true, theme)
 		}
-		if r := vbox.Draw(); r == enums.EVENT_STOP {
+		if r := vbox.Draw(); r == cenums.EVENT_STOP {
 			if err := surface.Composite(vbox.ObjectID()); err != nil {
 				vbox.LogErr(err)
 			}
@@ -666,9 +667,9 @@ func (d *CDialog) draw(data []interface{}, argv ...interface{}) enums.EventFlag 
 		if debug, _ := d.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorNavy, d.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // The ::close signal is a which gets emitted when the user uses a keybinding

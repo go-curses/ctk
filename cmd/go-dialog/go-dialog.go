@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/ptypes"
+	enums2 "github.com/go-curses/ctk/lib/enums"
 	"github.com/urfave/cli/v2"
 
 	"github.com/go-curses/cdk"
@@ -223,7 +224,7 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) erro
 func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
 	builder.AddNamedSignalHandler("msgbox-ok", func(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
-			dialog.Response(ctk.ResponseOk)
+			dialog.Response(enums2.ResponseOk)
 		} else {
 			builder.LogError("msgbox-ok missing main-dialog")
 		}
@@ -263,7 +264,7 @@ func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error 
 func setupUiYesNo(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
 	builder.AddNamedSignalHandler("yesno-yes", func(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
-			dialog.Response(ctk.ResponseYes)
+			dialog.Response(enums2.ResponseYes)
 		} else {
 			builder.LogError("yesno-yes missing main-dialog")
 		}
@@ -271,7 +272,7 @@ func setupUiYesNo(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
 	})
 	builder.AddNamedSignalHandler("yesno-no", func(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
-			dialog.Response(ctk.ResponseNo)
+			dialog.Response(enums2.ResponseNo)
 		} else {
 			builder.LogError("yesno-no missing main-dialog")
 		}

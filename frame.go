@@ -2,10 +2,11 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeFrame cdk.CTypeTag = "ctk-frame"
@@ -34,8 +35,8 @@ type Frame interface {
 	SetLabelWidget(labelWidget Widget)
 	GetLabelAlign() (xAlign float64, yAlign float64)
 	SetLabelAlign(xAlign float64, yAlign float64)
-	GetShadowType() (value ShadowType)
-	SetShadowType(shadowType ShadowType)
+	GetShadowType() (value enums.ShadowType)
+	SetShadowType(shadowType enums.ShadowType)
 	Add(w Widget)
 	Remove(w Widget)
 	IsFocus() bool
@@ -68,8 +69,8 @@ func NewFrame(text string) *CFrame {
 	label := NewLabel(text)
 	label.SetSingleLineMode(true)
 	label.SetLineWrap(false)
-	label.SetLineWrapMode(enums.WRAP_NONE)
-	label.SetJustify(enums.JUSTIFY_LEFT)
+	label.SetLineWrapMode(cenums.WRAP_NONE)
+	label.SetJustify(cenums.JUSTIFY_LEFT)
 	label.SetParent(f)
 	label.SetWindow(f.GetWindow())
 	label.Show()
@@ -97,8 +98,8 @@ func (f *CFrame) Init() (already bool) {
 		return true
 	}
 	f.CBin.Init()
-	f.flags = NULL_WIDGET_FLAG
-	f.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	f.flags = enums.NULL_WIDGET_FLAG
+	f.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	_ = f.InstallProperty(PropertyLabel, cdk.StringProperty, true, nil)
 	_ = f.InstallProperty(PropertyLabelWidget, cdk.StructProperty, true, nil)
 	_ = f.InstallProperty(PropertyLabelXAlign, cdk.FloatProperty, true, 0.0)
@@ -261,14 +262,14 @@ func (f *CFrame) SetLabelAlign(xAlign float64, yAlign float64) {
 // See: SetShadowType()
 //
 // Locking: read
-func (f *CFrame) GetShadowType() (value ShadowType) {
+func (f *CFrame) GetShadowType() (value enums.ShadowType) {
 	f.RLock()
 	defer f.RUnlock()
 	if v, err := f.GetStructProperty(PropertyShadowType); err != nil {
 		f.LogErr(err)
 	} else {
 		var ok bool
-		if value, ok = v.(ShadowType); !ok {
+		if value, ok = v.(enums.ShadowType); !ok {
 			f.LogError("value stored in %v is not a ShadowType: %v (%T)", PropertyShadowType, v, v)
 		}
 	}
@@ -281,7 +282,7 @@ func (f *CFrame) GetShadowType() (value ShadowType) {
 // 	type	the new ShadowType
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (f *CFrame) SetShadowType(shadowType ShadowType) {
+func (f *CFrame) SetShadowType(shadowType enums.ShadowType) {
 	f.Lock()
 	defer f.Unlock()
 	if err := f.SetStructProperty(PropertyShadowType, shadowType); err != nil {
@@ -382,27 +383,27 @@ func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
-func (f *CFrame) childLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	f.UnsetState(StateSelected)
+func (f *CFrame) childLostFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
+	f.UnsetState(enums.StateSelected)
 	if child := f.GetChild(); child != nil {
-		child.UnsetState(StateSelected)
+		child.UnsetState(enums.StateSelected)
 		child.Invalidate()
 	}
 	f.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (f *CFrame) childGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
-	f.SetState(StateSelected)
+func (f *CFrame) childGainedFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
+	f.SetState(enums.StateSelected)
 	if child := f.GetChild(); child != nil {
-		child.SetState(StateSelected)
+		child.SetState(enums.StateSelected)
 		child.Invalidate()
 	}
 	f.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	wantStop := false
 	origin := f.GetOrigin()
 	theme := f.GetThemeRequest()
@@ -437,12 +438,12 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) enums.Event
 		child.Invalidate()
 	}
 	if wantStop {
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	// our allocation has been set prior to Resize() being called
 	alloc := f.GetAllocation()
 	widget := f.GetLabelWidget()
@@ -454,7 +455,7 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 
 	if widget == nil {
 		f.Unlock()
-		return enums.EVENT_PASS
+		return cenums.EVENT_PASS
 	}
 
 	label, _ := widget.(Label)
@@ -464,7 +465,7 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 			label.Resize()
 		}
 		f.Unlock()
-		return enums.EVENT_PASS
+		return cenums.EVENT_PASS
 	}
 
 	alloc.Floor(0, 0)
@@ -500,15 +501,15 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) enums.EventFlag
 	f.Unlock()
 
 	f.Invalidate()
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := f.GetAllocation()
 		if !f.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			f.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 
 		// render the box and border, with widget
@@ -534,7 +535,7 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 
 		if widget != nil {
 			if label, ok := widget.(Label); ok {
-				if rv := label.Draw(); rv == enums.EVENT_STOP {
+				if rv := label.Draw(); rv == cenums.EVENT_STOP {
 					if err := surface.Composite(label.ObjectID()); err != nil {
 						f.LogError("composite error: %v", err)
 					}
@@ -543,7 +544,7 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		}
 
 		if child != nil {
-			if rv := child.Draw(); rv == enums.EVENT_STOP {
+			if rv := child.Draw(); rv == cenums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					f.LogError("composite error: %v", err)
 				}
@@ -553,9 +554,9 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if debug, _ := f.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, f.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // Text of the frame's label.

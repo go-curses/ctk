@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeButtonBox cdk.CTypeTag = "ctk-button-box"
@@ -36,8 +37,8 @@ type ButtonBox interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
-	GetLayout() (value ButtonBoxStyle)
-	SetLayout(layoutStyle ButtonBoxStyle)
+	GetLayout() (value enums.ButtonBoxStyle)
+	SetLayout(layoutStyle enums.ButtonBoxStyle)
 	Add(w Widget)
 	Remove(w Widget)
 	PackStart(w Widget, expand, fill bool, padding int)
@@ -46,7 +47,7 @@ type ButtonBox interface {
 	GetChildPrimary(w Widget) (isPrimary bool)
 	GetChildSecondary(w Widget) (isSecondary bool)
 	SetChildSecondary(child Widget, isSecondary bool)
-	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType)
+	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType)
 }
 
 // The CButtonBox structure implements the ButtonBox interface and is exported
@@ -60,11 +61,11 @@ type CButtonBox struct {
 // MakeButtonBox is used by the Buildable system to construct a new horizontal
 // homogeneous ButtonBox with no spacing between the Widget children.
 func MakeButtonBox() *CButtonBox {
-	return NewButtonBox(enums.ORIENTATION_HORIZONTAL, false, 0)
+	return NewButtonBox(cenums.ORIENTATION_HORIZONTAL, false, 0)
 }
 
 // NewButtonBox is a constructor for new Box instances.
-func NewButtonBox(orientation enums.Orientation, homogeneous bool, spacing int) *CButtonBox {
+func NewButtonBox(orientation cenums.Orientation, homogeneous bool, spacing int) *CButtonBox {
 	b := new(CButtonBox)
 	b.Init()
 	b.Freeze()
@@ -86,8 +87,8 @@ func (b *CButtonBox) Init() (already bool) {
 		return true
 	}
 	b.CBox.Init()
-	b.flags = NULL_WIDGET_FLAG
-	b.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	b.flags = enums.NULL_WIDGET_FLAG
+	b.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	orientation := b.GetOrientation()
 	spacing := b.GetSpacing()
 	primary := NewBox(orientation, false, spacing)
@@ -96,7 +97,7 @@ func (b *CButtonBox) Init() (already bool) {
 	secondary := NewBox(orientation, false, spacing)
 	secondary.Show()
 	b.CBox.PackEnd(secondary, true, true, 0)
-	_ = b.InstallProperty(PropertyLayoutStyle, cdk.StructProperty, true, LayoutStart)
+	_ = b.InstallProperty(PropertyLayoutStyle, cdk.StructProperty, true, enums.LayoutStart)
 	b.Connect(SignalDraw, ButtonBoxDrawHandle, b.draw)
 	return false
 }
@@ -116,7 +117,7 @@ func (b *CButtonBox) Build(builder Builder, element *CBuilderElement) error {
 				if len(child.Packing) > 0 {
 					var expand, fill = false, true
 					var padding = 0
-					var packType = PackStart
+					var packType = enums.PackStart
 					for k, v := range child.Packing {
 						switch k {
 						case "expand":
@@ -133,13 +134,13 @@ func (b *CButtonBox) Build(builder Builder, element *CBuilderElement) error {
 							switch strings.ToLower(v) {
 							case "start":
 							case "end":
-								packType = PackEnd
+								packType = enums.PackEnd
 							default:
 								b.LogError("invalid pack-type given: %v, must be either start or end")
 							}
 						}
 					}
-					if packType == PackStart {
+					if packType == enums.PackStart {
 						b.PackStart(newChildWidget, expand, fill, padding)
 					} else {
 						b.PackEnd(newChildWidget, expand, fill, padding)
@@ -147,7 +148,7 @@ func (b *CButtonBox) Build(builder Builder, element *CBuilderElement) error {
 				} else {
 					b.Add(newChildWidget)
 				}
-				if newChildWidget.HasFlags(HAS_FOCUS) {
+				if newChildWidget.HasFlags(enums.HAS_FOCUS) {
 					newChildWidget.GrabFocus()
 				}
 			} else {
@@ -161,10 +162,10 @@ func (b *CButtonBox) Build(builder Builder, element *CBuilderElement) error {
 // GetLayout is a convenience method for returning the layout-style property
 // value as the ButtonBoxStyle type.
 // See: SetLayout()
-func (b *CButtonBox) GetLayout() (value ButtonBoxStyle) {
+func (b *CButtonBox) GetLayout() (value enums.ButtonBoxStyle) {
 	if v, err := b.GetStructProperty(PropertyLayoutStyle); err == nil {
 		var ok bool
-		if value, ok = v.(ButtonBoxStyle); !ok {
+		if value, ok = v.(enums.ButtonBoxStyle); !ok {
 			b.LogError("value stored in %v is not of ButtonBoxStyle type: %v (%T)", v, v)
 		}
 	} else {
@@ -190,7 +191,7 @@ func (b *CButtonBox) GetLayout() (value ButtonBoxStyle) {
 //   "expand"     expand all Widgets to evenly consume all available space
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (b *CButtonBox) SetLayout(layoutStyle ButtonBoxStyle) {
+func (b *CButtonBox) SetLayout(layoutStyle enums.ButtonBoxStyle) {
 	if err := b.SetStructProperty(PropertyLayoutStyle, layoutStyle); err != nil {
 		b.LogErr(err)
 	}
@@ -319,7 +320,7 @@ func (b *CButtonBox) SetChildSecondary(child Widget, isSecondary bool) {
 // 	fill	the new value of the fill child property
 // 	padding	the new value of the padding child property
 // 	packType	the new value of the pack-type child property
-func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType PackType) {
+func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType) {
 	if b.GetChildPrimary(child) {
 		if primary := b.getPrimary(); primary != nil {
 			primary.SetChildPacking(child, expand, fill, padding, packType)
@@ -361,12 +362,12 @@ func (b *CButtonBox) getSecondary() (box Box) {
 	return nil
 }
 
-func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := b.GetAllocation()
 		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			b.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
@@ -378,11 +379,11 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFl
 		surface.Fill(theme)
 		for _, child := range children {
 			if child.widget.IsVisible() {
-				if f := child.widget.Draw(); f == enums.EVENT_STOP {
+				if f := child.widget.Draw(); f == cenums.EVENT_STOP {
 					if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
 						child.widget.LogErr(err)
 					} else {
-						if debugChildren && orientation == enums.ORIENTATION_VERTICAL {
+						if debugChildren && orientation == cenums.ORIENTATION_VERTICAL {
 							childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
 						} else if debugChildren {
 							childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
@@ -394,14 +395,14 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) enums.EventFl
 				}
 			}
 		}
-		if debug && orientation == enums.ORIENTATION_VERTICAL {
+		if debug && orientation == cenums.ORIENTATION_VERTICAL {
 			surface.DebugBox(paint.ColorPink, b.ObjectInfo())
 		} else if debug {
 			surface.DebugBox(paint.ColorPurple, b.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // How to lay out the buttons in the box. Possible values are: default, spread, edge, start and end.

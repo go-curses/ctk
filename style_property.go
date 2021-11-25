@@ -21,9 +21,10 @@ import (
 	"sync"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 type StyleProperty string
@@ -34,7 +35,7 @@ func (p StyleProperty) String() string {
 
 type CStyleProperty struct {
 	name      cdk.Property
-	state     StateType
+	state     enums.StateType
 	kind      cdk.PropertyType
 	write     bool
 	buildable bool
@@ -44,7 +45,7 @@ type CStyleProperty struct {
 	sync.RWMutex
 }
 
-func NewStyleProperty(name cdk.Property, state StateType, kind cdk.PropertyType, write bool, buildable bool, def interface{}) (property *CStyleProperty) {
+func NewStyleProperty(name cdk.Property, state enums.StateType, kind cdk.PropertyType, write bool, buildable bool, def interface{}) (property *CStyleProperty) {
 	property = new(CStyleProperty)
 	property.name = name
 	property.state = state
@@ -74,7 +75,7 @@ func (p *CStyleProperty) Name() cdk.Property {
 	return p.name
 }
 
-func (p *CStyleProperty) State() StateType {
+func (p *CStyleProperty) State() enums.StateType {
 	p.RLock()
 	defer p.RUnlock()
 	return p.state
@@ -212,7 +213,7 @@ func (p *CStyleProperty) SetFromString(value string) error {
 			return fmt.Errorf("invalid region value: %v", value)
 		}
 	case cdk.StructProperty:
-		if efs, ok := p.Default().(enums.EnumFromString); ok {
+		if efs, ok := p.Default().(cenums.EnumFromString); ok {
 			if nv, err := efs.FromString(value); err != nil {
 				return err
 			} else {

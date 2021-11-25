@@ -4,6 +4,7 @@ import (
 	"github.com/go-curses/cdk"
 	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/ptypes"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeRange cdk.CTypeTag = "ctk-range"
@@ -40,10 +41,10 @@ type Range interface {
 	SetValue(value int)
 	GetRoundDigits() (value int)
 	SetRoundDigits(roundDigits int)
-	SetLowerStepperSensitivity(sensitivity SensitivityType)
-	GetLowerStepperSensitivity() (value SensitivityType)
-	SetUpperStepperSensitivity(sensitivity SensitivityType)
-	GetUpperStepperSensitivity() (value SensitivityType)
+	SetLowerStepperSensitivity(sensitivity enums.SensitivityType)
+	GetLowerStepperSensitivity() (value enums.SensitivityType)
+	SetUpperStepperSensitivity(sensitivity enums.SensitivityType)
+	GetUpperStepperSensitivity() (value enums.SensitivityType)
 	GetFlippable() (value bool)
 	SetFlippable(flippable bool)
 	GetMinSliderSize() (value int)
@@ -94,17 +95,17 @@ func (r *CRange) Init() (already bool) {
 		return true
 	}
 	r.CWidget.Init()
-	r.flags = NULL_WIDGET_FLAG
-	r.SetFlags(SENSITIVE | PARENT_SENSITIVE | APP_PAINTABLE)
+	r.flags = enums.NULL_WIDGET_FLAG
+	r.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	_ = r.InstallProperty(PropertyAdjustment, cdk.StructProperty, true, NewAdjustment(0, 0, 0, 0, 0, 0))
 	_ = r.InstallProperty(PropertyFillLevel, cdk.FloatProperty, true, 1.0)
 	_ = r.InstallProperty(PropertyInverted, cdk.BoolProperty, true, false)
-	_ = r.InstallProperty(PropertyLowerStepperSensitivity, cdk.StructProperty, true, SensitivityAuto)
+	_ = r.InstallProperty(PropertyLowerStepperSensitivity, cdk.StructProperty, true, enums.SensitivityAuto)
 	_ = r.InstallProperty(PropertyRestrictToFillLevel, cdk.BoolProperty, true, false)
 	_ = r.InstallProperty(PropertyRoundDigits, cdk.IntProperty, true, -1)
 	_ = r.InstallProperty(PropertyShowFillLevel, cdk.BoolProperty, true, false)
-	_ = r.InstallProperty(PropertyUpdatePolicy, cdk.StructProperty, true, UpdateContinuous)
-	_ = r.InstallProperty(PropertyUpperStepperSensitivity, cdk.StructProperty, true, SensitivityAuto)
+	_ = r.InstallProperty(PropertyUpdatePolicy, cdk.StructProperty, true, enums.UpdateContinuous)
+	_ = r.InstallProperty(PropertyUpperStepperSensitivity, cdk.StructProperty, true, enums.SensitivityAuto)
 	r.restrictToFillLevel = false
 	r.troughUnderSteppers = false
 	r.flippable = false
@@ -330,11 +331,11 @@ func (r *CRange) SetRoundDigits(roundDigits int) {
 
 // GetLowerStepperSensitivity updates the sensitivity policy for the stepper
 // that points to the 'lower' end of the Range's adjustment.
-func (r *CRange) GetLowerStepperSensitivity() (value SensitivityType) {
+func (r *CRange) GetLowerStepperSensitivity() (value enums.SensitivityType) {
 	var ok bool
 	if v, err := r.GetStructProperty(PropertyLowerStepperSensitivity); err != nil {
 		r.LogErr(err)
-	} else if value, ok = v.(SensitivityType); !ok {
+	} else if value, ok = v.(enums.SensitivityType); !ok {
 		r.LogError("value stored in %v property is not of SensitivityType type: %v (%T)", PropertyLowerStepperSensitivity, v, v)
 	}
 	return
@@ -345,7 +346,7 @@ func (r *CRange) GetLowerStepperSensitivity() (value SensitivityType) {
 //
 // Parameters:
 // 	sensitivity	the lower stepper's sensitivity policy.
-func (r *CRange) SetLowerStepperSensitivity(sensitivity SensitivityType) {
+func (r *CRange) SetLowerStepperSensitivity(sensitivity enums.SensitivityType) {
 	if err := r.SetStructProperty(PropertyLowerStepperSensitivity, sensitivity); err != nil {
 		r.LogErr(err)
 	}
@@ -353,11 +354,11 @@ func (r *CRange) SetLowerStepperSensitivity(sensitivity SensitivityType) {
 
 // GetUpperStepperSensitivity updates the sensitivity policy for the stepper
 // that points to the 'upper' end of the Range's adjustment.
-func (r *CRange) GetUpperStepperSensitivity() (value SensitivityType) {
+func (r *CRange) GetUpperStepperSensitivity() (value enums.SensitivityType) {
 	var ok bool
 	if v, err := r.GetStructProperty(PropertyUpperStepperSensitivity); err != nil {
 		r.LogErr(err)
-	} else if value, ok = v.(SensitivityType); !ok {
+	} else if value, ok = v.(enums.SensitivityType); !ok {
 		r.LogError("value stored in %v property is not of SensitivityType type: %v (%T)", PropertyUpperStepperSensitivity, v, v)
 	}
 	return
@@ -368,7 +369,7 @@ func (r *CRange) GetUpperStepperSensitivity() (value SensitivityType) {
 //
 // Parameters:
 // 	sensitivity	the upper stepper's sensitivity policy.
-func (r *CRange) SetUpperStepperSensitivity(sensitivity SensitivityType) {
+func (r *CRange) SetUpperStepperSensitivity(sensitivity enums.SensitivityType) {
 	if err := r.SetStructProperty(PropertyUpperStepperSensitivity, sensitivity); err != nil {
 		r.LogErr(err)
 	}

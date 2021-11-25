@@ -2,7 +2,8 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const (
@@ -29,7 +30,7 @@ func MakeHScrollbar() *CHScrollbar {
 
 func NewHScrollbar() *CHScrollbar {
 	s := &CHScrollbar{}
-	s.orientation = enums.ORIENTATION_HORIZONTAL
+	s.orientation = cenums.ORIENTATION_HORIZONTAL
 	s.Init()
 	return s
 }
@@ -39,7 +40,7 @@ func (s *CHScrollbar) Init() (already bool) {
 		return true
 	}
 	s.CScrollbar.Init()
-	s.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_FOCUS | APP_PAINTABLE)
+	s.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_FOCUS | enums.APP_PAINTABLE)
 	s.SetTheme(DefaultScrollbarTheme)
 	return false
 }

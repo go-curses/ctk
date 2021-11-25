@@ -2,7 +2,8 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeEventBox cdk.CTypeTag = "ctk-event-box"
@@ -31,7 +32,7 @@ type EventBox interface {
 	GetVisibleWindow() (value bool)
 	Activate() (value bool)
 	CancelEvent()
-	ProcessEvent(evt cdk.Event) enums.EventFlag
+	ProcessEvent(evt cdk.Event) cenums.EventFlag
 }
 
 // The CEventBox structure implements the EventBox interface and is exported
@@ -65,7 +66,7 @@ func (b *CEventBox) Init() (already bool) {
 		return true
 	}
 	b.CBin.Init()
-	b.SetFlags(SENSITIVE | PARENT_SENSITIVE | CAN_DEFAULT | RECEIVES_DEFAULT | CAN_FOCUS | APP_PAINTABLE)
+	b.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.RECEIVES_DEFAULT | enums.CAN_FOCUS | enums.APP_PAINTABLE)
 	_ = b.InstallProperty(PropertyAboveChild, cdk.BoolProperty, true, false)
 	_ = b.InstallProperty(PropertyVisibleWindow, cdk.BoolProperty, true, true)
 	return false
@@ -128,7 +129,7 @@ func (b *CEventBox) GetVisibleWindow() (value bool) {
 // Activate will emit an activate signal and return TRUE if the signal handlers
 // return EVENT_STOP indicating that the event was in fact handled.
 func (b *CEventBox) Activate() (value bool) {
-	return b.Emit(SignalActivate, b) == enums.EVENT_STOP
+	return b.Emit(SignalActivate, b) == cenums.EVENT_STOP
 }
 
 // CancelEvent will emit a cancel-event signal.
@@ -138,7 +139,7 @@ func (b *CEventBox) CancelEvent() {
 
 // ProcessEvent manages the processing of events, current this is just emitting
 // a cdk-event signal and returning the result.
-func (b *CEventBox) ProcessEvent(evt cdk.Event) enums.EventFlag {
+func (b *CEventBox) ProcessEvent(evt cdk.Event) cenums.EventFlag {
 	return b.Emit(SignalCdkEvent, b, evt)
 }
 

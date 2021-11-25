@@ -3,6 +3,7 @@ package ctk
 import (
 	"testing"
 
+	"github.com/go-curses/ctk/lib/enums"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -54,12 +55,12 @@ func TestRange(t *testing.T) {
 			So(r.GetInverted(), ShouldEqual, false)
 			r.SetInverted(true)
 			So(r.GetInverted(), ShouldEqual, true)
-			So(r.GetLowerStepperSensitivity(), ShouldEqual, SensitivityAuto)
-			So(r.GetUpperStepperSensitivity(), ShouldEqual, SensitivityAuto)
-			r.SetLowerStepperSensitivity(SensitivityOff)
-			So(r.GetLowerStepperSensitivity(), ShouldEqual, SensitivityOff)
-			r.SetUpperStepperSensitivity(SensitivityOn)
-			So(r.GetUpperStepperSensitivity(), ShouldEqual, SensitivityOn)
+			So(r.GetLowerStepperSensitivity(), ShouldEqual, enums.SensitivityAuto)
+			So(r.GetUpperStepperSensitivity(), ShouldEqual, enums.SensitivityAuto)
+			r.SetLowerStepperSensitivity(enums.SensitivityOff)
+			So(r.GetLowerStepperSensitivity(), ShouldEqual, enums.SensitivityOff)
+			r.SetUpperStepperSensitivity(enums.SensitivityOn)
+			So(r.GetUpperStepperSensitivity(), ShouldEqual, enums.SensitivityOn)
 			So(r.GetFlippable(), ShouldEqual, false)
 			r.SetFlippable(true)
 			So(r.GetFlippable(), ShouldEqual, true)

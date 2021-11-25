@@ -11,11 +11,12 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const (
@@ -121,10 +122,10 @@ func setupUi(manager cdk.Display) error {
 	vbox := w.GetVBox()
 	vbox.SetHomogeneous(true)
 	// vbox.SetBoolProperty("debug", true)
-	b := newButton("b1", "Quit Button (expand,fill)", func(data []interface{}, argv ...interface{}) enums.EventFlag {
+	b := newButton("b1", "Quit Button (expand,fill)", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		log.InfoF("Exiting now.")
 		manager.RequestQuit()
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	b.Show()
 	vbox.PackStart(b, true, true, 0)
@@ -150,8 +151,8 @@ func setupUi(manager cdk.Display) error {
 	l1 := newLabel(IPSUM_LONG_MARKUP)
 	l1.SetSizeRequest(35, -1)
 	// l1.SetMaxWidthChars(35)
-	l1.SetLineWrapMode(enums.WRAP_CHAR)
-	l1.SetJustify(enums.JUSTIFY_LEFT)
+	l1.SetLineWrapMode(cenums.WRAP_CHAR)
+	l1.SetJustify(cenums.JUSTIFY_LEFT)
 	l1.SetSingleLineMode(false)
 	if Debug {
 		l1.SetBoolProperty("debug", true)
@@ -159,7 +160,7 @@ func setupUi(manager cdk.Display) error {
 	l1.Show()
 
 	sv := ctk.NewScrolledViewport()
-	sv.SetPolicy(ctk.PolicyAutomatic, ctk.PolicyAutomatic)
+	sv.SetPolicy(enums.PolicyAutomatic, enums.PolicyAutomatic)
 	sv.Show()
 	sv.Add(l1)
 	frame.Add(sv)
@@ -173,32 +174,32 @@ func setupUi(manager cdk.Display) error {
 	// hbox2.SetBoolProperty("debug-children", true)
 	hbox2.PackStart(hbox3, true, true, 0)
 
-	b2 := newButton("b2", "B2 (expand+fill)", func(d []interface{}, argv ...interface{}) enums.EventFlag {
+	b2 := newButton("b2", "B2 (expand+fill)", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
 		log.InfoF("pressed button #2")
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	b2.Show()
 	b2.SetSensitive(false)
 	hbox3.PackStart(b2, true, true, 0)
 
 	var b4 ctk.Button
-	b4 = newButton("curses", "_Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) enums.EventFlag {
+	b4 = newButton("curses", "_Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
 		log.InfoF("pressed Curses!")
 		dialog := ctk.NewDialogWithButtons(
 			"dialog title", w,
-			ctk.DialogModal,
-			ctk.StockOk, ctk.ResponseOk,
-			ctk.StockCancel, ctk.ResponseCancel,
+			enums.DialogModal,
+			ctk.StockOk, enums.ResponseOk,
+			ctk.StockCancel, enums.ResponseCancel,
 		)
 		help := ctk.NewButtonFromStock(ctk.StockHelp)
 		help.SetName("help")
 		help.Show()
-		dialog.AddSecondaryActionWidget(help, ctk.ResponseHelp)
+		dialog.AddSecondaryActionWidget(help, enums.ResponseHelp)
 		dialog.SetSizeRequest(40, 10)
 		label := ctk.NewLabel("testing the content area")
 		label.Show()
 		label.SetAlignment(0.5, 0.5)
-		label.SetJustify(enums.JUSTIFY_CENTER)
+		label.SetJustify(cenums.JUSTIFY_CENTER)
 		dialog.GetContentArea().PackStart(label, true, true, 0)
 		for _, child := range dialog.GetActionArea().GetChildren() {
 			if cb, ok := child.(ctk.Button); ok {
@@ -215,9 +216,9 @@ func setupUi(manager cdk.Display) error {
 		// dialog.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
 		// dialog.GetVBox().SetBoolProperty(Property, true)
 		// }
-		dialog.SetDefaultResponse(ctk.ResponseHelp)
+		dialog.SetDefaultResponse(enums.ResponseHelp)
 
-		label.Connect(ctk.SignalGetThemeRequest, "test-theme-request", func(data []interface{}, argv ...interface{}) enums.EventFlag {
+		label.Connect(ctk.SignalGetThemeRequest, "test-theme-request", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			if theme, ok := argv[0].(*paint.Theme); ok {
 				if modified, ok := argv[1].(paint.Theme); ok {
 					theme.Content.ArrowRunes = modified.Content.ArrowRunes
@@ -225,12 +226,12 @@ func setupUi(manager cdk.Display) error {
 					theme.Content.Selected = modified.Content.Selected.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
 					theme.Content.Active = modified.Content.Active.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
 					theme.Content.Normal = modified.Content.Normal.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
 			} else {
 				label.LogError("argv[0] is not a theme: %v", argv)
 			}
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		})
 
 		response := dialog.Run()
@@ -244,7 +245,7 @@ func setupUi(manager cdk.Display) error {
 				log.DebugF("dialog response: %v", r)
 			}
 		})
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	b4.SetSizeRequest(13, 3)
 	b4.Show()
@@ -252,9 +253,9 @@ func setupUi(manager cdk.Display) error {
 	hbox3.PackEnd(b4, false, false, 0)
 	b4.GrabFocus()
 
-	b3 := newButton("b3", "B3 (expand)", func(d []interface{}, argv ...interface{}) enums.EventFlag {
+	b3 := newButton("b3", "B3 (expand)", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
 		log.InfoF("pressed button #3")
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	// b3.SetSizeRequest(10, 3)
 	b3.Show()
@@ -300,7 +301,7 @@ func newButton(name string, label string, fn cdk.SignalListenerFn) ctk.Button {
 	return b
 }
 
-func newArrow(name string, arrow ctk.ArrowType, fn cdk.SignalListenerFn) ctk.Button {
+func newArrow(name string, arrow enums.ArrowType, fn cdk.SignalListenerFn) ctk.Button {
 	a := ctk.NewArrow(arrow)
 	b := ctk.NewButtonWithWidget(a)
 	b.SetSensitive(true)

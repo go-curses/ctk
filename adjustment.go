@@ -2,7 +2,8 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeAdjustment cdk.CTypeTag = "ctk-adjustment"
@@ -27,8 +28,8 @@ type Adjustment interface {
 	GetValue() (value int)
 	SetValue(value int)
 	ClampPage(upper, lower int)
-	Changed() enums.EventFlag
-	ValueChanged() enums.EventFlag
+	Changed() cenums.EventFlag
+	ValueChanged() cenums.EventFlag
 	Settings() (value, lower, upper, stepIncrement, pageIncrement, pageSize int)
 	Configure(value, lower, upper, stepIncrement, pageIncrement, pageSize int)
 	GetLower() (value int)
@@ -42,7 +43,7 @@ type Adjustment interface {
 	GetPageSize() (pageSize int)
 	SetPageSize(pageSize int)
 	Moot() bool
-	ShowByPolicy(policy PolicyType) bool
+	ShowByPolicy(policy enums.PolicyType) bool
 }
 
 // The CAdjustment structure implements the Adjustment interface and is
@@ -104,7 +105,7 @@ func (a *CAdjustment) GetValue() (value int) {
 //
 // Locking: write
 func (a *CAdjustment) SetValue(value int) {
-	if f := a.Emit(SignalSetValue, value); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalSetValue, value); f == cenums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyValue, value); err != nil {
 			a.LogErr(err)
 		} else {
@@ -123,7 +124,7 @@ func (a *CAdjustment) ClampPage(upper, lower int) {
 	var up, lo int
 	up, _ = a.GetIntProperty(PropertyUpper)
 	lo, _ = a.GetIntProperty(PropertyLower)
-	if f := a.Emit(SignalClampPage, upper, lower); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalClampPage, upper, lower); f == cenums.EVENT_PASS {
 		if up != upper || lo != lower {
 			a.Freeze()
 			if up != upper {
@@ -142,13 +143,13 @@ func (a *CAdjustment) ClampPage(upper, lower int) {
 // of the configurable aspects have changed, excluding the actual value of the
 // Adjustment.
 // See: ValueChanged()
-func (a *CAdjustment) Changed() enums.EventFlag {
+func (a *CAdjustment) Changed() cenums.EventFlag {
 	return a.Emit(SignalChanged, a)
 }
 
 // ValueChanged emits a value-changed signal. The value-changed signal reflects
 // that the actual value of the Adjustment has changed.
-func (a *CAdjustment) ValueChanged() enums.EventFlag {
+func (a *CAdjustment) ValueChanged() cenums.EventFlag {
 	return a.Emit(SignalValueChanged, a)
 }
 
@@ -182,7 +183,7 @@ func (a *CAdjustment) Settings() (value, lower, upper, stepIncrement, pageIncrem
 //
 // Locking: write
 func (a *CAdjustment) Configure(value, lower, upper, stepIncrement, pageIncrement, pageSize int) {
-	if f := a.Emit(SignalConfigure, value, lower, upper, stepIncrement, pageIncrement, pageSize); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalConfigure, value, lower, upper, stepIncrement, pageIncrement, pageSize); f == cenums.EVENT_PASS {
 		a.Freeze()
 		aValue, aLower, aUpper, aStepIncrement, aPageIncrement, aPageSize := a.Settings()
 		valueChanged := aValue != value
@@ -224,7 +225,7 @@ func (a *CAdjustment) GetLower() (value int) {
 //
 // Locking: write
 func (a *CAdjustment) SetLower(lower int) {
-	if f := a.Emit(SignalSetLower, lower); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalSetLower, lower); f == cenums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyLower, lower); err != nil {
 			a.LogErr(err)
 		} else {
@@ -250,7 +251,7 @@ func (a *CAdjustment) GetUpper() (upper int) {
 //
 // Locking: write
 func (a *CAdjustment) SetUpper(upper int) {
-	if f := a.Emit(SignalSetUpper, upper); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalSetUpper, upper); f == cenums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyUpper, upper); err != nil {
 			a.LogErr(err)
 		} else {
@@ -279,7 +280,7 @@ func (a *CAdjustment) GetStepIncrement() (stepIncrement int) {
 //
 // Locking: write
 func (a *CAdjustment) SetStepIncrement(stepIncrement int) {
-	if f := a.Emit(SignalSetStepIncrement, stepIncrement); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalSetStepIncrement, stepIncrement); f == cenums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyStepIncrement, stepIncrement); err != nil {
 			a.LogErr(err)
 		} else {
@@ -308,7 +309,7 @@ func (a *CAdjustment) GetPageIncrement() (pageIncrement int) {
 //
 // Locking: write
 func (a *CAdjustment) SetPageIncrement(pageIncrement int) {
-	if f := a.Emit(SignalSetPageIncrement, pageIncrement); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalSetPageIncrement, pageIncrement); f == cenums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyPageIncrement, pageIncrement); err != nil {
 			a.LogErr(err)
 		} else {
@@ -339,7 +340,7 @@ func (a *CAdjustment) GetPageSize() (pageSize int) {
 //
 // Locking: write
 func (a *CAdjustment) SetPageSize(pageSize int) {
-	if f := a.Emit(SignalSetPageSize, pageSize); f == enums.EVENT_PASS {
+	if f := a.Emit(SignalSetPageSize, pageSize); f == cenums.EVENT_PASS {
 		if err := a.SetIntProperty(PropertyPageSize, pageSize); err != nil {
 			a.LogErr(err)
 		} else {
@@ -366,13 +367,13 @@ func (a *CAdjustment) Moot() bool {
 // convenient way to determine if they should show or hide their presence.
 //
 // Locking: read
-func (a *CAdjustment) ShowByPolicy(policy PolicyType) bool {
+func (a *CAdjustment) ShowByPolicy(policy enums.PolicyType) bool {
 	switch policy {
-	case PolicyNever:
+	case enums.PolicyNever:
 		return false
-	case PolicyAutomatic:
+	case enums.PolicyAutomatic:
 		return !a.Moot()
-	case PolicyAlways:
+	case enums.PolicyAlways:
 		return true
 	}
 	a.LogError("unknown policy given: %v", policy)

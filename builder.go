@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-curses/ctk/lib/enums"
 	"github.com/iancoleman/strcase"
 
 	"github.com/go-curses/cdk"
 	cstrings "github.com/go-curses/cdk/lib/strings"
-	log "github.com/go-curses/cdk/log"
+	"github.com/go-curses/cdk/log"
 )
 
 type BuilderTranslationFn = func(builder Builder, widget Widget, name, value string) error
@@ -43,7 +44,7 @@ type Builder interface {
 	AddNamedSignalHandler(name string, fn cdk.SignalListenerFn)
 	GetWidget(name string) (w interface{})
 	GetWidgetsBuiltByType(tag cdk.CTypeTag) (widgets []interface{})
-	ParsePacking(packing *CBuilderElement) (expand, fill bool, padding int, packType PackType)
+	ParsePacking(packing *CBuilderElement) (expand, fill bool, padding int, packType enums.PackType)
 	LoadFromString(raw string) (topElement *CBuilderElement, err error)
 	Build(element *CBuilderElement) (newObject interface{})
 }
@@ -109,10 +110,10 @@ func (b *CBuilder) GetWidgetsBuiltByType(tag cdk.CTypeTag) (widgets []interface{
 	return
 }
 
-func (b *CBuilder) ParsePacking(packing *CBuilderElement) (expand, fill bool, padding int, packType PackType) {
+func (b *CBuilder) ParsePacking(packing *CBuilderElement) (expand, fill bool, padding int, packType enums.PackType) {
 	expand, fill = false, true
 	padding = 0
-	packType = PackStart
+	packType = enums.PackStart
 	for k, v := range packing.Packing {
 		switch k {
 		case "expand":
@@ -129,7 +130,7 @@ func (b *CBuilder) ParsePacking(packing *CBuilderElement) (expand, fill bool, pa
 			switch strings.ToLower(v) {
 			case "start":
 			case "end":
-				packType = PackEnd
+				packType = enums.PackEnd
 			default:
 				b.LogError("invalid pack-type given: %v, must be either start or end")
 			}

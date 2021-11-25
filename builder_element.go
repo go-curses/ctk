@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	cstrings "github.com/go-curses/cdk/lib/strings"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 type BuilderElement interface {
@@ -98,33 +99,33 @@ func (b *CBuilderElement) ApplyProperty(k, v string) (set bool) {
 			buildableWidget.SetSensitive(cstrings.IsTrue(v))
 		case "has-focus", "has_focus", "is-focus", "is_focus":
 			if cstrings.IsTrue(v) {
-				buildableWidget.SetFlags(HAS_FOCUS)
+				buildableWidget.SetFlags(enums.HAS_FOCUS)
 			} else {
-				buildableWidget.UnsetFlags(HAS_FOCUS)
+				buildableWidget.UnsetFlags(enums.HAS_FOCUS)
 			}
 		case "can-focus", "can_focus":
 			if cstrings.IsTrue(v) {
-				buildableWidget.SetFlags(CAN_FOCUS)
+				buildableWidget.SetFlags(enums.CAN_FOCUS)
 			} else {
-				buildableWidget.UnsetFlags(CAN_FOCUS)
+				buildableWidget.UnsetFlags(enums.CAN_FOCUS)
 			}
 		case "can-default", "can_default":
 			if cstrings.IsTrue(v) {
-				buildableWidget.SetFlags(CAN_DEFAULT)
+				buildableWidget.SetFlags(enums.CAN_DEFAULT)
 			} else {
-				buildableWidget.UnsetFlags(CAN_DEFAULT)
+				buildableWidget.UnsetFlags(enums.CAN_DEFAULT)
 			}
 		case "has-default", "has_default":
 			if cstrings.IsTrue(v) {
-				buildableWidget.SetFlags(HAS_DEFAULT)
+				buildableWidget.SetFlags(enums.HAS_DEFAULT)
 			} else {
-				buildableWidget.UnsetFlags(HAS_DEFAULT)
+				buildableWidget.UnsetFlags(enums.HAS_DEFAULT)
 			}
 		case "app-paintable":
 			if cstrings.IsTrue(v) {
-				buildableWidget.SetFlags(APP_PAINTABLE)
+				buildableWidget.SetFlags(enums.APP_PAINTABLE)
 			} else {
-				buildableWidget.UnsetFlags(APP_PAINTABLE)
+				buildableWidget.UnsetFlags(enums.APP_PAINTABLE)
 			}
 		case "width_request", "width-request":
 			if bw, ok := b.Instance.(Widget); ok {

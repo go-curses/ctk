@@ -2,6 +2,7 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 // CDK type-tag for ActionGroup objects
@@ -33,8 +34,8 @@ type ActionGroup interface {
 	AddActionsFull(entries []ActionEntry, nEntries int, userData interface{}, destroy GDestroyNotify)
 	AddToggleActions(entries []ToggleActionEntry, nEntries int, userData interface{})
 	AddToggleActionsFull(entries []ToggleActionEntry, nEntries int, userData interface{}, destroy GDestroyNotify)
-	AddRadioActions(entries []RadioActionEntry, nEntries int, value int, onChange GCallback, userData interface{})
-	AddRadioActionsFull(entries []RadioActionEntry, nEntries int, value int, onChange GCallback, userData interface{}, destroy GDestroyNotify)
+	AddRadioActions(entries []RadioActionEntry, nEntries int, value int, onChange enums.GCallback, userData interface{})
+	AddRadioActionsFull(entries []RadioActionEntry, nEntries int, value int, onChange enums.GCallback, userData interface{}, destroy GDestroyNotify)
 	SetTranslateFunc(fn TranslateFunc, data interface{}, notify GDestroyNotify)
 	SetTranslationDomain(domain string)
 	TranslateString(string string) (value string)
@@ -246,7 +247,7 @@ func (a *CActionGroup) AddToggleActionsFull(entries []ToggleActionEntry, nEntrie
 // no action should be activated
 // 	onChange	the callback to connect to the changed signal
 // 	userData	data to pass to the action callbacks
-func (a *CActionGroup) AddRadioActions(entries []RadioActionEntry, nEntries int, value int, onChange GCallback, userData interface{}) {
+func (a *CActionGroup) AddRadioActions(entries []RadioActionEntry, nEntries int, value int, onChange enums.GCallback, userData interface{}) {
 }
 
 // This variant of AddRadioActions adds a GDestroyNotify
@@ -261,7 +262,7 @@ func (a *CActionGroup) AddRadioActions(entries []RadioActionEntry, nEntries int,
 // 	userData	data to pass to the action callbacks
 // 	destroy	destroy notification callback for user_data
 //
-func (a *CActionGroup) AddRadioActionsFull(entries []RadioActionEntry, nEntries int, value int, onChange GCallback, userData interface{}, destroy GDestroyNotify) {
+func (a *CActionGroup) AddRadioActionsFull(entries []RadioActionEntry, nEntries int, value int, onChange enums.GCallback, userData interface{}, destroy GDestroyNotify) {
 }
 
 // Sets a function to be used for translating the label and tooltip of

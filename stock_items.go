@@ -2,6 +2,7 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 // Stock items represent commonly-used menu or toolbar items such as "Open" or
@@ -118,8 +119,8 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockClose:          {ID: StockClose, Label: "_Close"},
 	StockConnect:        {ID: StockConnect, Label: "C_onnect"},
 	StockConvert:        {ID: StockConvert, Label: "_Convert"},
-	StockCopy:           {ID: StockCopy, Label: "_Copy", Key: cdk.KeySmallC, Mods: ControlMask},
-	StockCut:            {ID: StockCut, Label: "Cu_t", Key: cdk.KeySmallX, Mods: ControlMask},
+	StockCopy:           {ID: StockCopy, Label: "_Copy", Key: cdk.KeySmallC, Mods: enums.ControlMask},
+	StockCut:            {ID: StockCut, Label: "Cu_t", Key: cdk.KeySmallX, Mods: enums.ControlMask},
 	StockDelete:         {ID: StockDelete, Label: "_Delete"},
 	StockDirectory:      {ID: StockDirectory, Label: "_Directory"},
 	StockDiscard:        {ID: StockDiscard, Label: "_Discard"},
@@ -127,7 +128,7 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockExecute:        {ID: StockExecute, Label: "_Execute"},
 	StockEdit:           {ID: StockEdit, Label: "_Edit"},
 	StockFile:           {ID: StockFile, Label: "_File"},
-	StockFind:           {ID: StockFind, Label: "_Find", Key: cdk.KeySmallF, Mods: ControlMask},
+	StockFind:           {ID: StockFind, Label: "_Find", Key: cdk.KeySmallF, Mods: enums.ControlMask},
 	StockFindAndReplace: {ID: StockFindAndReplace, Label: "Find and _Replace"},
 	StockGotoBottom:     {ID: StockGotoBottom, Label: "_Bottom"},
 	StockGotoFirst:      {ID: StockGotoFirst, Label: "_First"},
@@ -157,21 +158,21 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockMediaRecord:    {ID: StockMediaRecord, Label: "_Record"},
 	StockMediaRewind:    {ID: StockMediaRewind, Label: "R_ewind"},
 	StockMediaStop:      {ID: StockMediaStop, Label: "_Stop"},
-	StockNew:            {ID: StockNew, Label: "_New", Key: cdk.KeySmallN, Mods: ControlMask},
+	StockNew:            {ID: StockNew, Label: "_New", Key: cdk.KeySmallN, Mods: enums.ControlMask},
 	StockNo:             {ID: StockNo, Label: "_No"},
 	StockOk:             {ID: StockOk, Label: "_OK"},
-	StockOpen:           {ID: StockOpen, Label: "_Open", Key: cdk.KeySmallO, Mods: ControlMask},
-	StockPaste:          {ID: StockPaste, Label: "_Paste", Key: cdk.KeySmallV, Mods: ControlMask},
+	StockOpen:           {ID: StockOpen, Label: "_Open", Key: cdk.KeySmallO, Mods: enums.ControlMask},
+	StockPaste:          {ID: StockPaste, Label: "_Paste", Key: cdk.KeySmallV, Mods: enums.ControlMask},
 	StockPreferences:    {ID: StockPreferences, Label: "_Preferences"},
 	StockProperties:     {ID: StockProperties, Label: "_Properties"},
-	StockQuit:           {ID: StockQuit, Label: "_Quit", Key: cdk.KeySmallQ, Mods: ControlMask},
-	StockRedo:           {ID: StockRedo, Label: "_Redo", Key: cdk.KeySmallZ, Mods: ControlMask | ShiftMask},
+	StockQuit:           {ID: StockQuit, Label: "_Quit", Key: cdk.KeySmallQ, Mods: enums.ControlMask},
+	StockRedo:           {ID: StockRedo, Label: "_Redo", Key: cdk.KeySmallZ, Mods: enums.ControlMask | enums.ShiftMask},
 	StockRefresh:        {ID: StockRefresh, Label: "_Refresh"},
 	StockRemove:         {ID: StockRemove, Label: "_Remove"},
 	StockRevertToSaved:  {ID: StockRevertToSaved, Label: "_Revert"},
-	StockSave:           {ID: StockSave, Label: "_Save", Key: cdk.KeySmallS, Mods: ControlMask},
-	StockSaveAs:         {ID: StockSaveAs, Label: "Save _As", Key: cdk.KeySmallS, Mods: ControlMask | ShiftMask},
-	StockSelectAll:      {ID: StockSelectAll, Label: "Select _All", Key: cdk.KeySmallA, Mods: ControlMask | ShiftMask},
+	StockSave:           {ID: StockSave, Label: "_Save", Key: cdk.KeySmallS, Mods: enums.ControlMask},
+	StockSaveAs:         {ID: StockSaveAs, Label: "Save _As", Key: cdk.KeySmallS, Mods: enums.ControlMask | enums.ShiftMask},
+	StockSelectAll:      {ID: StockSelectAll, Label: "Select _All", Key: cdk.KeySmallA, Mods: enums.ControlMask | enums.ShiftMask},
 	StockSelectColor:    {ID: StockSelectColor, Label: "_Color"},
 	StockSelectFont:     {ID: StockSelectFont, Label: "_Font"},
 	StockSortAscending:  {ID: StockSortAscending, Label: "_Ascending"},
@@ -180,7 +181,7 @@ var ctkStockItemRegistry = map[StockID]*StockItem{
 	StockStrikethrough:  {ID: StockStrikethrough, Label: "_Strikethrough"},
 	StockUndelete:       {ID: StockUndelete, Label: "_Undelete"},
 	StockUnderline:      {ID: StockUnderline, Label: "_Underline"},
-	StockUndo:           {ID: StockUndo, Label: "_Undo", Key: cdk.KeySmallZ, Mods: ControlMask},
+	StockUndo:           {ID: StockUndo, Label: "_Undo", Key: cdk.KeySmallZ, Mods: enums.ControlMask},
 	StockYes:            {ID: StockYes, Label: "_Yes"},
 	StockZoom100:        {ID: StockZoom100, Label: "_Normal Size"},
 	StockZoomFit:        {ID: StockZoomFit, Label: "Best _Fit"},
@@ -192,7 +193,7 @@ type StockItem struct {
 	ID    StockID
 	Label string
 	Key   cdk.Key
-	Mods  ModifierType
+	Mods  enums.ModifierType
 	I18n  string
 }
 

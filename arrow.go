@@ -4,10 +4,11 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeArrow cdk.CTypeTag = "ctk-arrow"
@@ -36,8 +37,8 @@ type Arrow interface {
 	Buildable
 
 	Init() bool
-	GetArrowType() (arrow ArrowType)
-	SetArrowType(arrow ArrowType)
+	GetArrowType() (arrow enums.ArrowType)
+	SetArrowType(arrow enums.ArrowType)
 	GetArrowRune() (r rune, width int)
 	GetSizeRequest() (width, height int)
 }
@@ -53,11 +54,11 @@ type CArrow struct {
 // MakeArrow is used by the Buildable system to construct a new Arrow with a
 // default ArrowType setting of ArrowRight.
 func MakeArrow() *CArrow {
-	return NewArrow(ArrowRight)
+	return NewArrow(enums.ArrowRight)
 }
 
 // NewArrow is the constructor for new Arrow instances.
-func NewArrow(arrow ArrowType) *CArrow {
+func NewArrow(arrow enums.ArrowType) *CArrow {
 	a := new(CArrow)
 	a.Init()
 	a.SetArrowType(arrow)
@@ -75,9 +76,9 @@ func (a *CArrow) Init() bool {
 		return true
 	}
 	a.CMisc.Init()
-	a.flags = NULL_WIDGET_FLAG
-	a.SetFlags(PARENT_SENSITIVE)
-	a.SetFlags(APP_PAINTABLE)
+	a.flags = enums.NULL_WIDGET_FLAG
+	a.SetFlags(enums.PARENT_SENSITIVE)
+	a.SetFlags(enums.APP_PAINTABLE)
 	_ = a.InstallBuildableProperty(PropertyArrowType, cdk.StructProperty, true, nil)
 	_ = a.InstallBuildableProperty(PropertyArrowShadowType, cdk.StructProperty, true, nil)
 	a.Connect(SignalDraw, ArrowDrawHandle, a.draw)
@@ -87,14 +88,14 @@ func (a *CArrow) Init() bool {
 // GetArrowType is a convenience method for returning the ArrowType property
 //
 // Locking: read
-func (a *CArrow) GetArrowType() (arrow ArrowType) {
+func (a *CArrow) GetArrowType() (arrow enums.ArrowType) {
 	a.RLock()
 	defer a.RUnlock()
-	arrow = ArrowRight // default
+	arrow = enums.ArrowRight // default
 	var ok bool
 	if sa, err := a.GetStructProperty(PropertyArrowType); err != nil {
 		a.LogErr(err)
-	} else if arrow, ok = sa.(ArrowType); !ok {
+	} else if arrow, ok = sa.(enums.ArrowType); !ok {
 		a.LogErr(err)
 	}
 	return
@@ -106,7 +107,7 @@ func (a *CArrow) GetArrowType() (arrow ArrowType) {
 // 	arrowType	a valid ArrowType.
 //
 // Locking: write
-func (a *CArrow) SetArrowType(arrow ArrowType) {
+func (a *CArrow) SetArrowType(arrow enums.ArrowType) {
 	a.Lock()
 	if err := a.SetStructProperty(PropertyArrowType, arrow); err != nil {
 		a.Unlock()
@@ -128,13 +129,13 @@ func (a *CArrow) GetArrowRune() (r rune, width int) {
 	a.RLock()
 	defer a.RUnlock()
 	switch arrowType {
-	case ArrowUp:
+	case enums.ArrowUp:
 		r = arrowRunes.Up
-	case ArrowLeft:
+	case enums.ArrowLeft:
 		r = arrowRunes.Left
-	case ArrowDown:
+	case enums.ArrowDown:
 		r = arrowRunes.Down
-	case ArrowRight:
+	case enums.ArrowRight:
 		r = arrowRunes.Right
 	}
 	width = utf8.RuneLen(r)
@@ -164,12 +165,12 @@ func (a *CArrow) GetSizeRequest() (width, height int) {
 	return size.W, size.H
 }
 
-func (a *CArrow) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (a *CArrow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := a.GetAllocation()
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			a.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 		style := a.GetThemeRequest().Content.Normal
 		r, _ := a.GetArrowRune()
@@ -195,9 +196,9 @@ func (a *CArrow) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if debug, _ := a.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, a.ObjectInfo())
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // The direction the arrow should point.

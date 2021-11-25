@@ -19,9 +19,10 @@ import (
 	"strings"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeObject cdk.CTypeTag = "ctk-object"
@@ -45,21 +46,21 @@ type Object interface {
 	GetAllocation() ptypes.Rectangle
 	GetObjectAt(p *ptypes.Point2I) Object
 	HasPoint(p *ptypes.Point2I) (contains bool)
-	Invalidate() enums.EventFlag
-	ProcessEvent(evt cdk.Event) enums.EventFlag
-	Resize() enums.EventFlag
-	GetTextDirection() (direction TextDirection)
-	SetTextDirection(direction TextDirection)
+	Invalidate() cenums.EventFlag
+	ProcessEvent(evt cdk.Event) cenums.EventFlag
+	Resize() cenums.EventFlag
+	GetTextDirection() (direction enums.TextDirection)
+	SetTextDirection(direction enums.TextDirection)
 	CssSelector() (selector string)
-	InstallCssProperty(name cdk.Property, state StateType, kind cdk.PropertyType, write bool, def interface{}) (err error)
+	InstallCssProperty(name cdk.Property, state enums.StateType, kind cdk.PropertyType, write bool, def interface{}) (err error)
 	SetCssPropertyFromStyle(key, value string) (err error)
-	GetCssProperty(name cdk.Property, state StateType) (property *CStyleProperty)
-	GetCssProperties() (properties map[StateType][]*CStyleProperty)
-	GetCssBool(name cdk.Property, state StateType) (value bool, err error)
-	GetCssString(name cdk.Property, state StateType) (value string, err error)
-	GetCssInt(name cdk.Property, state StateType) (value int, err error)
-	GetCssFloat(name cdk.Property, state StateType) (value float64, err error)
-	GetCssColor(name cdk.Property, state StateType) (value paint.Color, err error)
+	GetCssProperty(name cdk.Property, state enums.StateType) (property *CStyleProperty)
+	GetCssProperties() (properties map[enums.StateType][]*CStyleProperty)
+	GetCssBool(name cdk.Property, state enums.StateType) (value bool, err error)
+	GetCssString(name cdk.Property, state enums.StateType) (value string, err error)
+	GetCssInt(name cdk.Property, state enums.StateType) (value int, err error)
+	GetCssFloat(name cdk.Property, state enums.StateType) (value float64, err error)
+	GetCssColor(name cdk.Property, state enums.StateType) (value paint.Color, err error)
 }
 
 // The CObject structure implements the Object interface and is exported
@@ -71,8 +72,8 @@ type CObject struct {
 
 	origin        *ptypes.Point2I
 	allocation    *ptypes.Rectangle
-	textDirection TextDirection
-	css           map[StateType]map[cdk.Property]*CStyleProperty
+	textDirection enums.TextDirection
+	css           map[enums.StateType]map[cdk.Property]*CStyleProperty
 }
 
 // Init initializes an Object instance. This must be called at least once to
@@ -88,7 +89,7 @@ func (o *CObject) Init() (already bool) {
 	o.CObject.Init()
 	o.origin = &ptypes.Point2I{}
 	o.allocation = &ptypes.Rectangle{}
-	o.css = make(map[StateType]map[cdk.Property]*CStyleProperty)
+	o.css = make(map[enums.StateType]map[cdk.Property]*CStyleProperty)
 	_ = o.InstallProperty(PropertyParent, cdk.StructProperty, true, nil)
 	return false
 }
@@ -139,7 +140,7 @@ func (o *CObject) ObjectInfo() string {
 //
 // Emits: SignalOrigin, Argv=[Object instance, new origin]
 func (o *CObject) SetOrigin(x, y int) {
-	if f := o.Emit(SignalOrigin, o, ptypes.MakePoint2I(x, y)); f == enums.EVENT_PASS {
+	if f := o.Emit(SignalOrigin, o, ptypes.MakePoint2I(x, y)); f == cenums.EVENT_PASS {
 		o.Lock()
 		o.origin.Set(x, y)
 		o.Unlock()
@@ -160,7 +161,7 @@ func (o *CObject) GetOrigin() (origin ptypes.Point2I) {
 // EVENT_PASS the change is applied and constrained to a minimum width and
 // height of zero.
 func (o *CObject) SetAllocation(size ptypes.Rectangle) {
-	if f := o.Emit(SignalAllocation, o.allocation, size); f == enums.EVENT_PASS {
+	if f := o.Emit(SignalAllocation, o.allocation, size); f == cenums.EVENT_PASS {
 		o.Lock()
 		o.allocation.Set(size.W, size.H)
 		o.allocation.Floor(0, 0)
@@ -210,7 +211,7 @@ func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 // instance.
 //
 // Locking: expected read/write
-func (o *CObject) Invalidate() enums.EventFlag {
+func (o *CObject) Invalidate() cenums.EventFlag {
 	return o.Emit(SignalInvalidate, o)
 }
 
@@ -219,7 +220,7 @@ func (o *CObject) Invalidate() enums.EventFlag {
 // CObject.
 //
 // Locking: expected read/write
-func (o *CObject) ProcessEvent(evt cdk.Event) enums.EventFlag {
+func (o *CObject) ProcessEvent(evt cdk.Event) cenums.EventFlag {
 	return o.Emit(SignalCdkEvent, o, evt)
 }
 
@@ -227,7 +228,7 @@ func (o *CObject) ProcessEvent(evt cdk.Event) enums.EventFlag {
 // reallocate resources necessary for subsequent draw events.
 //
 // Locking: read
-func (o *CObject) Resize() enums.EventFlag {
+func (o *CObject) Resize() cenums.EventFlag {
 	size := o.GetAllocation()
 	return o.Emit(SignalResize, o, size)
 }
@@ -235,7 +236,7 @@ func (o *CObject) Resize() enums.EventFlag {
 // GetTextDirection returns the current text direction for this Object instance.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetTextDirection() (direction TextDirection) {
+func (o *CObject) GetTextDirection() (direction enums.TextDirection) {
 	o.RLock()
 	direction = o.textDirection
 	o.RUnlock()
@@ -247,8 +248,8 @@ func (o *CObject) GetTextDirection() (direction TextDirection) {
 // EVENT_PASS, the change is applied.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) SetTextDirection(direction TextDirection) {
-	if f := o.Emit(SignalTextDirection, o, direction); f == enums.EVENT_PASS {
+func (o *CObject) SetTextDirection(direction enums.TextDirection) {
+	if f := o.Emit(SignalTextDirection, o, direction); f == cenums.EVENT_PASS {
 		o.Lock()
 		o.textDirection = direction
 		o.Unlock()
@@ -269,7 +270,7 @@ func (o *CObject) CssSelector() (selector string) {
 // property list.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) InstallCssProperty(name cdk.Property, state StateType, kind cdk.PropertyType, write bool, def interface{}) (err error) {
+func (o *CObject) InstallCssProperty(name cdk.Property, state enums.StateType, kind cdk.PropertyType, write bool, def interface{}) (err error) {
 	switch kind {
 	case cdk.BoolProperty, cdk.StringProperty, cdk.IntProperty, cdk.FloatProperty, cdk.ColorProperty:
 	default:
@@ -289,10 +290,10 @@ func (o *CObject) InstallCssProperty(name cdk.Property, state StateType, kind cd
 
 func (o *CObject) SetCssPropertyFromStyle(key, value string) (err error) {
 	o.Lock()
-	state := StateNormal
+	state := enums.StateNormal
 	if strings.Contains(key, ":") {
 		parts := strings.Split(key, ":")
-		state = StateTypeFromString(parts[1])
+		state = enums.StateTypeFromString(parts[1])
 		key = parts[0]
 	}
 	if property, ok := o.css[state][cdk.Property(key)]; ok {
@@ -308,7 +309,7 @@ func (o *CObject) SetCssPropertyFromStyle(key, value string) (err error) {
 // the name given, returning `nil` if no property by the name given is found.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssProperty(name cdk.Property, state StateType) (property *CStyleProperty) {
+func (o *CObject) GetCssProperty(name cdk.Property, state enums.StateType) (property *CStyleProperty) {
 	o.RLock()
 	var ok bool
 	if property, ok = o.css[state][name]; !ok {
@@ -321,9 +322,9 @@ func (o *CObject) GetCssProperty(name cdk.Property, state StateType) (property *
 // GetCssProperties returns all the installed CSS properties for the Object.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssProperties() (properties map[StateType][]*CStyleProperty) {
+func (o *CObject) GetCssProperties() (properties map[enums.StateType][]*CStyleProperty) {
 	o.RLock()
-	properties = make(map[StateType][]*CStyleProperty)
+	properties = make(map[enums.StateType][]*CStyleProperty)
 	for s, _ := range o.css {
 		properties[s] = make([]*CStyleProperty, len(o.css[s]))
 		for _, v := range o.css[s] {
@@ -338,7 +339,7 @@ func (o *CObject) GetCssProperties() (properties map[StateType][]*CStyleProperty
 // given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssValue(name cdk.Property, state StateType) (value interface{}) {
+func (o *CObject) GetCssValue(name cdk.Property, state enums.StateType) (value interface{}) {
 	o.RLock()
 	if v, ok := o.css[state][name]; ok {
 		value = v.Value()
@@ -351,7 +352,7 @@ func (o *CObject) GetCssValue(name cdk.Property, state StateType) (value interfa
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssBool(name cdk.Property, state StateType) (value bool, err error) {
+func (o *CObject) GetCssBool(name cdk.Property, state enums.StateType) (value bool, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
 		o.RLock()
 		if prop.Type() == cdk.BoolProperty {
@@ -376,7 +377,7 @@ func (o *CObject) GetCssBool(name cdk.Property, state StateType) (value bool, er
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssString(name cdk.Property, state StateType) (value string, err error) {
+func (o *CObject) GetCssString(name cdk.Property, state enums.StateType) (value string, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
 		o.RLock()
 		if prop.Type() == cdk.StringProperty {
@@ -401,7 +402,7 @@ func (o *CObject) GetCssString(name cdk.Property, state StateType) (value string
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssInt(name cdk.Property, state StateType) (value int, err error) {
+func (o *CObject) GetCssInt(name cdk.Property, state enums.StateType) (value int, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
 		o.RLock()
 		if prop.Type() == cdk.IntProperty {
@@ -426,7 +427,7 @@ func (o *CObject) GetCssInt(name cdk.Property, state StateType) (value int, err 
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssFloat(name cdk.Property, state StateType) (value float64, err error) {
+func (o *CObject) GetCssFloat(name cdk.Property, state enums.StateType) (value float64, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
 		o.RLock()
 		if prop.Type() == cdk.FloatProperty {
@@ -451,7 +452,7 @@ func (o *CObject) GetCssFloat(name cdk.Property, state StateType) (value float64
 // property of the given name.
 //
 // Note that usage of this within CTK is unimplemented at this time
-func (o *CObject) GetCssColor(name cdk.Property, state StateType) (value paint.Color, err error) {
+func (o *CObject) GetCssColor(name cdk.Property, state enums.StateType) (value paint.Color, err error) {
 	if prop := o.GetCssProperty(name, state); prop != nil {
 		o.RLock()
 		if prop.Type() == cdk.ColorProperty {

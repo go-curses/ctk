@@ -2,8 +2,9 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/ptypes"
+	enums "github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeStyle cdk.CTypeTag = "ctk-style"
@@ -20,27 +21,27 @@ type Style interface {
 
 	Init() (already bool)
 
-	PaintArrow(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType ArrowType, fill bool, x int, y int, width int, height int)
-	PaintBox(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintBoxGap(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType, gapX int, gapWidth int)
-	PaintCheck(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintDiamond(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintExtension(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType)
-	PaintFlatBox(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintFocus(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintHandle(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation enums.Orientation)
-	PaintHLine(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, x1 int, x2 int, y int)
-	PaintOption(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintPolygon(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, points ptypes.Point2I, nPoints int, fill bool)
-	PaintShadow(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintShadowGap(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType, gapX int, gapWidth int)
-	PaintSlider(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation enums.Orientation)
-	PaintSpinner(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, step int, x int, y int, width int, height int)
-	PaintTab(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintVLine(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, y1 int, y2 int, x int)
-	PaintExpander(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle ExpanderStyle)
+	PaintArrow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType enums.ArrowType, fill bool, x int, y int, width int, height int)
+	PaintBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintBoxGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int)
+	PaintCheck(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintDiamond(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintExtension(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType)
+	PaintFlatBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintFocus(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintHandle(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation cenums.Orientation)
+	PaintHLine(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x1 int, x2 int, y int)
+	PaintOption(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintPolygon(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, points ptypes.Point2I, nPoints int, fill bool)
+	PaintShadow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintShadowGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int)
+	PaintSlider(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation cenums.Orientation)
+	PaintSpinner(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, step int, x int, y int, width int, height int)
+	PaintTab(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
+	PaintVLine(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, y1 int, y2 int, x int)
+	PaintExpander(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle enums.ExpanderStyle)
 	// PaintLayout(window Window, stateType StateType, useText bool, area ptypes.Rectangle, widget Widget, detail string, x int, y int, layout PangoLayout)
-	PaintResizeGrip(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, edge WindowEdge, x int, y int, width int, height int)
+	PaintResizeGrip(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, edge enums.WindowEdge, x int, y int, width int, height int)
 }
 
 // The CStyle structure implements the Style interface and is
@@ -91,7 +92,7 @@ func (s *CStyle) Init() (already bool) {
 // 	y	y origin of the rectangle to draw the arrow in
 // 	width	width of the rectangle to draw the arrow in
 // 	height	height of the rectangle to draw the arrow in
-func (s *CStyle) PaintArrow(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType ArrowType, fill bool, x int, y int, width int, height int) {
+func (s *CStyle) PaintArrow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType enums.ArrowType, fill bool, x int, y int, width int, height int) {
 }
 
 // Draws a box on window with the given parameters.
@@ -107,7 +108,7 @@ func (s *CStyle) PaintArrow(window Window, stateType StateType, shadowType Shado
 // 	y	y origin of the box
 // 	width	the width of the box
 // 	height	the height of the box
-func (s *CStyle) PaintBox(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a box in window using the given style and state and shadow type,
@@ -127,7 +128,7 @@ func (s *CStyle) PaintBox(window Window, stateType StateType, shadowType ShadowT
 // 	gapSide	side in which to leave the gap
 // 	gapX	starting position of the gap
 // 	gapWidth	width of the gap
-func (s *CStyle) PaintBoxGap(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType, gapX int, gapWidth int) {
+func (s *CStyle) PaintBoxGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int) {
 }
 
 // Draws a check button indicator in the given rectangle on window with the
@@ -144,7 +145,7 @@ func (s *CStyle) PaintBoxGap(window Window, stateType StateType, shadowType Shad
 // 	y	y origin of the rectangle to draw the check in
 // 	width	the width of the rectangle to draw the check in
 // 	height	the height of the rectangle to draw the check in
-func (s *CStyle) PaintCheck(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintCheck(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a diamond in the given rectangle on window using the given
@@ -161,7 +162,7 @@ func (s *CStyle) PaintCheck(window Window, stateType StateType, shadowType Shado
 // 	y	y origin of the rectangle to draw the diamond in
 // 	width	width of the rectangle to draw the diamond in
 // 	height	height of the rectangle to draw the diamond in
-func (s *CStyle) PaintDiamond(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintDiamond(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws an extension, i.e. a notebook tab.
@@ -178,7 +179,7 @@ func (s *CStyle) PaintDiamond(window Window, stateType StateType, shadowType Sha
 // 	width	width of the extension
 // 	height	width of the extension
 // 	gapSide	the side on to which the extension is attached
-func (s *CStyle) PaintExtension(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType) {
+func (s *CStyle) PaintExtension(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType) {
 }
 
 // Draws a flat box on window with the given parameters.
@@ -194,7 +195,7 @@ func (s *CStyle) PaintExtension(window Window, stateType StateType, shadowType S
 // 	y	y origin of the box
 // 	width	the width of the box
 // 	height	the height of the box
-func (s *CStyle) PaintFlatBox(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintFlatBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a focus indicator around the given rectangle on window using the
@@ -210,7 +211,7 @@ func (s *CStyle) PaintFlatBox(window Window, stateType StateType, shadowType Sha
 // 	y	the y origin of the rectangle around which to draw a focus indicator
 // 	width	the width of the rectangle around which to draw a focus indicator
 // 	height	the height of the rectangle around which to draw a focus indicator
-func (s *CStyle) PaintFocus(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintFocus(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a handle as used in HandleBox and Paned.
@@ -227,7 +228,7 @@ func (s *CStyle) PaintFocus(window Window, stateType StateType, area ptypes.Rect
 // 	width	with of the handle
 // 	height	height of the handle
 // 	orientation	the orientation of the handle
-func (s *CStyle) PaintHandle(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation enums.Orientation) {
+func (s *CStyle) PaintHandle(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation cenums.Orientation) {
 }
 
 // Draws a radio button indicator in the given rectangle on window with the
@@ -244,7 +245,7 @@ func (s *CStyle) PaintHandle(window Window, stateType StateType, shadowType Shad
 // 	y	y origin of the rectangle to draw the option in
 // 	width	the width of the rectangle to draw the option in
 // 	height	the height of the rectangle to draw the option in
-func (s *CStyle) PaintOption(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintOption(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a polygon on window with the given parameters.
@@ -260,7 +261,7 @@ func (s *CStyle) PaintOption(window Window, stateType StateType, shadowType Shad
 // 	nPoints	length of points
 //
 // 	fill	TRUE if the polygon should be filled
-func (s *CStyle) PaintPolygon(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, points []ptypes.Point2I, nPoints int, fill bool) {
+func (s *CStyle) PaintPolygon(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, points []ptypes.Point2I, nPoints int, fill bool) {
 }
 
 // Draws a shadow around the given rectangle in window using the given style
@@ -277,7 +278,7 @@ func (s *CStyle) PaintPolygon(window Window, stateType StateType, shadowType Sha
 // 	y	y origin of the rectangle
 // 	width	width of the rectangle
 // 	height	width of the rectangle
-func (s *CStyle) PaintShadow(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintShadow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a shadow around the given rectangle in window using the given style
@@ -297,7 +298,7 @@ func (s *CStyle) PaintShadow(window Window, stateType StateType, shadowType Shad
 // 	gapSide	side in which to leave the gap
 // 	gapX	starting position of the gap
 // 	gapWidth	width of the gap
-func (s *CStyle) PaintShadowGap(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide PositionType, gapX int, gapWidth int) {
+func (s *CStyle) PaintShadowGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int) {
 }
 
 // Draws a slider in the given rectangle on window using the given style and
@@ -315,7 +316,7 @@ func (s *CStyle) PaintShadowGap(window Window, stateType StateType, shadowType S
 // 	width	the width of the rectangle in which to draw a slider
 // 	height	the height of the rectangle in which to draw a slider
 // 	orientation	the orientation to be used
-func (s *CStyle) PaintSlider(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation enums.Orientation) {
+func (s *CStyle) PaintSlider(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation cenums.Orientation) {
 }
 
 // Draws a spinner on window using the given parameters.
@@ -331,7 +332,7 @@ func (s *CStyle) PaintSlider(window Window, stateType StateType, shadowType Shad
 // 	y	the y origin of the rectangle in which to draw the spinner
 // 	width	the width of the rectangle in which to draw the spinner
 // 	height	the height of the rectangle in which to draw the spinner
-func (s *CStyle) PaintSpinner(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, step int, x int, y int, width int, height int) {
+func (s *CStyle) PaintSpinner(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, step int, x int, y int, width int, height int) {
 }
 
 // Draws an option menu tab (i.e. the up and down pointing arrows) in the
@@ -348,7 +349,7 @@ func (s *CStyle) PaintSpinner(window Window, stateType StateType, area ptypes.Re
 // 	y	y origin of the rectangle to draw the tab in
 // 	width	the width of the rectangle to draw the tab in
 // 	height	the height of the rectangle to draw the tab in
-func (s *CStyle) PaintTab(window Window, stateType StateType, shadowType ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
+func (s *CStyle) PaintTab(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int) {
 }
 
 // Draws a vertical line from (x , y1_ ) to (x , y2_ ) in window using the
@@ -363,7 +364,7 @@ func (s *CStyle) PaintTab(window Window, stateType StateType, shadowType ShadowT
 // 	y1	the starting y coordinate
 // 	y2	the ending y coordinate
 // 	x	the x coordinate
-func (s *CStyle) PaintVLine(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, y1 int, y2 int, x int) {
+func (s *CStyle) PaintVLine(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, y1 int, y2 int, x int) {
 }
 
 // Draws an expander as used in TreeView. x and y specify the center the
@@ -386,7 +387,7 @@ func (s *CStyle) PaintVLine(window Window, stateType StateType, area ptypes.Rect
 // 	expanderStyle	the style to draw the expander in; determines
 // whether the expander is collapsed, expanded, or in an
 // intermediate state.
-func (s *CStyle) PaintExpander(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle ExpanderStyle) {
+func (s *CStyle) PaintExpander(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle enums.ExpanderStyle) {
 }
 
 // Draws a layout on window using the given parameters.
@@ -420,5 +421,5 @@ func (s *CStyle) PaintExpander(window Window, stateType StateType, area ptypes.R
 // 	y	the y origin of the rectangle in which to draw the resize grip
 // 	width	the width of the rectangle in which to draw the resize grip
 // 	height	the height of the rectangle in which to draw the resize grip
-func (s *CStyle) PaintResizeGrip(window Window, stateType StateType, area ptypes.Rectangle, widget Widget, detail string, edge WindowEdge, x int, y int, width int, height int) {
+func (s *CStyle) PaintResizeGrip(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, edge enums.WindowEdge, x int, y int, width int, height int) {
 }

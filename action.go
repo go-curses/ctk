@@ -2,6 +2,7 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeAction cdk.CTypeTag = "ctk-action"
@@ -46,7 +47,6 @@ type Action interface {
 	GetVisible() (value bool)
 	SetVisible(visible bool)
 	Activate()
-	CreateIcon(iconSize IconSize) (value Widget)
 	CreateMenuItem() (value Widget)
 	CreateToolItem() (value Widget)
 	CreateMenu() (value Widget)
@@ -58,7 +58,7 @@ type Action interface {
 	SetAlwaysShowImage(alwaysShow bool)
 	GetAccelPath() (value string)
 	SetAccelPath(accelPath string)
-	GetAccelClosure() (value GClosure)
+	GetAccelClosure() (value enums.GClosure)
 	SetAccelGroup(accelGroup AccelGroup)
 	SetLabel(label string)
 	GetLabel() (value string)
@@ -222,18 +222,6 @@ func (a *CAction) SetVisible(visible bool) {
 // 	action	the action object
 func (a *CAction) Activate() {}
 
-// This function is intended for use by action implementations to create
-// icons displayed in the proxy widgets.
-// Parameters:
-// 	action	the action object
-// 	iconSize	the size of the icon that should be created.
-// Returns:
-// 	a widget that displays the icon for this action.
-// 	[transfer none]
-func (a *CAction) CreateIcon(iconSize IconSize) (value Widget) {
-	return nil
-}
-
 // Creates a menu item widget that proxies for the given action.
 // Parameters:
 // 	action	the action object
@@ -336,7 +324,7 @@ func (a *CAction) SetAccelPath(accelPath string) {}
 // 	action	the action object
 // Returns:
 // 	the accel closure for this action.
-func (a *CAction) GetAccelClosure() (value GClosure) {
+func (a *CAction) GetAccelClosure() (value enums.GClosure) {
 	return nil
 }
 

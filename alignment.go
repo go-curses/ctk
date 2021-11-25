@@ -2,10 +2,11 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeAlignment cdk.CTypeTag = "ctk-alignment"
@@ -83,8 +84,8 @@ func (a *CAlignment) Init() (already bool) {
 		return true
 	}
 	a.CBin.Init()
-	a.flags = NULL_WIDGET_FLAG
-	a.SetFlags(PARENT_SENSITIVE | APP_PAINTABLE)
+	a.flags = enums.NULL_WIDGET_FLAG
+	a.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
 	_ = a.InstallBuildableProperty(PropertyBottomPadding, cdk.IntProperty, true, 0)
 	_ = a.InstallBuildableProperty(PropertyLeftPadding, cdk.IntProperty, true, 0)
 	_ = a.InstallBuildableProperty(PropertyRightPadding, cdk.IntProperty, true, 0)
@@ -224,24 +225,24 @@ func (a *CAlignment) Remove(w Widget) {
 	a.Resize()
 }
 
-func (a *CAlignment) childLostFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (a *CAlignment) childLostFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	a.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (a *CAlignment) childGainedFocus(_ []interface{}, _ ...interface{}) enums.EventFlag {
+func (a *CAlignment) childGainedFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	a.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (a *CAlignment) resize(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (a *CAlignment) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	alloc := a.GetAllocation()
 	if alloc.W <= 0 && alloc.H <= 0 {
 		if child := a.GetChild(); child != nil {
 			child.SetAllocation(ptypes.MakeRectangle(0, 0))
 			child.Resize()
 		}
-		return enums.EVENT_PASS
+		return cenums.EVENT_PASS
 	}
 	if child := a.GetChild(); child != nil {
 		xAlign, yAlign, xScale, yScale := a.Get()
@@ -277,10 +278,10 @@ func (a *CAlignment) resize(data []interface{}, argv ...interface{}) enums.Event
 		a.Unlock()
 	}
 	a.Invalidate()
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	theme := a.GetThemeRequest()
 	style := theme.Content.Normal
 	origin := a.GetOrigin()
@@ -294,15 +295,15 @@ func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) enums.E
 		}
 		a.Unlock()
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
-func (a *CAlignment) draw(data []interface{}, argv ...interface{}) enums.EventFlag {
+func (a *CAlignment) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := a.GetAllocation()
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			a.LogTrace("not visible, zero width or zero height")
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		}
 
 		theme := a.GetThemeRequest()
@@ -315,7 +316,7 @@ func (a *CAlignment) draw(data []interface{}, argv ...interface{}) enums.EventFl
 
 		if child := a.GetChild(); child != nil {
 			a.Lock()
-			if f := child.Draw(); f == enums.EVENT_STOP {
+			if f := child.Draw(); f == cenums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					a.LogError("composite error: %v", err)
 				}
@@ -328,9 +329,9 @@ func (a *CAlignment) draw(data []interface{}, argv ...interface{}) enums.EventFl
 			surface.DebugBox(paint.ColorSilver, a.ObjectInfo())
 		}
 		a.Unlock()
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	}
-	return enums.EVENT_PASS
+	return cenums.EVENT_PASS
 }
 
 // The padding to insert at the bottom of the widget.

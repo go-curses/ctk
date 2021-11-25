@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	cmath "github.com/go-curses/cdk/lib/math"
+	"github.com/go-curses/ctk/lib/enums"
 	"github.com/gofrs/uuid"
 )
 
@@ -33,8 +34,8 @@ type AccelGroup interface {
 	Object
 
 	Init() (already bool)
-	AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags AccelFlags, handle string, closure GClosure) (id uuid.UUID)
-	ConnectByPath(accelPath string, handle string, closure GClosure)
+	AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags enums.AccelFlags, handle string, closure enums.GClosure) (id uuid.UUID)
+	ConnectByPath(accelPath string, handle string, closure enums.GClosure)
 	AccelGroupActivate(keyval cdk.Key, modifier cdk.ModMask) (activated bool)
 	AccelDisconnect(id uuid.UUID) (removed bool)
 	DisconnectKey(accelKey cdk.Key, accelMods cdk.ModMask) (removed bool)
@@ -108,7 +109,7 @@ func (a *CAccelGroup) Init() (already bool) {
 // 	accelFlags	a flag mask to configure this accelerator
 //	handle	string to tag the closure for later use
 // 	closure	code to be executed upon accelerator activation
-func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags AccelFlags, handle string, closure GClosure) (id uuid.UUID) {
+func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags enums.AccelFlags, handle string, closure enums.GClosure) (id uuid.UUID) {
 	a.CObject.Lock()
 	key := MakeAccelKey(accelKey, accelMods, accelFlags)
 	age := NewAccelGroupEntry(key, handle, closure)
@@ -128,10 +129,10 @@ func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, acce
 // 	accelPath	path used for determining key and modifiers.
 //	handle 	string to tag the closure for later use
 // 	closure	code to be executed upon accelerator activation
-func (a *CAccelGroup) ConnectByPath(accelPath string, handle string, closure GClosure) {
+func (a *CAccelGroup) ConnectByPath(accelPath string, handle string, closure enums.GClosure) {
 	accelMap := GetAccelMap()
 	if accelerator, ok := accelMap.LookupEntry(accelPath); ok {
-		a.AccelConnect(accelerator.Key(), accelerator.Mods(), ACCEL_VISIBLE, handle, closure)
+		a.AccelConnect(accelerator.Key(), accelerator.Mods(), enums.ACCEL_VISIBLE, handle, closure)
 	} else {
 		a.LogError("accelerator path not found: %v", accelPath)
 	}
@@ -379,4 +380,4 @@ const SignalAccelActivate cdk.Signal = "accel-activate"
 // 	accelClosure GClosure	the GClosure of the accelerator
 const SignalAccelChanged cdk.Signal = "accel-changed"
 
-type AccelGroupFindFunc = func(key AccelKey, closure GClosure, data []interface{}) bool
+type AccelGroupFindFunc = func(key AccelKey, closure enums.GClosure, data []interface{}) bool

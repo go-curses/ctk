@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	enums2 "github.com/go-curses/ctk/lib/enums"
 	"github.com/urfave/cli/v2"
 
 	"github.com/go-curses/cdk"
@@ -305,7 +306,7 @@ func setupPage2(d cdk.Display) error {
 			return err
 		} else {
 			scroll := ctk.NewScrolledViewport()
-			scroll.SetPolicy(ctk.PolicyAutomatic, ctk.PolicyAutomatic)
+			scroll.SetPolicy(enums2.PolicyAutomatic, enums2.PolicyAutomatic)
 			scroll.SetSizeRequest(40, 10)
 			content.SetSizeRequest(50, -1)
 			content.SetName("pg2content")

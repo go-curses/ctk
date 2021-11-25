@@ -2,7 +2,8 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const (
@@ -40,9 +41,9 @@ func (b *CHBox) Init() bool {
 		return true
 	}
 	b.CBox.Init()
-	b.flags = NULL_WIDGET_FLAG
-	b.SetFlags(PARENT_SENSITIVE)
-	b.SetFlags(APP_PAINTABLE)
-	b.SetOrientation(enums.ORIENTATION_HORIZONTAL)
+	b.flags = enums.NULL_WIDGET_FLAG
+	b.SetFlags(enums.PARENT_SENSITIVE)
+	b.SetFlags(enums.APP_PAINTABLE)
+	b.SetOrientation(cenums.ORIENTATION_HORIZONTAL)
 	return false
 }

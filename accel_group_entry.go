@@ -2,15 +2,16 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 type CAccelGroupEntry struct {
 	Handle   string
-	Closure  GClosure
+	Closure  enums.GClosure
 	AccelKey AccelKey
 }
 
-func NewAccelGroupEntry(accelerator AccelKey, handle string, closure GClosure) (age *CAccelGroupEntry) {
+func NewAccelGroupEntry(accelerator AccelKey, handle string, closure enums.GClosure) (age *CAccelGroupEntry) {
 	age = &CAccelGroupEntry{
 		Handle:   handle,
 		Closure:  closure,
