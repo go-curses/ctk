@@ -36,7 +36,6 @@ type Frame interface {
 	SetLabelAlign(xAlign float64, yAlign float64)
 	GetShadowType() (value ShadowType)
 	SetShadowType(shadowType ShadowType)
-	GrabFocus()
 	Add(w Widget)
 	Remove(w Widget)
 	IsFocus() bool
@@ -288,20 +287,6 @@ func (f *CFrame) SetShadowType(shadowType ShadowType) {
 	if err := f.SetStructProperty(PropertyShadowType, shadowType); err != nil {
 		f.LogErr(err)
 	}
-}
-
-// GrabFocus will take the focus of the associated Window if the Widget instance
-// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
-// the newly focused Widget will emit a gained-focus signal. This method emits a
-// grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied.
-//
-// Note that this method needs to be implemented within each Drawable that can
-// be focused because of the golang interface system losing the concrete struct
-// when a Widget interface reference is passed as a generic interface{}
-// argument.
-func (f *CFrame) GrabFocus() {
-	f.InternalGrabFocus(f)
 }
 
 // Add will add the given Widget to the Frame. As the Frame Widget is of Bin

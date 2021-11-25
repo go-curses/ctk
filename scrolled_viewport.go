@@ -67,8 +67,6 @@ type ScrolledViewport interface {
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	CancelEvent()
 	GetRegions() (c, h, v ptypes.Region)
-	GrabFocus()
-	GrabEventFocus()
 }
 
 type CScrolledViewport struct {
@@ -487,38 +485,6 @@ func (s *CScrolledViewport) CancelEvent() {
 		hs.CancelEvent()
 	}
 	s.Invalidate()
-}
-
-// GrabFocus will take the focus of the associated Window if the Widget instance
-// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
-// the newly focused Widget will emit a gained-focus signal. This method emits a
-// grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied.
-//
-// Note that this method needs to be implemented within each Drawable that can
-// be focused because of the golang interface system losing the concrete struct
-// when a Widget interface reference is passed as a generic interface{}
-// argument.
-func (s *CScrolledViewport) GrabFocus() {
-	s.InternalGrabFocus(s)
-}
-
-// GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
-// return enums.EVENT_PASS will set the Button instance as the Window event
-// focus handler.
-//
-// Note that this method needs to be implemented within each Drawable that can
-// be focused because of the golang interface system losing the concrete struct
-// when a Widget interface reference is passed as a generic interface{}
-// argument.
-func (s *CScrolledViewport) GrabEventFocus() {
-	if window := s.GetWindow(); window != nil {
-		if f := s.Emit(SignalGrabEventFocus, s, window); f == enums.EVENT_PASS {
-			window.SetEventFocus(s)
-		}
-	} else {
-		s.LogError("cannot grab focus: can't focus, invisible or insensitive")
-	}
 }
 
 func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) enums.EventFlag {

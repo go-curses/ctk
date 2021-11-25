@@ -32,8 +32,6 @@ type EventBox interface {
 	Activate() (value bool)
 	CancelEvent()
 	ProcessEvent(evt cdk.Event) enums.EventFlag
-	GrabFocus()
-	GrabEventFocus()
 }
 
 // The CEventBox structure implements the EventBox interface and is exported
@@ -125,38 +123,6 @@ func (b *CEventBox) GetVisibleWindow() (value bool) {
 		b.LogErr(err)
 	}
 	return
-}
-
-// GrabFocus will take the focus of the associated Window if the Widget instance
-// CanFocus(). Any previously focused Widget will emit a lost-focus signal and
-// the newly focused Widget will emit a gained-focus signal. This method emits a
-// grab-focus signal initially and if the listeners return EVENT_PASS, the
-// changes are applied.
-//
-// Note that this method needs to be implemented within each Drawable that can
-// be focused because of the golang interface system losing the concrete struct
-// when a Widget interface reference is passed as a generic interface{}
-// argument.
-func (b *CEventBox) GrabFocus() {
-	b.InternalGrabFocus(b)
-}
-
-// GrabEventFocus will emit a grab-event-focus signal and if all signal handlers
-// return enums.EVENT_PASS will set the Button instance as the Window event
-// focus handler.
-//
-// Note that this method needs to be implemented within each Drawable that can
-// be focused because of the golang interface system losing the concrete struct
-// when a Widget interface reference is passed as a generic interface{}
-// argument.
-func (b *CEventBox) GrabEventFocus() {
-	if window := b.GetWindow(); window != nil {
-		if f := b.Emit(SignalGrabEventFocus, b, window); f == enums.EVENT_PASS {
-			window.SetEventFocus(b)
-		}
-	} else {
-		b.LogError("cannot grab focus: can't focus, invisible or insensitive")
-	}
 }
 
 // Activate will emit an activate signal and return TRUE if the signal handlers
