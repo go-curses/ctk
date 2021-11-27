@@ -51,12 +51,12 @@ type CBin struct {
 }
 
 // MakeBin is used by the Buildable system to construct a new Bin.
-func MakeBin() *CBin {
+func MakeBin() Bin {
 	return NewBin()
 }
 
 // NewBin is the constructor for new Bin instances.
-func NewBin() *CBin {
+func NewBin() Bin {
 	a := new(CBin)
 	a.Init()
 	return a

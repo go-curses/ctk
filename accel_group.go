@@ -44,7 +44,6 @@ type AccelGroup interface {
 	LockGroup()
 	UnlockGroup()
 	GetIsLocked() (locked bool)
-	// FromAccelClosure(closure GClosure) (value AccelGroup)
 	GetModifierMask() (value cdk.ModMask)
 	Find(findFunc AccelGroupFindFunc, data interface{}) (key *AccelKey)
 	AcceleratorValid(keyval cdk.Key, modifiers cdk.ModMask) (valid bool)
@@ -67,12 +66,12 @@ type CAccelGroup struct {
 }
 
 // MakeAccelGroup is used by the Buildable system to construct a new AccelGroup.
-func MakeAccelGroup() *CAccelGroup {
+func MakeAccelGroup() AccelGroup {
 	return NewAccelGroup()
 }
 
 // NewAccelGroup is the constructor for new AccelGroup instances.
-func NewAccelGroup() (value *CAccelGroup) {
+func NewAccelGroup() (value AccelGroup) {
 	a := new(CAccelGroup)
 	a.Init()
 	return a
@@ -111,8 +110,8 @@ func (a *CAccelGroup) Init() (already bool) {
 // 	closure	code to be executed upon accelerator activation
 func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, accelFlags enums.AccelFlags, handle string, closure enums.GClosure) (id uuid.UUID) {
 	a.CObject.Lock()
-	key := MakeAccelKey(accelKey, accelMods, accelFlags)
-	age := NewAccelGroupEntry(key, handle, closure)
+	key := NewAccelKey(accelKey, accelMods, accelFlags)
+	age := NewCAccelGroupEntry(key, handle, closure)
 	id, _ = uuid.NewV4()
 	a.entries[id] = age
 	a.CObject.Unlock()

@@ -42,7 +42,6 @@ type Frame interface {
 	IsFocus() bool
 	GetFocusWithChild() (focusWithChild bool)
 	SetFocusWithChild(focusWithChild bool)
-	GetThemeRequest() (theme paint.Theme)
 	GetSizeRequest() (width, height int)
 	GetWidgetAt(p *ptypes.Point2I) Widget
 }
@@ -58,12 +57,12 @@ type CFrame struct {
 }
 
 // MakeFrame is used by the Buildable system to construct a new Frame.
-func MakeFrame() *CFrame {
+func MakeFrame() Frame {
 	return NewFrame("")
 }
 
 // NewFrame is the constructor for new Frame instances.
-func NewFrame(text string) *CFrame {
+func NewFrame(text string) Frame {
 	f := new(CFrame)
 	f.Init()
 	label := NewLabel(text)
@@ -80,7 +79,7 @@ func NewFrame(text string) *CFrame {
 
 // NewFrameWithWidget will construct a new Frame with the given widget instead
 // of the default Label.
-func NewFrameWithWidget(w Widget) *CFrame {
+func NewFrameWithWidget(w Widget) Frame {
 	f := new(CFrame)
 	f.Init()
 	f.SetLabelWidget(w)

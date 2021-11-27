@@ -96,18 +96,18 @@ type CScrollbar struct {
 	minSliderLength int
 	sliderMoving    bool
 	prevSliderPos   *ptypes.Point2I
-	focusedButton   *CButton
+	focusedButton   Button
 
 	hasBackwardStepper          bool
 	hasForwardStepper           bool
 	hasSecondaryBackwardStepper bool
 	hasSecondaryForwardStepper  bool
 
-	slider                   *CButton
-	backwardStepper          *CButton
-	forwardStepper           *CButton
-	secondaryBackwardStepper *CButton
-	secondaryForwardStepper  *CButton
+	slider                   Button
+	backwardStepper          Button
+	forwardStepper           Button
+	secondaryBackwardStepper Button
+	secondaryForwardStepper  Button
 }
 
 // Init initializes a Scrollbar object. This must be called at least once to
@@ -728,7 +728,7 @@ func (s *CScrollbar) resizeSteppers() {
 	)
 }
 
-func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) *CButton {
+func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Button {
 	a := NewArrow(arrow)
 	a.Show()
 	a.SetOrigin(0, 0)
@@ -760,7 +760,7 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) *CBu
 	return b
 }
 
-func (s *CScrollbar) resizeStepper(fArrow, bArrow enums.ArrowType, has bool, b *CButton, forward bool, x, y, w, h int) {
+func (s *CScrollbar) resizeStepper(fArrow, bArrow enums.ArrowType, has bool, b Button, forward bool, x, y, w, h int) {
 	if has {
 		if bc := b.GetChild(); bc != nil {
 			if ba, ok := bc.(Arrow); ok {
@@ -805,7 +805,7 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.
 	size := ptypes.MakeRectangle(1, 1)
 	theme := s.GetThemeRequest()
 	style := theme.Content.Normal
-	doConfigure := func(b *CButton) {
+	doConfigure := func(b Button) {
 		if b != nil {
 			bid := b.ObjectID()
 			if isSelected {

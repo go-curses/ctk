@@ -39,11 +39,11 @@ type ButtonBox interface {
 	Build(builder Builder, element *CBuilderElement) error
 	GetLayout() (value enums.ButtonBoxStyle)
 	SetLayout(layoutStyle enums.ButtonBoxStyle)
+	GetChildren() (children []Widget)
 	Add(w Widget)
 	Remove(w Widget)
 	PackStart(w Widget, expand, fill bool, padding int)
 	PackEnd(w Widget, expand, fill bool, padding int)
-	GetChildren() (children []Widget)
 	GetChildPrimary(w Widget) (isPrimary bool)
 	GetChildSecondary(w Widget) (isSecondary bool)
 	SetChildSecondary(child Widget, isSecondary bool)
@@ -60,12 +60,12 @@ type CButtonBox struct {
 
 // MakeButtonBox is used by the Buildable system to construct a new horizontal
 // homogeneous ButtonBox with no spacing between the Widget children.
-func MakeButtonBox() *CButtonBox {
+func MakeButtonBox() ButtonBox {
 	return NewButtonBox(cenums.ORIENTATION_HORIZONTAL, false, 0)
 }
 
 // NewButtonBox is a constructor for new Box instances.
-func NewButtonBox(orientation cenums.Orientation, homogeneous bool, spacing int) *CButtonBox {
+func NewButtonBox(orientation cenums.Orientation, homogeneous bool, spacing int) ButtonBox {
 	b := new(CButtonBox)
 	b.Init()
 	b.Freeze()

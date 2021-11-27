@@ -11,7 +11,7 @@ type CAccelGroupEntry struct {
 	AccelKey AccelKey
 }
 
-func NewAccelGroupEntry(accelerator AccelKey, handle string, closure enums.GClosure) (age *CAccelGroupEntry) {
+func NewCAccelGroupEntry(accelerator AccelKey, handle string, closure enums.GClosure) (age *CAccelGroupEntry) {
 	age = &CAccelGroupEntry{
 		Handle:   handle,
 		Closure:  closure,

@@ -55,12 +55,12 @@ type CAdjustment struct {
 }
 
 // MakeAdjustment is used by the Buildable system to construct a new Adjustment.
-func MakeAdjustment() *CAdjustment {
+func MakeAdjustment() Adjustment {
 	return NewAdjustment(0, 0, 0, 0, 0, 0)
 }
 
 // NewAdjustment is the constructor for new Adjustment instances.
-func NewAdjustment(value, lower, upper, stepIncrement, pageIncrement, pageSize int) *CAdjustment {
+func NewAdjustment(value, lower, upper, stepIncrement, pageIncrement, pageSize int) Adjustment {
 	a := new(CAdjustment)
 	a.Init()
 	a.Configure(value, lower, upper, stepIncrement, pageIncrement, pageSize)

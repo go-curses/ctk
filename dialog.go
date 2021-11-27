@@ -56,7 +56,9 @@ type Dialog interface {
 	Build(builder Builder, element *CBuilderElement) error
 	Run() (response chan enums.ResponseType)
 	Response(responseId enums.ResponseType)
-	AddButton(buttonText string, responseId enums.ResponseType) (value Button)
+	Add(w Widget)
+	GetWindow() Window
+	AddButton(buttonText string, responseId enums.ResponseType) (button Button)
 	AddButtons(argv ...interface{})
 	AddActionWidget(child Widget, responseId enums.ResponseType)
 	AddSecondaryActionWidget(child Widget, responseId enums.ResponseType)
@@ -69,9 +71,7 @@ type Dialog interface {
 	Show()
 	ShowAll()
 	Destroy()
-	Add(w Widget)
 	SetFocus(focus interface{})
-	GetWindow() Window
 }
 
 // The CDialog structure implements the Dialog interface and is exported
@@ -92,12 +92,12 @@ type CDialog struct {
 }
 
 // MakeDialog is used by the Buildable system to construct a new Dialog.
-func MakeDialog() *CDialog {
+func MakeDialog() Dialog {
 	return NewDialog()
 }
 
 // NewDialog is the constructor for new Dialog instances.
-func NewDialog() (value *CDialog) {
+func NewDialog() (value Dialog) {
 	d := new(CDialog)
 	d.Init()
 	return d
@@ -122,7 +122,7 @@ func NewDialog() (value *CDialog) {
 // 	parent	Transient parent of the dialog, or `nil`
 // 	flags	from DialogFlags
 // 	argv	response ID with label pairs
-func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, argv ...interface{}) (value *CDialog) {
+func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, argv ...interface{}) (value Dialog) {
 	d := new(CDialog)
 	d.dialogFlags = flags
 	d.Init()

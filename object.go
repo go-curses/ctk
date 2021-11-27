@@ -41,9 +41,9 @@ type Object interface {
 	Build(builder Builder, element *CBuilderElement) error
 	ObjectInfo() string
 	SetOrigin(x, y int)
-	GetOrigin() ptypes.Point2I
+	GetOrigin() (origin ptypes.Point2I)
 	SetAllocation(size ptypes.Rectangle)
-	GetAllocation() ptypes.Rectangle
+	GetAllocation() (alloc ptypes.Rectangle)
 	GetObjectAt(p *ptypes.Point2I) Object
 	HasPoint(p *ptypes.Point2I) (contains bool)
 	Invalidate() cenums.EventFlag
@@ -56,6 +56,7 @@ type Object interface {
 	SetCssPropertyFromStyle(key, value string) (err error)
 	GetCssProperty(name cdk.Property, state enums.StateType) (property *CStyleProperty)
 	GetCssProperties() (properties map[enums.StateType][]*CStyleProperty)
+	GetCssValue(name cdk.Property, state enums.StateType) (value interface{})
 	GetCssBool(name cdk.Property, state enums.StateType) (value bool, err error)
 	GetCssString(name cdk.Property, state enums.StateType) (value string, err error)
 	GetCssInt(name cdk.Property, state enums.StateType) (value int, err error)

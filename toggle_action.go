@@ -17,7 +17,6 @@ func init() {
 //	      +- RadioAction
 type ToggleAction interface {
 	Action
-	Buildable
 
 	Init() (already bool)
 	Toggled()
@@ -36,12 +35,12 @@ type CToggleAction struct {
 }
 
 // MakeToggleAction is used by the Buildable system to construct a new ToggleAction.
-func MakeToggleAction() *CToggleAction {
+func MakeToggleAction() ToggleAction {
 	return NewToggleAction("", "", "", "")
 }
 
 // NewToggleAction is the constructor for new ToggleAction instances.
-func NewToggleAction(name string, label string, tooltip string, stockId string) (value *CToggleAction) {
+func NewToggleAction(name string, label string, tooltip string, stockId string) (value ToggleAction) {
 	t := new(CToggleAction)
 	t.Init()
 	return t

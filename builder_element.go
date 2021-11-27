@@ -11,6 +11,8 @@ import (
 
 type BuilderElement interface {
 	String() string
+	ApplySignals()
+	ApplySignal(k, v string)
 	ApplyProperties()
 	ApplyProperty(k, v string) (set bool)
 }

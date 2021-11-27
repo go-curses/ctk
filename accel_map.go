@@ -30,6 +30,17 @@ func init() {
 // AccelMap instance for any given Display.
 type AccelMap interface {
 	Object
+
+	Init() (already bool)
+	AddEntry(accelPath string, accelKey cdk.Key, accelMods cdk.ModMask)
+	LookupEntry(accelPath string) (accelerator Accelerator, ok bool)
+	ChangeEntry(accelPath string, accelKey cdk.Key, accelMods cdk.ModMask, replace bool) (ok bool)
+	Load(fileName string)
+	LoadFromString(accelMap string)
+	Save(fileName string)
+	SaveToString() (accelMap string)
+	LockPath(accelPath string)
+	UnlockPath(accelPath string)
 }
 
 // The CAccelMap structure implements the AccelMap interface and is exported to
@@ -44,7 +55,7 @@ type CAccelMap struct {
 
 // GetAccelMap is the getter for the AccelMap singleton. There should only be
 // one AccelMap per CDK Display.
-func GetAccelMap() *CAccelMap {
+func GetAccelMap() AccelMap {
 	id := uuid.Nil
 	if d := cdk.GetDefaultDisplay(); d != nil {
 		id = d.ObjectID()

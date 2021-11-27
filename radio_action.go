@@ -17,7 +17,6 @@ func init() {
 //	      +- RadioAction
 type RadioAction interface {
 	ToggleAction
-	Buildable
 
 	Init() (already bool)
 	GetGroup() (value ActionGroup)
@@ -35,12 +34,12 @@ type CRadioAction struct {
 }
 
 // MakeRadioAction is used by the Buildable system to construct a new RadioAction.
-func MakeRadioAction() *CRadioAction {
+func MakeRadioAction() RadioAction {
 	return NewRadioAction("", "", "", "", 0)
 }
 
 // NewRadioAction is the constructor for new RadioAction instances.
-func NewRadioAction(name string, label string, tooltip string, stockId string, value int) (r *CRadioAction) {
+func NewRadioAction(name string, label string, tooltip string, stockId string, value int) (r RadioAction) {
 	r = new(CRadioAction)
 	r.Init()
 	return r

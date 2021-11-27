@@ -25,11 +25,11 @@ type CVBox struct {
 	CBox
 }
 
-func MakeVBox() *CVBox {
+func MakeVBox() VBox {
 	return NewVBox(false, 0)
 }
 
-func NewVBox(homogeneous bool, spacing int) *CVBox {
+func NewVBox(homogeneous bool, spacing int) VBox {
 	b := new(CVBox)
 	b.Init()
 	b.SetHomogeneous(homogeneous)

@@ -36,7 +36,6 @@ func init() {
 // activated, it should activate its action.
 type Action interface {
 	Object
-	Buildable
 
 	Init() (already bool)
 	GetName() (value string)
@@ -66,8 +65,8 @@ type Action interface {
 	GetShortLabel() (value string)
 	SetTooltip(tooltip string)
 	GetTooltip() (value string)
-	SetStockId(stockId string)
-	GetStockId() (value string)
+	SetStockId(stockId StockID)
+	GetStockId() (value StockID)
 	SetIcon(icon rune)
 	GetIcon() (value rune)
 	SetIconName(iconName string)
@@ -89,12 +88,12 @@ type CAction struct {
 }
 
 // Default constructor for Action objects
-func MakeAction() *CAction {
+func MakeAction() Action {
 	return NewAction("", "", "", "")
 }
 
 // Constructor for Action objects
-func NewAction(name string, label string, tooltip string, stockId string) (value *CAction) {
+func NewAction(name string, label string, tooltip string, stockId string) (value Action) {
 	a := new(CAction)
 	a.Init()
 	return a

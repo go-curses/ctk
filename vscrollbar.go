@@ -24,11 +24,11 @@ type CVScrollbar struct {
 	CScrollbar
 }
 
-func MakeVScrollbar() *CVScrollbar {
+func MakeVScrollbar() VScrollbar {
 	return NewVScrollbar()
 }
 
-func NewVScrollbar() *CVScrollbar {
+func NewVScrollbar() VScrollbar {
 	v := &CVScrollbar{}
 	v.orientation = cenums.ORIENTATION_VERTICAL
 	v.Init()

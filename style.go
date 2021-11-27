@@ -4,7 +4,7 @@ import (
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/ptypes"
-	enums "github.com/go-curses/ctk/lib/enums"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const TypeStyle cdk.CTypeTag = "ctk-style"
@@ -20,7 +20,6 @@ type Style interface {
 	Object
 
 	Init() (already bool)
-
 	PaintArrow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType enums.ArrowType, fill bool, x int, y int, width int, height int)
 	PaintBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintBoxGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int)
@@ -30,9 +29,8 @@ type Style interface {
 	PaintFlatBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintFocus(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintHandle(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation cenums.Orientation)
-	PaintHLine(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x1 int, x2 int, y int)
 	PaintOption(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
-	PaintPolygon(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, points ptypes.Point2I, nPoints int, fill bool)
+	PaintPolygon(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, points []ptypes.Point2I, nPoints int, fill bool)
 	PaintShadow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintShadowGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int)
 	PaintSlider(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, orientation cenums.Orientation)
@@ -40,7 +38,6 @@ type Style interface {
 	PaintTab(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintVLine(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, y1 int, y2 int, x int)
 	PaintExpander(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle enums.ExpanderStyle)
-	// PaintLayout(window Window, stateType StateType, useText bool, area ptypes.Rectangle, widget Widget, detail string, x int, y int, layout PangoLayout)
 	PaintResizeGrip(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, edge enums.WindowEdge, x int, y int, width int, height int)
 }
 
@@ -53,12 +50,12 @@ type CStyle struct {
 }
 
 // Default constructor for Style objects
-func MakeStyle() *CStyle {
+func MakeStyle() Style {
 	return NewStyle()
 }
 
 // Constructor for Style objects
-func NewStyle() (value *CStyle) {
+func NewStyle() (value Style) {
 	s := new(CStyle)
 	s.Init()
 	return s

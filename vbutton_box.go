@@ -22,11 +22,11 @@ type CVButtonBox struct {
 	CButtonBox
 }
 
-func MakeVButtonBox() *CVButtonBox {
+func MakeVButtonBox() VButtonBox {
 	return NewVButtonBox(false, 0)
 }
 
-func NewVButtonBox(homogeneous bool, spacing int) *CVButtonBox {
+func NewVButtonBox(homogeneous bool, spacing int) VButtonBox {
 	b := new(CVButtonBox)
 	b.Init()
 	b.SetHomogeneous(homogeneous)

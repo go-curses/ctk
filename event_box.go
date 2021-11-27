@@ -44,12 +44,12 @@ type CEventBox struct {
 }
 
 // MakeEventBox is used by the Buildable system to construct a new EventBox.
-func MakeEventBox() *CEventBox {
+func MakeEventBox() EventBox {
 	return NewEventBox()
 }
 
 // NewEventBox is the constructor for new EventBox instances.
-func NewEventBox() (value *CEventBox) {
+func NewEventBox() (value EventBox) {
 	e := new(CEventBox)
 	e.Init()
 	return e

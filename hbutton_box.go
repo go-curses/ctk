@@ -22,11 +22,11 @@ type CHButtonBox struct {
 	CButtonBox
 }
 
-func MakeHButtonBox() *CHButtonBox {
+func MakeHButtonBox() HButtonBox {
 	return NewHButtonBox(false, 0)
 }
 
-func NewHButtonBox(homogeneous bool, spacing int) *CHButtonBox {
+func NewHButtonBox(homogeneous bool, spacing int) HButtonBox {
 	b := new(CHButtonBox)
 	b.Init()
 	b.SetHomogeneous(homogeneous)

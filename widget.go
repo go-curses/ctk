@@ -55,9 +55,8 @@ type Widget interface {
 	IsFocus() (value bool)
 	GrabFocus()
 	GrabDefault()
-	SetState(state enums.StateType)
 	SetSensitive(sensitive bool)
-	CssFullPath() (path string)
+	CssFullPath() (selector string)
 	CssState() (state enums.StateType)
 	SetParent(parent Container)
 	SetParentWindow(parentWindow Window)
@@ -70,6 +69,7 @@ type Widget interface {
 	GetPointer(x int, y int)
 	IsAncestor(ancestor Widget) (value bool)
 	TranslateCoordinates(destWidget Widget, srcX int, srcY int, destX int, destY int) (value bool)
+	HideOnDelete() (value bool)
 	SetDirection(dir enums.TextDirection)
 	GetDirection() (value enums.TextDirection)
 	SetDefaultDirection(dir enums.TextDirection)
@@ -78,8 +78,12 @@ type Widget interface {
 	ClassPath(pathLength int, path string, pathReversed string)
 	GetCompositeName() (value string)
 	SetAppPaintable(appPaintable bool)
+	SetDoubleBuffered(doubleBuffered bool)
+	SetRedrawOnAllocate(redrawOnAllocate bool)
 	SetCompositeName(name string)
-	SetScrollAdjustments(hAdjustment Adjustment, vAdjustment Adjustment) (value bool)
+	SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjustment) (value bool)
+	Draw() cenums.EventFlag
+	MnemonicActivate(groupCycling bool) (value bool)
 	SendExpose(event cdk.Event) (value int)
 	SendFocusChange(event cdk.Event) (value bool)
 	ChildFocus(direction enums.DirectionType) (value bool)
@@ -115,10 +119,9 @@ type Widget interface {
 	SetCanDefault(canDefault bool)
 	GetCanFocus() (value bool)
 	SetCanFocus(canFocus bool)
-	GetHasWindow() (value bool)
+	GetHasWindow() (ok bool)
 	GetSensitive() (value bool)
 	IsSensitive() bool
-	GetState() (value enums.StateType)
 	GetVisible() (value bool)
 	SetVisible(visible bool)
 	HasDefault() (value bool)
@@ -129,11 +132,17 @@ type Widget interface {
 	SetWindow(window Window)
 	SetReceivesDefault(receivesDefault bool)
 	GetReceivesDefault() (value bool)
+	SetRealized(realized bool)
+	GetRealized() (value bool)
+	SetMapped(mapped bool)
+	GetMapped() (value bool)
 	GetTheme() (theme paint.Theme)
 	GetThemeRequest() (theme paint.Theme)
 	SetTheme(theme paint.Theme)
+	GetState() (value enums.StateType)
+	SetState(state enums.StateType)
 	HasState(s enums.StateType) bool
-	UnsetState(v enums.StateType)
+	UnsetState(state enums.StateType)
 	GetFlags() enums.WidgetFlags
 	HasFlags(f enums.WidgetFlags) bool
 	UnsetFlags(v enums.WidgetFlags)
@@ -149,7 +158,6 @@ type Widget interface {
 	ReleaseEventFocus()
 	GetTopParent() (parent Container)
 	GetWidgetAt(p *ptypes.Point2I) Widget
-	Draw() cenums.EventFlag
 }
 
 // The CWidget structure implements the Widget interface and is exported

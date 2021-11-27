@@ -24,11 +24,11 @@ type CHBox struct {
 	CBox
 }
 
-func MakeHBox() *CHBox {
+func MakeHBox() HBox {
 	return NewHBox(false, 0)
 }
 
-func NewHBox(homogeneous bool, spacing int) *CHBox {
+func NewHBox(homogeneous bool, spacing int) HBox {
 	b := new(CHBox)
 	b.Init()
 	b.SetHomogeneous(homogeneous)

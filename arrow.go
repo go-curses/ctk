@@ -53,12 +53,12 @@ type CArrow struct {
 
 // MakeArrow is used by the Buildable system to construct a new Arrow with a
 // default ArrowType setting of ArrowRight.
-func MakeArrow() *CArrow {
+func MakeArrow() Arrow {
 	return NewArrow(enums.ArrowRight)
 }
 
 // NewArrow is the constructor for new Arrow instances.
-func NewArrow(arrow enums.ArrowType) *CArrow {
+func NewArrow(arrow enums.ArrowType) Arrow {
 	a := new(CArrow)
 	a.Init()
 	a.SetArrowType(arrow)

@@ -55,7 +55,7 @@ type CAlignment struct {
 
 // MakeAlignment is used by the Buildable system to construct a new Alignment
 // with default settings of: xAlign=0.5, yAlign=1.0, xScale=0.5, yScale=1.0
-func MakeAlignment() *CAlignment {
+func MakeAlignment() Alignment {
 	return NewAlignment(0.5, 1, 0.5, 1)
 }
 
@@ -66,7 +66,7 @@ func MakeAlignment() *CAlignment {
 // 	yAlign	the vertical alignment of the child widget, from 0 (top) to 1 (bottom)
 // 	xScale	the amount that the child widget expands horizontally to fill up unused space, from 0 to 1. A value of 0 indicates that the child widget should never expand. A value of 1 indicates that the child widget will expand to fill all of the space allocated for the Alignment
 // 	yScale	the amount that the child widget expands vertically to fill up unused space, from 0 to 1. The values are similar to xScale
-func NewAlignment(xAlign float64, yAlign float64, xScale float64, yScale float64) *CAlignment {
+func NewAlignment(xAlign float64, yAlign float64, xScale float64, yScale float64) Alignment {
 	a := new(CAlignment)
 	a.Init()
 	a.Set(xAlign, yAlign, xScale, yScale)

@@ -52,7 +52,6 @@ func init() {
 // Note that currently CTK only supports the FocusChain
 type Container interface {
 	Widget
-	Buildable
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
@@ -101,13 +100,8 @@ type CContainer struct {
 	focusChainSet bool
 }
 
-// MakeContainer is used by the Buildable system to construct a new Container.
-func MakeContainer() *CContainer {
-	return NewContainer()
-}
-
 // NewContainer is the constructor for new Container instances.
-func NewContainer() *CContainer {
+func NewContainer() Container {
 	a := new(CContainer)
 	a.Init()
 	return a

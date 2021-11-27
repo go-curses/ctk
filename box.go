@@ -74,7 +74,7 @@ type cBoxChild struct {
 // MakeBox is used by the Buildable system to construct a new Box with default
 // settings of: horizontal orientation, dynamically sized (not homogeneous) and
 // no extra spacing.
-func MakeBox() (box *CBox) {
+func MakeBox() (box Box) {
 	box = NewBox(cenums.ORIENTATION_HORIZONTAL, false, 0)
 	return
 }
@@ -85,7 +85,7 @@ func MakeBox() (box *CBox) {
 //  orientation  the orientation of the Box vertically or horizontally
 //  homogeneous  whether each child receives an equal size allocation or not
 //  spacing      extra spacing to include between children
-func NewBox(orientation cenums.Orientation, homogeneous bool, spacing int) *CBox {
+func NewBox(orientation cenums.Orientation, homogeneous bool, spacing int) Box {
 	b := new(CBox)
 	b.Init()
 	b.SetOrientation(orientation)

@@ -78,7 +78,7 @@ type Window interface {
 	AddMnemonic(keyval rune, target interface{})
 	RemoveMnemonic(keyval rune, target interface{})
 	RemoveWidgetMnemonics(target interface{})
-	MnemonicActivate(keyval rune, modifier cdk.ModMask) (activated bool)
+	ActivateMnemonic(keyval rune, modifier cdk.ModMask) (activated bool)
 	ActivateKey(event cdk.EventKey) (value bool)
 	PropagateKeyEvent(event cdk.EventKey) (value bool)
 	GetFocus() (focus interface{})
@@ -156,7 +156,7 @@ type CWindow struct {
 	focused        interface{}
 	eventFocus     interface{}
 	hoverFocus     Widget
-	accelGroups    *CAccelGroups
+	accelGroups    AccelGroups
 	mnemonics      []*mnemonicEntry
 	mnemonicMod    cdk.ModMask
 	mnemonicLock   *sync.RWMutex
@@ -170,12 +170,12 @@ type mnemonicEntry struct {
 }
 
 // MakeWindow is used by the Buildable system to construct a new Window.
-func MakeWindow() *CWindow {
+func MakeWindow() Window {
 	return NewWindow()
 }
 
 // NewWindow is a constructor for new Window instances.
-func NewWindow() (w *CWindow) {
+func NewWindow() (w Window) {
 	w = new(CWindow)
 	w.Init()
 	return
@@ -183,7 +183,7 @@ func NewWindow() (w *CWindow) {
 
 // NewWindowWithTitle is a constructor for new Window instances that also sets
 // the Window title to the string given.
-func NewWindowWithTitle(title string) (w *CWindow) {
+func NewWindowWithTitle(title string) (w Window) {
 	w = NewWindow()
 	w.SetTitle(title)
 	return
@@ -642,7 +642,7 @@ func (w *CWindow) RemoveWidgetMnemonics(target interface{}) {
 // 	keyval	the mnemonic
 // 	modifier	the modifiers
 // 	returns	TRUE if the activation is done.
-func (w *CWindow) MnemonicActivate(keyval rune, modifier cdk.ModMask) (activated bool) {
+func (w *CWindow) ActivateMnemonic(keyval rune, modifier cdk.ModMask) (activated bool) {
 	if !GetDefaultSettings().GetEnableMnemonics() {
 		return false
 	}
@@ -1596,7 +1596,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		case *cdk.EventKey:
 			if f := w.Emit(SignalEventKey, w, e); f == cenums.EVENT_PASS {
 				// check for mnemonics
-				if w.MnemonicActivate(e.Rune(), e.Modifiers()) {
+				if w.ActivateMnemonic(e.Rune(), e.Modifiers()) {
 					return cenums.EVENT_STOP
 				}
 				// check for accelerators

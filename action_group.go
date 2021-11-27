@@ -17,7 +17,6 @@ func init() {
 //	  +- ActionGroup
 type ActionGroup interface {
 	Object
-	Buildable
 
 	Init() (already bool)
 	GetName() (value string)
@@ -50,12 +49,12 @@ type CActionGroup struct {
 }
 
 // MakeActionGroup is used by the Buildable system to construct a new ActionGroup.
-func MakeActionGroup() *CActionGroup {
+func MakeActionGroup() ActionGroup {
 	return NewActionGroup("")
 }
 
 // NewActionGroup is the constructor for new ActionGroup instances.
-func NewActionGroup(name string) (value *CActionGroup) {
+func NewActionGroup(name string) (value ActionGroup) {
 	a := new(CActionGroup)
 	a.Init()
 	return a

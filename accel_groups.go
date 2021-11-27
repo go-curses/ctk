@@ -15,16 +15,18 @@ var (
 type AccelGroups interface {
 	Object
 
+	AddAccelGroup(object Object, accelGroup AccelGroup)
+	RemoveAccelGroup(object Object, accelGroup AccelGroup)
 	Activate(object Object, accelKey cdk.Key, accelMods cdk.ModMask) (value bool)
-	FromObject(object Object) (value []AccelGroup)
+	FromObject(object Object) (groups []AccelGroup)
 }
 
 type CAccelGroups struct {
 	CObject
 }
 
-func NewAccelGroups() (groups *CAccelGroups) {
-	groups = &CAccelGroups{}
+func NewAccelGroups() (groups AccelGroups) {
+	groups = new(CAccelGroups)
 	groups.Init()
 	return
 }

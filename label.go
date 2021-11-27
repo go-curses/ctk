@@ -100,6 +100,7 @@ type Label interface {
 	GetCurrentUri() (value string)
 	SetTrackVisitedLinks(trackLinks bool)
 	GetTrackVisitedLinks() (value bool)
+	Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, ellipsize bool, justify cenums.Justification, maxWidthChars int)
 	GetClearText() (text string)
 	GetPlainText() (text string)
 	GetCleanText() (text string)
@@ -123,12 +124,12 @@ type CLabel struct {
 }
 
 // MakeLabel is used by the Buildable system to construct a new Label.
-func MakeLabel() *CLabel {
+func MakeLabel() Label {
 	return NewLabel("")
 }
 
 // NewLabel is the constructor for new Label instances.
-func NewLabel(plain string) *CLabel {
+func NewLabel(plain string) Label {
 	l := new(CLabel)
 	l.Init()
 	l.SetText(plain)
@@ -148,7 +149,7 @@ func NewLabel(plain string) *CLabel {
 //
 // Parameters:
 // 	label	text, with an underscore in front of the mnemonic character
-func NewLabelWithMnemonic(label string) (value *CLabel) {
+func NewLabelWithMnemonic(label string) (value Label) {
 	l := new(CLabel)
 	l.Init()
 	l.SetTextWithMnemonic(label)
@@ -157,7 +158,7 @@ func NewLabelWithMnemonic(label string) (value *CLabel) {
 
 // NewLabelWithMarkup creates a new Label, containing the text given and if the
 // text contains Tango markup, the rendered text will display accordingly.
-func NewLabelWithMarkup(markup string) (label *CLabel, err error) {
+func NewLabelWithMarkup(markup string) (label Label, err error) {
 	label = new(CLabel)
 	label.Init()
 	err = label.SetMarkup(markup)

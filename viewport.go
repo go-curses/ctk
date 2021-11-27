@@ -36,12 +36,12 @@ type Viewport interface {
 	Bin
 
 	Init() (already bool)
-	GetHAdjustment() *CAdjustment
-	SetHAdjustment(adjustment *CAdjustment)
-	GetVAdjustment() *CAdjustment
-	SetVAdjustment(adjustment *CAdjustment)
+	GetHAdjustment() (adjustment Adjustment)
+	SetHAdjustment(adjustment Adjustment)
+	GetVAdjustment() (adjustment Adjustment)
+	SetVAdjustment(adjustment Adjustment)
+	GetShadowType() (shadowType enums.ShadowType)
 	SetShadowType(shadowType enums.ShadowType)
-	GetShadowType() (value enums.ShadowType)
 	GetBinWindow() (value Window)
 	GetViewWindow() (value Window)
 }
@@ -53,17 +53,17 @@ type Viewport interface {
 type CViewport struct {
 	CBin
 
-	hAdjustment *CAdjustment
-	vAdjustment *CAdjustment
+	hAdjustment Adjustment
+	vAdjustment Adjustment
 }
 
 // MakeViewport is used by the Buildable system to construct a new Viewport.
-func MakeViewport() *CViewport {
+func MakeViewport() Viewport {
 	return NewViewport(nil, nil)
 }
 
 // NewViewport is the constructor for new Viewport instances.
-func NewViewport(hAdjustment, vAdjustment *CAdjustment) *CViewport {
+func NewViewport(hAdjustment, vAdjustment Adjustment) Viewport {
 	v := new(CViewport)
 	v.hAdjustment = hAdjustment
 	v.vAdjustment = vAdjustment
@@ -101,7 +101,7 @@ func (v *CViewport) Init() (already bool) {
 
 // GetHAdjustment returns the horizontal adjustment of the viewport.
 // See: SetHAdjustment()
-func (v *CViewport) GetHAdjustment() (adjustment *CAdjustment) {
+func (v *CViewport) GetHAdjustment() (adjustment Adjustment) {
 	var ok bool
 	if value, err := v.GetStructProperty(PropertyHAdjustment); err != nil {
 		v.LogErr(err)
@@ -113,7 +113,7 @@ func (v *CViewport) GetHAdjustment() (adjustment *CAdjustment) {
 
 // SetHAdjustment replaces the horizontal adjustment of the viewport with the
 // given adjustment.
-func (v *CViewport) SetHAdjustment(adjustment *CAdjustment) {
+func (v *CViewport) SetHAdjustment(adjustment Adjustment) {
 	if err := v.SetStructProperty(PropertyHAdjustment, adjustment); err != nil {
 		v.LogErr(err)
 	} else {
@@ -123,7 +123,7 @@ func (v *CViewport) SetHAdjustment(adjustment *CAdjustment) {
 
 // GetVAdjustment returns the vertical adjustment of the viewport.
 // See: SetVAdjustment()
-func (v *CViewport) GetVAdjustment() (adjustment *CAdjustment) {
+func (v *CViewport) GetVAdjustment() (adjustment Adjustment) {
 	var ok bool
 	if value, err := v.GetStructProperty(PropertyVAdjustment); err != nil {
 		v.LogErr(err)
@@ -135,7 +135,7 @@ func (v *CViewport) GetVAdjustment() (adjustment *CAdjustment) {
 
 // SetHAdjustment replaces the horizontal adjustment of the viewport with the
 // given adjustment.
-func (v *CViewport) SetVAdjustment(adjustment *CAdjustment) {
+func (v *CViewport) SetVAdjustment(adjustment Adjustment) {
 	if err := v.SetStructProperty(PropertyVAdjustment, adjustment); err != nil {
 		v.LogErr(err)
 	} else {

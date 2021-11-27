@@ -112,13 +112,13 @@ type CButton struct {
 
 // MakeButton is used by the Buildable system to construct a new Button with
 // a default label that is empty.
-func MakeButton() *CButton {
+func MakeButton() Button {
 	b := NewButtonWithLabel("")
 	return b
 }
 
 // NewButton is a constructor for new Button instances without a label Widget.
-func NewButton() *CButton {
+func NewButton() Button {
 	b := new(CButton)
 	b.Init()
 	return b
@@ -130,7 +130,7 @@ func NewButton() *CButton {
 //
 // Parameters:
 // 	label	the text of the button
-func NewButtonWithLabel(text string) (b *CButton) {
+func NewButtonWithLabel(text string) (b Button) {
 	b = NewButton()
 	label := NewLabel(text)
 	label.Show()
@@ -155,7 +155,7 @@ func NewButtonWithLabel(text string) (b *CButton) {
 //
 // Parameters:
 // 	label	the text of the button
-func NewButtonWithMnemonic(text string) (b *CButton) {
+func NewButtonWithMnemonic(text string) (b Button) {
 	b = NewButtonWithLabel(text)
 	b.SetUseUnderline(true)
 	return b
@@ -167,7 +167,7 @@ func NewButtonWithMnemonic(text string) (b *CButton) {
 //
 // Parameters:
 // 	stockId	the name of the stock item
-func NewButtonFromStock(stockId StockID) (value *CButton) {
+func NewButtonFromStock(stockId StockID) (value Button) {
 	b := NewButtonWithLabel("")
 	b.Init()
 	if item := LookupStockItem(stockId); item != nil {
@@ -182,7 +182,7 @@ func NewButtonFromStock(stockId StockID) (value *CButton) {
 
 // NewButtonWithWidget creates a NewButton with the given Widget as the Button's
 // child.
-func NewButtonWithWidget(w Widget) *CButton {
+func NewButtonWithWidget(w Widget) Button {
 	b := NewButton()
 	b.Add(w)
 	return b

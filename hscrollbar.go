@@ -24,11 +24,11 @@ type CHScrollbar struct {
 	CScrollbar
 }
 
-func MakeHScrollbar() *CHScrollbar {
+func MakeHScrollbar() HScrollbar {
 	return NewHScrollbar()
 }
 
-func NewHScrollbar() *CHScrollbar {
+func NewHScrollbar() HScrollbar {
 	s := &CHScrollbar{}
 	s.orientation = cenums.ORIENTATION_HORIZONTAL
 	s.Init()

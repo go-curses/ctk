@@ -44,15 +44,15 @@ type ScrolledViewport interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
-	GetHAdjustment() (value *CAdjustment)
-	GetVAdjustment() (value *CAdjustment)
+	GetHAdjustment() (value Adjustment)
+	GetVAdjustment() (value Adjustment)
 	SetPolicy(hScrollbarPolicy enums.PolicyType, vScrollbarPolicy enums.PolicyType)
 	AddWithViewport(child Widget)
 	SetPlacement(windowPlacement enums.CornerType)
 	UnsetPlacement()
 	SetShadowType(t enums.ShadowType)
-	SetHAdjustment(hAdjustment *CAdjustment)
-	SetVAdjustment(vAdjustment *CAdjustment)
+	SetHAdjustment(hAdjustment Adjustment)
+	SetVAdjustment(vAdjustment Adjustment)
 	GetPlacement() (value enums.CornerType)
 	GetPolicy() (hScrollbarPolicy enums.PolicyType, vScrollbarPolicy enums.PolicyType)
 	GetShadowType() (value enums.ShadowType)
@@ -76,11 +76,11 @@ type CScrolledViewport struct {
 	scrollbarsWithinBevel bool
 }
 
-func MakeScrolledViewport() *CScrolledViewport {
+func MakeScrolledViewport() ScrolledViewport {
 	return NewScrolledViewport()
 }
 
-func NewScrolledViewport() *CScrolledViewport {
+func NewScrolledViewport() ScrolledViewport {
 	s := new(CScrolledViewport)
 	s.Init()
 	return s
@@ -258,7 +258,7 @@ func (s *CScrolledViewport) SetShadowType(t enums.ShadowType) {
 // Sets the Adjustment for the horizontal scrollbar.
 // Parameters:
 //      hAdjustment     horizontal scroll adjustment
-func (s *CScrolledViewport) SetHAdjustment(hAdjustment *CAdjustment) {
+func (s *CScrolledViewport) SetHAdjustment(hAdjustment Adjustment) {
 	if err := s.SetStructProperty(PropertyHAdjustment, hAdjustment); err != nil {
 		s.LogErr(err)
 	}
@@ -267,7 +267,7 @@ func (s *CScrolledViewport) SetHAdjustment(hAdjustment *CAdjustment) {
 // Sets the Adjustment for the vertical scrollbar.
 // Parameters:
 //      vAdjustment     vertical scroll adjustment
-func (s *CScrolledViewport) SetVAdjustment(vAdjustment *CAdjustment) {
+func (s *CScrolledViewport) SetVAdjustment(vAdjustment Adjustment) {
 	if err := s.SetStructProperty(PropertyVAdjustment, vAdjustment); err != nil {
 		s.LogErr(err)
 	}

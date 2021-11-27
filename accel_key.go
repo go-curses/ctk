@@ -12,7 +12,7 @@ type AccelKey interface {
 	GetMods() cdk.ModMask
 	GetFlags() enums.AccelFlags
 	Match(key cdk.Key, mods cdk.ModMask) (match bool)
-	String() string
+	String() (key string)
 }
 
 type CAccelKey struct {
@@ -21,7 +21,7 @@ type CAccelKey struct {
 	Flags enums.AccelFlags
 }
 
-func MakeAccelKey(key cdk.Key, mods cdk.ModMask, flags enums.AccelFlags) (accelKey AccelKey) {
+func NewAccelKey(key cdk.Key, mods cdk.ModMask, flags enums.AccelFlags) (accelKey AccelKey) {
 	accelKey = &CAccelKey{
 		Key:   key,
 		Mods:  mods,

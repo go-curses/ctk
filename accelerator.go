@@ -13,10 +13,10 @@ func init() {
 type Accelerator interface {
 	Object
 
+	Init() (already bool)
 	LockAccel()
 	UnlockAccel()
 	IsLocked() (locked bool)
-
 	Path() (path string)
 	Key() (key cdk.Key)
 	Mods() (mods cdk.ModMask)
@@ -32,11 +32,11 @@ type CAccelerator struct {
 	accelLocking int
 }
 
-func NewDefaultAccelerator(path string) *CAccelerator {
+func NewDefaultAccelerator(path string) Accelerator {
 	return NewAccelerator(path, cdk.KeyNUL, cdk.ModNone)
 }
 
-func NewAccelerator(path string, key cdk.Key, mods cdk.ModMask) *CAccelerator {
+func NewAccelerator(path string, key cdk.Key, mods cdk.ModMask) Accelerator {
 	a := &CAccelerator{}
 	a.Init()
 	a.Configure(key, mods)
