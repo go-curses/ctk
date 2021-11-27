@@ -124,7 +124,7 @@ func (f *CFrame) Init() (already bool) {
 func (f *CFrame) GetLabel() (value string) {
 	var err error
 	if w := f.GetLabelWidget(); w != nil {
-		if lw, ok := w.(Label); ok {
+		if lw, ok := w.Self().(Label); ok {
 			f.RLock()
 			value = lw.GetLabel()
 			f.RUnlock()
@@ -150,7 +150,7 @@ func (f *CFrame) SetLabel(label string) {
 		f.LogErr(err)
 	} else {
 		if w := f.GetLabelWidget(); w != nil {
-			if lw, ok := w.(Label); ok {
+			if lw, ok := w.Self().(Label); ok {
 				lw.SetText(label)
 				f.Invalidate()
 			}
@@ -209,7 +209,7 @@ func (f *CFrame) SetLabelWidget(labelWidget Widget) {
 func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
 	var err error
 	if w := f.GetLabelWidget(); w != nil {
-		if lw, ok := w.(Label); ok {
+		if lw, ok := w.Self().(Label); ok {
 			xAlign, yAlign = lw.GetAlignment()
 			return
 		}
@@ -249,7 +249,7 @@ func (f *CFrame) SetLabelAlign(xAlign float64, yAlign float64) {
 	}
 	f.Unlock()
 	if w := f.GetLabelWidget(); w != nil {
-		if lw, ok := w.(Label); ok {
+		if lw, ok := w.Self().(Label); ok {
 			f.Lock()
 			lw.SetAlignment(xAlign, yAlign)
 			f.Unlock()
@@ -410,7 +410,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 	child := f.GetChild()
 	f.Lock()
 	defer f.Unlock()
-	if labelChild, ok := labelWidget.(Label); ok && labelChild != nil {
+	if labelChild, ok := labelWidget.Self().(Label); ok && labelChild != nil {
 		local := labelChild.GetOrigin()
 		local.SubPoint(origin)
 		alloc := labelChild.GetAllocation()
@@ -533,7 +533,7 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		surface.BoxWithTheme(boxOrigin, boxSize, true, true, theme)
 
 		if widget != nil {
-			if label, ok := widget.(Label); ok {
+			if label, ok := widget.Self().(Label); ok {
 				if rv := label.Draw(); rv == cenums.EVENT_STOP {
 					if err := surface.Composite(label.ObjectID()); err != nil {
 						f.LogError("composite error: %v", err)
