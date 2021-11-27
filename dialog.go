@@ -71,7 +71,7 @@ type Dialog interface {
 	Show()
 	ShowAll()
 	Destroy()
-	SetFocus(focus interface{})
+	SetFocus(focus Widget)
 }
 
 // The CDialog structure implements the Dialog interface and is exported
@@ -513,12 +513,12 @@ func (d *CDialog) Destroy() {
 	d.Emit(SignalDestroyEvent, d)
 }
 
-func (d *CDialog) SetFocus(focus interface{}) {
+func (d *CDialog) SetFocus(focus Widget) {
 	if focus == nil {
 		d.Lock()
 		d.focused = nil
 		d.Unlock()
-	} else if fw, ok := focus.(Sensitive); ok {
+	} else if fw, ok := focus.Self().(Sensitive); ok {
 		if fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
 			if err := d.SetStructProperty(PropertyFocusedWidget, focus); err != nil {
 				d.LogErr(err)
@@ -589,7 +589,7 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					point := ptypes.NewPoint2I(e.Position())
 					point.AddPoint(d.GetOrigin())
 					if mw := child.GetWidgetAt(point); mw != nil {
-						if ms, ok := mw.(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
+						if ms, ok := mw.Self().(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
 							if f := ms.ProcessEvent(evt); f == cenums.EVENT_STOP {
 								return cenums.EVENT_STOP
 							}
