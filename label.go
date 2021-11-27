@@ -948,8 +948,8 @@ func (l *CLabel) refreshMnemonics() {
 					w.AddMnemonic(keyval, widget)
 				} else {
 					if parent := l.GetParent(); parent != nil {
-						if pw, ok := parent.(Sensitive); ok && pw.IsSensitive() && pw.IsVisible() {
-							w.AddMnemonic(keyval, pw)
+						if pw, ok := parent.Self().(Sensitive); ok && pw.IsSensitive() && pw.IsVisible() {
+							w.AddMnemonic(keyval, parent)
 						}
 					}
 				}
