@@ -61,8 +61,8 @@ type ScrolledViewport interface {
 	Add(w Widget)
 	Remove(w Widget)
 	GetChild() Widget
-	GetHScrollbar() *CHScrollbar
-	GetVScrollbar() *CVScrollbar
+	GetHScrollbar() HScrollbar
+	GetVScrollbar() VScrollbar
 	Show()
 	Hide()
 	GetWidgetAt(p *ptypes.Point2I) Widget
@@ -172,7 +172,7 @@ func (s *CScrolledViewport) GetHAdjustment() (value Adjustment) {
 	var ok bool
 	if v, err := s.GetStructProperty(PropertyHAdjustment); err != nil {
 		s.LogErr(err)
-	} else if value, ok = v.(Adjustment); !ok {
+	} else if value, ok = v.(*CAdjustment); !ok {
 		s.LogError("value stored in struct property is not of Adjustment type: %v (%T)", v, v)
 	}
 	return
@@ -186,7 +186,7 @@ func (s *CScrolledViewport) GetVAdjustment() (value Adjustment) {
 	var ok bool
 	if v, err := s.GetStructProperty(PropertyVAdjustment); err != nil {
 		s.LogErr(err)
-	} else if value, ok = v.(Adjustment); !ok {
+	} else if value, ok = v.(*CAdjustment); !ok {
 		s.LogError("value stored in struct property is not an Adjustment: %v (%T)", v, v)
 	}
 	return
@@ -371,7 +371,7 @@ func (s *CScrolledViewport) HorizontalShowByPolicy() (show bool) {
 }
 
 func (s *CScrolledViewport) Add(w Widget) {
-	if _, ok := w.(Scrollbar); ok {
+	if _, ok := w.Self().(Scrollbar); ok {
 		s.LogError("cannot Add a scrollbar as the Viewport content: %v", w)
 		return
 	}
@@ -398,18 +398,18 @@ func (s *CScrolledViewport) GetChild() Widget {
 	return nil
 }
 
-func (s *CScrolledViewport) GetHScrollbar() *CHScrollbar {
+func (s *CScrolledViewport) GetHScrollbar() HScrollbar {
 	for _, child := range s.GetChildren() {
-		if v, ok := child.(*CHScrollbar); ok {
+		if v, ok := child.Self().(*CHScrollbar); ok {
 			return v
 		}
 	}
 	return nil
 }
 
-func (s *CScrolledViewport) GetVScrollbar() *CVScrollbar {
+func (s *CScrolledViewport) GetVScrollbar() VScrollbar {
 	for _, child := range s.GetChildren() {
-		if v, ok := child.(*CVScrollbar); ok {
+		if v, ok := child.Self().(*CVScrollbar); ok {
 			return v
 		}
 	}
@@ -475,7 +475,7 @@ func (s *CScrolledViewport) internalGetWidgetAt(p *ptypes.Point2I) Widget {
 
 func (s *CScrolledViewport) CancelEvent() {
 	if child := s.GetChild(); child != nil {
-		if cs, ok := child.(Sensitive); ok {
+		if cs, ok := child.Self().(Sensitive); ok {
 			cs.CancelEvent()
 		}
 	}
@@ -578,7 +578,7 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) cenum
 func (s *CScrolledViewport) processEventAtPoint(p *ptypes.Point2I, evt *cdk.EventMouse) cenums.EventFlag {
 	if w := s.internalGetWidgetAt(p); w != nil {
 		if w.ObjectID() != s.ObjectID() {
-			if ws, ok := w.(Sensitive); ok {
+			if ws, ok := w.Self().(Sensitive); ok {
 				if f := ws.ProcessEvent(evt); f == cenums.EVENT_STOP {
 					s.Invalidate()
 					return cenums.EVENT_STOP
