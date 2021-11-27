@@ -48,7 +48,7 @@ type Box interface {
 	ReorderChild(child Widget, position int)
 	QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType enums.PackType)
 	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType)
-	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
+	GetFocusChain() (focusableWidgets []Widget, explicitlySet bool)
 	GetSizeRequest() (width, height int)
 }
 
@@ -462,7 +462,7 @@ func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int
 // 	explicitlySet       TRUE if the focus chain has been set explicitly.
 //
 // Locking: read
-func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
+func (b *CBox) GetFocusChain() (focusableWidgets []Widget, explicitlySet bool) {
 	b.RLock()
 	if b.focusChainSet {
 		b.RUnlock()
@@ -471,7 +471,7 @@ func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bo
 	b.RUnlock()
 	boxChildren := b.getBoxChildren()
 	b.RLock()
-	var children []interface{}
+	var children []Widget
 	for _, child := range boxChildren {
 		if child.packType == enums.PackStart {
 			children = append(children, child.widget)
@@ -483,13 +483,13 @@ func (b *CBox) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bo
 		}
 	}
 	for _, child := range children {
-		if cc, ok := child.(Container); ok {
+		if cc, ok := child.Self().(Container); ok {
 			fc, _ := cc.GetFocusChain()
 			for _, cChild := range fc {
 				focusableWidgets = append(focusableWidgets, cChild)
 			}
-		} else if cw, ok := child.(Widget); ok {
-			if cw.CanFocus() && cw.IsVisible() && cw.IsSensitive() {
+		} else {
+			if child.CanFocus() && child.IsVisible() && child.IsSensitive() {
 				focusableWidgets = append(focusableWidgets, child)
 			}
 		}
@@ -702,7 +702,7 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		if isVertical {
 			if tracking[idx].h < tracking[idx].ah {
 				delta := tracking[idx].ah - tracking[idx].h
-				if ca, ok := child.widget.(Alignable); ok {
+				if ca, ok := child.widget.Self().(Alignable); ok {
 					_, yAlign := ca.GetAlignment()
 					pad := int(float64(delta) * yAlign)
 					tracking[idx].y += pad
@@ -714,7 +714,7 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		} else { // horizontal
 			if tracking[idx].w < tracking[idx].aw {
 				delta := tracking[idx].aw - tracking[idx].w
-				if ca, ok := child.widget.(Alignable); ok {
+				if ca, ok := child.widget.Self().(Alignable); ok {
 					xAlign, _ := ca.GetAlignment()
 					pad := int(float64(delta) * xAlign)
 					tracking[idx].x += pad
@@ -889,7 +889,7 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 	// solve positions
 
 	for idx, child := range children {
-		if ca, ok := child.widget.(Alignable); ok {
+		if ca, ok := child.widget.Self().(Alignable); ok {
 			xAlign, yAlign := ca.GetAlignment()
 			if isVertical {
 				if tracking[idx].h < tracking[idx].ah {
