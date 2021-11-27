@@ -76,8 +76,8 @@ type Container interface {
 	SetChildProperty(child Widget, propertyName cdk.Property, value interface{})
 	GetBorderWidth() (value int)
 	SetBorderWidth(borderWidth int)
-	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
-	SetFocusChain(focusableWidgets []interface{})
+	GetFocusChain() (focusableWidgets []Widget, explicitlySet bool)
+	SetFocusChain(focusableWidgets []Widget)
 	UnsetFocusChain()
 	FindChildProperty(property cdk.Property) (value *cdk.CProperty)
 	InstallChildProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) error
@@ -96,7 +96,7 @@ type CContainer struct {
 	resizeMode    cenums.ResizeMode
 	properties    []*cdk.CProperty
 	property      map[uuid.UUID][]*cdk.CProperty
-	focusChain    []interface{}
+	focusChain    []Widget
 	focusChainSet bool
 }
 
@@ -126,7 +126,7 @@ func (c *CContainer) Init() (already bool) {
 	c.children = make([]Widget, 0)
 	c.properties = make([]*cdk.CProperty, 0)
 	c.property = make(map[uuid.UUID][]*cdk.CProperty)
-	c.focusChain = make([]interface{}, 0)
+	c.focusChain = make([]Widget, 0)
 	return false
 }
 
@@ -162,10 +162,10 @@ func (c *CContainer) SetOrigin(x, y int) {
 		children := c.GetChildren()
 		c.Lock()
 		c.origin.Set(x, y)
+		c.Unlock()
 		for _, child := range children {
 			child.SetOrigin(x, y)
 		}
-		c.Unlock()
 		c.Invalidate()
 	}
 }
@@ -178,7 +178,7 @@ func (c *CContainer) SetWindow(w Window) {
 	c.CWidget.SetWindow(w)
 	children := c.GetChildren()
 	for _, child := range children {
-		if wc, ok := child.(Container); ok {
+		if wc, ok := child.Self().(Container); ok {
 			wc.SetWindow(w)
 		} else {
 			child.SetWindow(w)
@@ -218,7 +218,7 @@ func (c *CContainer) Add(w Widget) {
 		window := c.GetWindow()
 		log.DebugDF(1, "child=%v", w.ObjectName())
 		w.SetParent(c)
-		if wc, ok := w.(Container); ok {
+		if wc, ok := w.Self().(Container); ok {
 			wc.SetWindow(window)
 		} else {
 			w.SetWindow(window)
@@ -551,12 +551,12 @@ func (c *CContainer) SetBorderWidth(borderWidth int) {
 // 	explicitlySet       TRUE if the focus chain has been set explicitly.
 //
 // Locking: read
-func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
+func (c *CContainer) GetFocusChain() (focusableWidgets []Widget, explicitlySet bool) {
 	if c.focusChainSet {
 		return c.focusChain, true
 	}
 	for _, child := range c.children {
-		if cc, ok := child.(Container); ok {
+		if cc, ok := child.Self().(Container); ok {
 			// the container itself may be more than a Container, if so, add it
 			if cc.CanFocus() && cc.IsVisible() && cc.IsSensitive() {
 				focusableWidgets = append(focusableWidgets, child)
@@ -564,10 +564,8 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitly
 			}
 			fc, _ := cc.GetFocusChain()
 			for _, cChild := range fc {
-				if ccc, ok := cChild.(Widget); ok {
-					if ccc.CanFocus() && ccc.IsVisible() && ccc.IsSensitive() {
-						focusableWidgets = append(focusableWidgets, cChild)
-					}
+				if cChild.CanFocus() && cChild.IsVisible() && cChild.IsSensitive() {
+					focusableWidgets = append(focusableWidgets, cChild)
 				}
 			}
 		} else {
@@ -590,7 +588,7 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []interface{}, explicitly
 // 	focusableWidgets	the new focus chain.
 //
 // Locking: write
-func (c *CContainer) SetFocusChain(focusableWidgets []interface{}) {
+func (c *CContainer) SetFocusChain(focusableWidgets []Widget) {
 	c.Lock()
 	defer c.Unlock()
 	c.focusChain = focusableWidgets
@@ -603,7 +601,7 @@ func (c *CContainer) SetFocusChain(focusableWidgets []interface{}) {
 func (c *CContainer) UnsetFocusChain() {
 	c.Lock()
 	defer c.Unlock()
-	c.focusChain = []interface{}{}
+	c.focusChain = []Widget{}
 	c.focusChainSet = false
 }
 
