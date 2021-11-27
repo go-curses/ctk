@@ -64,7 +64,7 @@ func init() {
 
 func main() {
 	cdk.Init()
-	app := cdk.NewApp(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty", setupUi)
+	app := cdk.NewApplication(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty", setupUi)
 	app.AddFlag(&cli.BoolFlag{
 		Name:    "debug",
 		Aliases: []string{"d"},

@@ -52,7 +52,7 @@ import (
 
 func main() {
   // Construct a new CDK application
-  app := cdk.NewApp(
+  app := cdk.NewApplication(
     // program binary name
     "hello-world",
     // usage summary

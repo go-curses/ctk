@@ -56,7 +56,7 @@ func init() {
 }
 
 func main() {
-	app := cdk.NewApp(
+	app := cdk.NewApplication(
 		AppName,
 		AppUsage,
 		AppDesc,

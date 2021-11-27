@@ -55,7 +55,7 @@ func glade(ctx *cli.Context) error {
 	} else if gladeFile[len(gladeFile)-6:] != ".glade" {
 		fmt.Printf("not a .glade interface file: %v\n", gladeFile)
 	}
-	app := cdk.NewApp("ctk-glade", "", "", "", "ctk-glade", "CTK Glade", "/dev/tty", func(d cdk.Display) error {
+	app := cdk.NewApplication("ctk-glade", "", "", "", "ctk-glade", "CTK Glade", "/dev/tty", func(d cdk.Display) error {
 		return ProcessFile(ctx, gladeFile, d)
 	})
 	if err := app.Run([]string{"ctk-glade"}); err != nil {
