@@ -94,7 +94,7 @@ type Button interface {
 	SetImagePosition(position enums.PositionType)
 	GetPressed() bool
 	SetPressed(pressed bool)
-	GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool)
+	GetFocusChain() (focusableWidgets []Widget, explicitlySet bool)
 	CancelEvent()
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	GetSizeRequest() (width, height int)
@@ -292,7 +292,7 @@ func (b *CButton) SetRelief(newStyle enums.ReliefStyle) {
 //
 // Locking: read
 func (b *CButton) GetLabel() (value string) {
-	if v, ok := b.GetChild().(Label); ok {
+	if v, ok := b.GetChild().Self().(Label); ok {
 		return v.GetText()
 	}
 	b.RLock()
@@ -321,7 +321,7 @@ func (b *CButton) SetLabel(label string) {
 		}
 		b.Unlock()
 	}
-	if v, ok := b.GetChild().(Label); ok {
+	if v, ok := b.GetChild().Self().(Label); ok {
 		if strings.HasPrefix(label, "<markup") {
 			if err := v.SetMarkup(label); err != nil {
 				b.LogErr(err)
@@ -385,7 +385,7 @@ func (b *CButton) SetUseUnderline(enabled bool) {
 		b.LogErr(err)
 	}
 	if child := b.GetChild(); child != nil {
-		if label, ok := child.(Label); ok {
+		if label, ok := child.Self().(Label); ok {
 			if enabled {
 				label.SetMnemonicWidget(b)
 			} else {
@@ -485,7 +485,7 @@ func (b *CButton) SetAlignment(xAlign float64, yAlign float64) {
 		b.LogErr(err)
 	}
 	if child := b.GetChild(); child != nil {
-		if ca, ok := child.(Alignable); ok {
+		if ca, ok := child.Self().(Alignable); ok {
 			ca.SetAlignment(xAlign, yAlign)
 		}
 	}
@@ -580,8 +580,8 @@ func (b *CButton) SetPressed(pressed bool) {
 
 // GetFocusChain overloads the Container.GetFocusChain to always return the
 // Button instance as the only item in the focus chain.
-func (b *CButton) GetFocusChain() (focusableWidgets []interface{}, explicitlySet bool) {
-	focusableWidgets = []interface{}{b}
+func (b *CButton) GetFocusChain() (focusableWidgets []Widget, explicitlySet bool) {
+	focusableWidgets = []Widget{b}
 	return
 }
 
@@ -764,7 +764,7 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		}
 		req := ptypes.MakeRectangle(child.GetSizeRequest())
 		req.Clamp(0, 0, size.W, size.H)
-		if label, ok := child.(Label); ok {
+		if label, ok := child.Self().(Label); ok {
 			w, h := label.GetPlainTextInfoAtWidth(req.W)
 			xAlign := 0.5
 			yAlign := 0.5
@@ -805,7 +805,7 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		if child = b.GetChild(); child == nil {
 			b.LogError("button child (label) not found")
 			// return cenums.EVENT_PASS
-		} else if v, ok := child.(Label); ok {
+		} else if v, ok := child.Self().(Label); ok {
 			label = v
 		}
 
