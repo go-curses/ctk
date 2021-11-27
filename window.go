@@ -75,14 +75,14 @@ type Window interface {
 	IsActive() (active bool)
 	HasToplevelFocus() (focused bool)
 	ListTopLevels() (value []Window)
-	AddMnemonic(keyval rune, target interface{})
-	RemoveMnemonic(keyval rune, target interface{})
-	RemoveWidgetMnemonics(target interface{})
+	AddMnemonic(keyval rune, target Widget)
+	RemoveMnemonic(keyval rune, target Widget)
+	RemoveWidgetMnemonics(target Widget)
 	ActivateMnemonic(keyval rune, modifier cdk.ModMask) (activated bool)
 	ActivateKey(event cdk.EventKey) (value bool)
 	PropagateKeyEvent(event cdk.EventKey) (value bool)
-	GetFocus() (focus interface{})
-	SetFocus(focus interface{})
+	GetFocus() (focus Widget)
+	SetFocus(focus Widget)
 	GetDefaultWidget() (value Widget)
 	SetDefault(defaultWidget Widget)
 	Present()
@@ -135,12 +135,12 @@ type Window interface {
 	GetDisplay() (dm cdk.Display)
 	SetDisplay(dm cdk.Display)
 	GetVBox() (vbox VBox)
-	GetNextFocus() (next interface{})
-	GetPreviousFocus() (previous interface{})
+	GetNextFocus() (next Widget)
+	GetPreviousFocus() (previous Widget)
 	FocusNext() cenums.EventFlag
 	FocusPrevious() cenums.EventFlag
-	GetEventFocus() (o interface{})
-	SetEventFocus(o interface{})
+	GetEventFocus() (o cdk.Object)
+	SetEventFocus(o cdk.Object)
 }
 
 // The CWindow structure implements the Window interface and is exported to
@@ -166,7 +166,7 @@ type CWindow struct {
 
 type mnemonicEntry struct {
 	key    rune
-	target interface{}
+	target Widget
 }
 
 // MakeWindow is used by the Buildable system to construct a new Window.
@@ -388,7 +388,7 @@ func (w *CWindow) RemoveAccelGroup(accelGroup AccelGroup) {
 // 	TRUE if a widget got activated.
 func (w *CWindow) ActivateFocus() (value bool) {
 	if focused := w.GetFocus(); focused != nil {
-		if activatable, ok := focused.(Activatable); ok {
+		if activatable, ok := focused.Self().(Activatable); ok {
 			activatable.Activate()
 			return true
 		}
@@ -525,10 +525,10 @@ func (w *CWindow) IsActive() (active bool) {
 			return true
 		}
 		if parent := w.GetParent(); parent != nil {
-			if pw, ok := parent.(Window); ok {
+			if pw, ok := parent.Self().(Window); ok {
 				if overlays := w.display.GetWindowOverlays(pw.ObjectID()); overlays != nil {
 					for _, overlay := range overlays {
-						if ow, ok := overlay.(Window); ok {
+						if ow, ok := overlay.Self().(Window); ok {
 							if ow.ObjectID() == w.ObjectID() {
 								return true
 							}
@@ -567,12 +567,12 @@ func (w *CWindow) ListTopLevels() (value []Window) {
 // Parameters:
 // 	keyval	the mnemonic
 // 	target	the widget that gets activated by the mnemonic
-func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
+func (w *CWindow) AddMnemonic(keyval rune, target Widget) {
 	w.mnemonicLock.Lock()
 	for _, entry := range w.mnemonics {
 		if entry.key == keyval {
-			if widget, ok := entry.target.(Sensitive); ok {
-				if tw, ok := target.(Sensitive); ok {
+			if widget, ok := entry.target.Self().(Sensitive); ok {
+				if tw, ok := target.Self().(Sensitive); ok {
 					if widget.ObjectID() == tw.ObjectID() {
 						w.mnemonicLock.Unlock()
 						return
@@ -581,7 +581,7 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 			}
 		}
 	}
-	if _, ok := target.(Sensitive); ok {
+	if _, ok := target.Self().(Sensitive); ok {
 		w.mnemonics = append(w.mnemonics, &mnemonicEntry{
 			key:    keyval,
 			target: target,
@@ -596,13 +596,13 @@ func (w *CWindow) AddMnemonic(keyval rune, target interface{}) {
 // Parameters:
 // 	keyval	the mnemonic
 // 	target	the widget that gets activated by the mnemonic
-func (w *CWindow) RemoveMnemonic(keyval rune, target interface{}) {
+func (w *CWindow) RemoveMnemonic(keyval rune, target Widget) {
 	w.mnemonicLock.Lock()
-	if tw, ok := target.(Sensitive); ok {
+	if tw, ok := target.Self().(Sensitive); ok {
 		var mnemonics []*mnemonicEntry
 		for _, entry := range w.mnemonics {
 			if entry.key == keyval {
-				if widget, ok := entry.target.(Sensitive); ok {
+				if widget, ok := entry.target.Self().(Sensitive); ok {
 					if widget.ObjectID() != tw.ObjectID() {
 						mnemonics = append(mnemonics, entry)
 					}
@@ -619,12 +619,12 @@ func (w *CWindow) RemoveMnemonic(keyval rune, target interface{}) {
 // Removes all mnemonics from this window for the target Widget.
 // Parameters:
 // 	target	the widget that gets activated by the mnemonic
-func (w *CWindow) RemoveWidgetMnemonics(target interface{}) {
+func (w *CWindow) RemoveWidgetMnemonics(target Widget) {
 	w.mnemonicLock.Lock()
-	if tw, ok := target.(Widget); ok {
+	if tw, ok := target.Self().(Widget); ok {
 		var mnemonics []*mnemonicEntry
 		for _, entry := range w.mnemonics {
-			if widget, ok := entry.target.(Widget); ok {
+			if widget, ok := entry.target.Self().(Widget); ok {
 				if widget.ObjectID() != tw.ObjectID() {
 					mnemonics = append(mnemonics, entry)
 				}
@@ -650,7 +650,7 @@ func (w *CWindow) ActivateMnemonic(keyval rune, modifier cdk.ModMask) (activated
 	if modifier == w.mnemonicMod {
 		for _, entry := range w.mnemonics {
 			if entry.key == keyval {
-				if sa, ok := entry.target.(Sensitive); ok && sa.IsSensitive() && sa.IsVisible() {
+				if sa, ok := entry.target.Self().(Sensitive); ok && sa.IsSensitive() && sa.IsVisible() {
 					w.mnemonicLock.Unlock()
 					sa.GrabFocus()
 					sa.Activate()
@@ -695,26 +695,21 @@ func (w *CWindow) PropagateKeyEvent(event cdk.EventKey) (value bool) {
 // Returns:
 // 	the currently focused widget, or NULL if there is none.
 // 	[transfer none]
-func (w *CWindow) GetFocus() (focus interface{}) {
+func (w *CWindow) GetFocus() (focus Widget) {
 	var err error
-	if focus, err = w.GetStructProperty(PropertyFocusedWidget); err != nil {
+	var ok bool
+	var focusStruct interface{}
+	if focusStruct, err = w.GetStructProperty(PropertyFocusedWidget); err != nil {
 		w.LogErr(err)
-	} else {
+	} else if focus, ok = focusStruct.(Widget); !ok {
+		w.LogError("value stored in %v property is not of Widget type: %v (%T)", PropertyFocusedWidget, focusStruct, focusStruct)
+	} else if ok {
 		return
 	}
-	// w.RLock()
-	// if w.focused != nil {
-	// 	focus = w.focused
-	// 	w.RUnlock()
-	// 	return
-	// }
-	// w.RUnlock()
 	fc, _ := w.GetFocusChain()
 	if len(fc) > 0 {
-		// w.Lock()
-		// w.focused = fc[0]
+		w.SetFocus(fc[0])
 		focus = fc[0]
-		// w.Unlock()
 	}
 	return
 }
@@ -727,7 +722,7 @@ func (w *CWindow) GetFocus() (focus interface{}) {
 //
 // Parameters:
 // 	focus	widget to be the new focus widget, or NULL to unset
-func (w *CWindow) SetFocus(focus interface{}) {
+func (w *CWindow) SetFocus(focus Widget) {
 	if transient := w.GetTransientFor(); transient != nil && w.ObjectID() != transient.ObjectID() {
 		transient.SetFocus(focus)
 		return
@@ -736,13 +731,13 @@ func (w *CWindow) SetFocus(focus interface{}) {
 		w.Lock()
 		w.focused = nil
 		w.Unlock()
-	} else if fw, ok := focus.(Sensitive); ok {
+	} else if fw, ok := focus.Self().(Sensitive); ok {
 		if fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
 			if err := w.SetStructProperty(PropertyFocusedWidget, focus); err != nil {
 				w.LogErr(err)
 			}
 			w.Lock()
-			w.focused = focus
+			w.focused = focus.Self()
 			w.Unlock()
 		} else {
 			w.LogError("cannot focus, not visible or not sensitive")
@@ -1465,7 +1460,7 @@ func (w *CWindow) GetVBox() (vbox VBox) {
 	// bin child must be an internal VBox
 	if child := w.GetChild(); child != nil {
 		var ok bool
-		if vbox, ok = child.(VBox); ok {
+		if vbox, ok = child.Self().(VBox); ok {
 			return // exists, use it
 		}
 		w.LogError("removing internal widget: %v (%T) - not a VBox", child, child)
@@ -1478,28 +1473,24 @@ func (w *CWindow) GetVBox() (vbox VBox) {
 	return
 }
 
-func (w *CWindow) GetNextFocus() (next interface{}) {
+func (w *CWindow) GetNextFocus() (next Widget) {
 	fc, _ := w.CBin.GetFocusChain()
 	if focused := w.GetFocus(); focused != nil {
 		w.RLock()
-		if wFocused, ok := focused.(Widget); ok {
-			found := false
-			for _, fci := range fc {
-				if fcw, ok := fci.(Widget); ok {
-					if !found {
-						if fcw.ObjectID() == wFocused.ObjectID() {
-							found = true
-						}
-					} else {
-						next = fci
-						w.RUnlock()
-						return
-					}
+		found := false
+		for _, fci := range fc {
+			if !found {
+				if fci.ObjectID() == focused.ObjectID() {
+					found = true
 				}
+			} else {
+				next = fci
+				w.RUnlock()
+				return
 			}
-			if len(fc) > 0 {
-				next = fc[0]
-			}
+		}
+		if len(fc) > 0 {
+			next = fc[0]
 		}
 		w.RUnlock()
 	} else if len(fc) > 0 {
@@ -1508,25 +1499,21 @@ func (w *CWindow) GetNextFocus() (next interface{}) {
 	return
 }
 
-func (w *CWindow) GetPreviousFocus() (previous interface{}) {
+func (w *CWindow) GetPreviousFocus() (previous Widget) {
 	fc, _ := w.CBin.GetFocusChain()
 	nfc := len(fc)
 	if focused := w.GetFocus(); focused != nil {
 		w.RLock()
-		if wFocused, ok := focused.(Widget); ok {
-			found := false
-			for _, fci := range fc {
-				if fcw, ok := fci.(Widget); ok {
-					if !found && fcw.ObjectID() == wFocused.ObjectID() {
-						found = true
-						break
-					}
-					previous = fci
-				}
+		found := false
+		for _, fci := range fc {
+			if !found && fci.ObjectID() == focused.ObjectID() {
+				found = true
+				break
 			}
-			if previous == nil && nfc > 0 {
-				previous = fc[nfc-1]
-			}
+			previous = fci
+		}
+		if previous == nil && nfc > 0 {
+			previous = fc[nfc-1]
 		}
 		w.RUnlock()
 	} else if nfc > 0 {
@@ -1537,16 +1524,11 @@ func (w *CWindow) GetPreviousFocus() (previous interface{}) {
 
 func (w *CWindow) FocusNext() cenums.EventFlag {
 	if focused := w.GetFocus(); focused != nil {
-		if fw, ok := focused.(Widget); ok {
-			fw.Emit(SignalLostFocus)
-		}
+		focused.Emit(SignalLostFocus)
 	}
 	if next := w.GetNextFocus(); next != nil {
-		if nw, ok := next.(Widget); ok {
-			nw.GrabFocus()
-			w.SetFocus(next)
-			return cenums.EVENT_STOP
-		}
+		next.GrabFocus()
+		return cenums.EVENT_STOP
 	}
 	w.LogError("no widgets to focus next")
 	return cenums.EVENT_PASS
@@ -1554,29 +1536,24 @@ func (w *CWindow) FocusNext() cenums.EventFlag {
 
 func (w *CWindow) FocusPrevious() cenums.EventFlag {
 	if focused := w.GetFocus(); focused != nil {
-		if fw, ok := focused.(Widget); ok {
-			fw.Emit(SignalLostFocus)
-		}
+		focused.Emit(SignalLostFocus)
 	}
 	if prev := w.GetPreviousFocus(); prev != nil {
-		if pw, ok := prev.(Sensitive); ok {
-			pw.GrabFocus()
-			w.SetFocus(prev)
-			return cenums.EVENT_STOP
-		}
+		prev.GrabFocus()
+		return cenums.EVENT_STOP
 	}
 	w.LogError("no widgets to focus previous")
 	return cenums.EVENT_PASS
 }
 
-func (w *CWindow) GetEventFocus() (o interface{}) {
+func (w *CWindow) GetEventFocus() (o cdk.Object) {
 	if dm := w.GetDisplay(); dm != nil {
 		o = dm.GetEventFocus()
 	}
 	return
 }
 
-func (w *CWindow) SetEventFocus(o interface{}) {
+func (w *CWindow) SetEventFocus(o cdk.Object) {
 	if f := w.Emit(SignalSetEventFocus, w, o); f == cenums.EVENT_PASS {
 		if dm := w.GetDisplay(); dm != nil {
 			if err := dm.SetEventFocus(o); err != nil {
@@ -1624,7 +1601,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				}
 				// check focused
 				if fi := w.GetFocus(); fi != nil {
-					if sw, ok := fi.(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
+					if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
 						if f := sw.ProcessEvent(evt); f == cenums.EVENT_STOP {
 							return cenums.EVENT_STOP
 						}
@@ -1661,7 +1638,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 						w.hoverFocus = mw
 						w.Unlock()
 					}
-					if ms, ok := mw.(Sensitive); ok {
+					if ms, ok := mw.Self().(Sensitive); ok {
 						if ms.IsSensitive() && ms.IsVisible() {
 							return ms.ProcessEvent(e)
 						}
