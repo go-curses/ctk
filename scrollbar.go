@@ -145,13 +145,14 @@ func (s *CScrollbar) Init() (already bool) {
 	s.Connect(SignalInvalidate, ScrollbarInvalidateHandle, s.invalidate)
 	s.Connect(SignalResize, ScrollbarResizeHandle, s.resize)
 	s.Connect(SignalDraw, ScrollbarDrawHandle, s.draw)
-	s.Resize()
 	return false
 }
 
 // GetHasBackwardStepper returns whether to display the standard backward arrow
 // button.
 // See: SetHasBackwardStepper()
+//
+// Locking: read
 func (s *CScrollbar) GetHasBackwardStepper() (hasBackwardStepper bool) {
 	s.RLock()
 	hasBackwardStepper = s.hasBackwardStepper
@@ -161,15 +162,18 @@ func (s *CScrollbar) GetHasBackwardStepper() (hasBackwardStepper bool) {
 
 // SetHasBackwardStepper updates whether to display the standard backward arrow
 // button.
+//
+// Locking: write
 func (s *CScrollbar) SetHasBackwardStepper(hasBackwardStepper bool) {
 	s.Lock()
 	s.hasBackwardStepper = hasBackwardStepper
 	s.Unlock()
 }
 
-// Display the standard forward arrow button.
-// Flags: Read
-// Default value: TRUE
+// GetHasForwardStepper returns whether to display the standard forward arrow
+// button.
+//
+// Locking: read
 func (s *CScrollbar) GetHasForwardStepper() (hasForwardStepper bool) {
 	s.RLock()
 	hasForwardStepper = s.hasForwardStepper
@@ -177,18 +181,20 @@ func (s *CScrollbar) GetHasForwardStepper() (hasForwardStepper bool) {
 	return
 }
 
-// Display the standard forward arrow button.
-// Flags: Read
-// Default value: TRUE
+// SetHasForwardSettper updates whether to display the standard forward arrow
+// button.
+//
+// Locking: write
 func (s *CScrollbar) SetHasForwardStepper(hasForwardStepper bool) {
 	s.Lock()
 	s.hasForwardStepper = hasForwardStepper
 	s.Unlock()
 }
 
-// Display a second backward arrow button on the opposite end of the scrollbar.
-// Flags: Read
-// Default value: FALSE
+// GetHasSecondaryBackwardStepper returns whether to display a second backward
+// arrow button on the opposite end of the scrollbar.
+//
+// Locking: read
 func (s *CScrollbar) GetHasSecondaryBackwardStepper() (hasSecondaryBackwardStepper bool) {
 	s.RLock()
 	hasSecondaryBackwardStepper = s.hasSecondaryBackwardStepper
@@ -196,18 +202,20 @@ func (s *CScrollbar) GetHasSecondaryBackwardStepper() (hasSecondaryBackwardStepp
 	return
 }
 
-// Display a second backward arrow button on the opposite end of the scrollbar.
-// Flags: Read
-// Default value: FALSE
+// SetHasSecondaryBackwardStepper updates whether to display a second backward
+// arrow button on the opposite end of the scrollbar.
+//
+// Locking: write
 func (s *CScrollbar) SetHasSecondaryBackwardStepper(hasSecondaryBackwardStepper bool) {
 	s.Lock()
 	s.hasSecondaryBackwardStepper = hasSecondaryBackwardStepper
 	s.Unlock()
 }
 
-// Display a second forward arrow button on the opposite end of the scrollbar.
-// Flags: Read
-// Default value: FALSE
+// GetHasSecondaryForwardStepper returns whether to display a second backward
+// arrow button on the opposite end of the scrollbar.
+//
+// Locking: read
 func (s *CScrollbar) GetHasSecondaryForwardStepper() (hasSecondaryForwardStepper bool) {
 	s.RLock()
 	hasSecondaryForwardStepper = s.hasSecondaryForwardStepper
@@ -215,15 +223,20 @@ func (s *CScrollbar) GetHasSecondaryForwardStepper() (hasSecondaryForwardStepper
 	return
 }
 
-// Display a second forward arrow button on the opposite end of the scrollbar.
-// Flags: Read
-// Default value: FALSE
+// SetHasSecondaryForwardStepper updates whether to display a second backward
+// arrow button on the opposite end of the scrollbar.
+//
+// Locking: write
 func (s *CScrollbar) SetHasSecondaryForwardStepper(hasSecondaryForwardStepper bool) {
 	s.Lock()
 	s.hasSecondaryForwardStepper = hasSecondaryForwardStepper
 	s.Unlock()
 }
 
+// Forward updates the scrollbar in a forward direction by the given step count.
+// Returns EVENT_STOP if changes were made, EVENT_PASS otherwise.
+//
+// Locking: write
 func (s *CScrollbar) Forward(step int) cenums.EventFlag {
 	min, max := s.GetRange()
 	value := s.GetValue()
@@ -238,16 +251,30 @@ func (s *CScrollbar) Forward(step int) cenums.EventFlag {
 	return cenums.EVENT_PASS
 }
 
+// ForwardStep updates the scrollbar in a forward direction by the configured
+// step increment amount. Returns EVENT_STOP if changes were made, EVENT_PASS
+// otherwise.
+//
+// Locking: write
 func (s *CScrollbar) ForwardStep() cenums.EventFlag {
 	step, _ := s.GetIncrements()
 	return s.Forward(step)
 }
 
+// ForwardPage updates the scrollbar in a forward direction by the configured
+// page increment amount. Returns EVENT_STOP if changes were made, EVENT_PASS
+// otherwise.
+//
+// Locking: write
 func (s *CScrollbar) ForwardPage() cenums.EventFlag {
 	_, page := s.GetIncrements()
 	return s.Forward(page)
 }
 
+// Backward updates the scrollbar in a backward direction by the given step count.
+// Returns EVENT_STOP if changes were made, EVENT_PASS otherwise.
+//
+// Locking: write
 func (s *CScrollbar) Backward(step int) cenums.EventFlag {
 	min, max := s.GetRange()
 	value := s.GetValue()
@@ -262,11 +289,21 @@ func (s *CScrollbar) Backward(step int) cenums.EventFlag {
 	return cenums.EVENT_PASS
 }
 
+// BackwardStep updates the scrollbar in a backward direction by the configured
+// step increment amount. Returns EVENT_STOP if changes were made, EVENT_PASS
+// otherwise.
+//
+// Locking: write
 func (s *CScrollbar) BackwardStep() cenums.EventFlag {
 	step, _ := s.GetIncrements()
 	return s.Backward(step)
 }
 
+// BackwardPage updates the scrollbar in a backward direction by the configured
+// page increment amount. Returns EVENT_STOP if changes were made, EVENT_PASS
+// otherwise.
+//
+// Locking: write
 func (s *CScrollbar) BackwardPage() cenums.EventFlag {
 	_, page := s.GetIncrements()
 	return s.Backward(page)
@@ -501,7 +538,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 	case cdk.BUTTON_PRESS:
 		if w != nil && w.IsVisible() {
 			if w.ObjectID() != s.ObjectID() {
-				if wb, ok := w.(*CButton); ok {
+				if wb, ok := w.Self().(*CButton); ok {
 					wb.SetPressed(true)
 					s.Lock()
 					s.focusedButton = wb
@@ -763,7 +800,7 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 func (s *CScrollbar) resizeStepper(fArrow, bArrow enums.ArrowType, has bool, b Button, forward bool, x, y, w, h int) {
 	if has {
 		if bc := b.GetChild(); bc != nil {
-			if ba, ok := bc.(Arrow); ok {
+			if ba, ok := bc.Self().(*CArrow); ok {
 				if forward {
 					if ba.GetArrowType() != fArrow {
 						ba.SetArrowType(fArrow)
