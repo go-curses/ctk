@@ -168,7 +168,7 @@ type CWidget struct {
 	CObject
 
 	display   cdk.Display
-	parent    interface{}
+	parent    Widget
 	state     enums.StateType
 	flags     enums.WidgetFlags
 	flagsLock *sync.RWMutex
@@ -289,7 +289,7 @@ func (w *CWidget) Destroy() {
 // the container.
 func (w *CWidget) Unparent() {
 	if w.parent != nil {
-		if parent, ok := w.parent.(Container); ok {
+		if parent, ok := w.parent.Self().(Container); ok {
 			if f := w.Emit(SignalUnparent, w, w.parent); f == cenums.EVENT_PASS {
 				parent.Remove(w)
 			}
@@ -428,7 +428,7 @@ func (w *CWidget) Activate() (value bool) {
 func (w *CWidget) Reparent(parent Container) {
 	if r := w.Emit(SignalReparent, w, parent); r == cenums.EVENT_PASS {
 		if w.parent != nil {
-			if pc, ok := w.parent.(Container); ok {
+			if pc, ok := w.parent.Self().(Container); ok {
 				pc.Remove(w)
 			}
 		}
@@ -448,10 +448,8 @@ func (w *CWidget) IsFocus() (value bool) {
 	if window := w.GetWindow(); window != nil {
 		if w.CanFocus() {
 			if focused := window.GetFocus(); focused != nil {
-				if fw, ok := focused.(Widget); ok {
-					if fw.ObjectID() == w.ObjectID() {
-						return true
-					}
+				if focused.ObjectID() == focused.ObjectID() {
+					return true
 				}
 			}
 		}
@@ -476,27 +474,23 @@ func (w *CWidget) IsFocus() (value bool) {
 // Emits: SignalLostFocus, Argv=[Previous focus Widget instance], From=Previous focus Widget instance
 // Emits: SignalGainedFocus, Argv=[Widget instance, previous focus Widget instance]
 func (w *CWidget) GrabFocus() {
-	if item := cdk.TypesManager.GetTypeItemByID(w.ObjectID()); item != nil {
-		if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
-			if r := w.Emit(SignalGrabFocus, w); r == cenums.EVENT_PASS {
-				if tl := w.GetWindow(); tl != nil {
-					if focused := tl.GetFocus(); focused != nil {
-						if fw, ok := focused.(Widget); ok && fw.ObjectID() != w.ObjectID() {
-							fw.UnsetState(enums.StateSelected)
-							fw.Emit(SignalLostFocus)
-							// fw.Invalidate()
-						}
+	if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
+		if r := w.Emit(SignalGrabFocus, w); r == cenums.EVENT_PASS {
+			if tl := w.GetWindow(); tl != nil {
+				if focused := tl.GetFocus(); focused != nil {
+					if focused.ObjectID() != w.ObjectID() {
+						focused.UnsetState(enums.StateSelected)
+						focused.Emit(SignalLostFocus)
+						// focused.Invalidate()
 					}
-					tl.SetFocus(item)
-					w.SetState(enums.StateSelected)
-					w.Emit(SignalGainedFocus)
 				}
+				tl.SetFocus(w)
+				w.SetState(enums.StateSelected)
+				w.Emit(SignalGainedFocus)
 			}
-		} else {
-			w.LogError("cannot grab focus: can't focus, invisible or insensitive")
 		}
 	} else {
-		w.LogError("failed to get item for this Widget: %v", w.ObjectID())
+		w.LogError("cannot grab focus: can't focus, invisible or insensitive")
 	}
 }
 
@@ -577,17 +571,15 @@ func (w *CWidget) CssState() (state enums.StateType) {
 func (w *CWidget) SetParent(parent Container) {
 	if f := w.Emit(SignalSetParent, w, w.parent, parent); f == cenums.EVENT_PASS {
 		if w.HasFlags(enums.PARENT_SENSITIVE) && w.parent != nil {
-			if parent, ok := w.parent.(Widget); ok {
-				_ = parent.Disconnect(SignalLostFocus, WidgetLostFocusHandle)
-				_ = parent.Disconnect(SignalGainedFocus, WidgetGainedFocusHandle)
-			}
+			_ = parent.Disconnect(SignalLostFocus, WidgetLostFocusHandle)
+			_ = parent.Disconnect(SignalGainedFocus, WidgetGainedFocusHandle)
 		}
 		if err := w.SetStructProperty(PropertyParent, parent); err != nil {
 			w.LogErr(err)
 		} else if parent != nil && w.ObjectID() != parent.ObjectID() {
-			if cw, ok := parent.(Widget); ok && w.HasFlags(enums.PARENT_SENSITIVE) {
-				cw.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
-				cw.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
+			if w.HasFlags(enums.PARENT_SENSITIVE) {
+				parent.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
+				parent.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
 			}
 		}
 	}
@@ -1339,23 +1331,23 @@ func (w *CWidget) GetWindow() (window Window) {
 	if window == nil && w.parent != nil {
 		p := w.parent
 		for {
-			if wc, ok := p.(Window); ok {
+			if wc, ok := p.Self().(Window); ok {
 				window = wc
 				break
-			} else if pc, ok := p.(Container); ok {
+			} else if pc, ok := p.Self().(Container); ok {
 				p = pc.GetParent()
 			} else {
 				break
 			}
 		}
-		if pw, ok := p.(Window); ok && window == nil {
+		if pw, ok := p.Self().(Window); ok && window == nil {
 			window = pw
 		}
 	}
 	if dm := w.GetDisplay(); dm != nil {
 		if window != nil {
 			if overlay := dm.GetWindowTopOverlay(window.ObjectID()); overlay != nil {
-				if wo, ok := overlay.(Window); ok {
+				if wo, ok := overlay.Self().(Window); ok {
 					window = wo
 				}
 			}
@@ -1921,11 +1913,9 @@ func (w *CWidget) HasEventFocus() bool {
 	w.RLock()
 	if window != nil {
 		if ef := window.GetEventFocus(); ef != nil {
-			if wef, ok := ef.(Widget); ok {
-				if wef.ObjectID() == oid {
-					w.RUnlock()
-					return true
-				}
+			if ef.ObjectID() == oid {
+				w.RUnlock()
+				return true
 			}
 		}
 	}
@@ -1942,23 +1932,19 @@ func (w *CWidget) HasEventFocus() bool {
 // when a Widget interface reference is passed as a generic interface{}
 // argument.
 func (w *CWidget) GrabEventFocus() {
-	if item := cdk.TypesManager.GetTypeItemByID(w.ObjectID()); item != nil {
-		if window := w.GetWindow(); window != nil {
-			if f := w.Emit(SignalGrabEventFocus, w, window); f == cenums.EVENT_PASS {
-				window.SetEventFocus(item)
-			}
-		} else {
-			w.LogError("cannot grab focus: can't focus, invisible or insensitive")
+	if window := w.GetWindow(); window != nil {
+		if f := w.Emit(SignalGrabEventFocus, w, window); f == cenums.EVENT_PASS {
+			window.SetEventFocus(w)
 		}
 	} else {
-		w.LogError("failed to get item for this Widget: %v", w.ObjectID())
+		w.LogError("cannot grab focus: missing window")
 	}
 }
 
 func (w *CWidget) ReleaseEventFocus() {
 	if window := w.GetWindow(); window != nil {
 		if ef := window.GetEventFocus(); ef != nil {
-			if wef, ok := ef.(Widget); ok && wef.ObjectID() == w.ObjectID() {
+			if wef, ok := ef.Self().(Widget); ok && wef.ObjectID() == w.ObjectID() {
 				if f := w.Emit(SignalReleaseEventFocus, w, window); f == cenums.EVENT_PASS {
 					window.SetEventFocus(nil)
 				}
