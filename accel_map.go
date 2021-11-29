@@ -53,25 +53,15 @@ type CAccelMap struct {
 	accelerators map[string]Accelerator
 }
 
-// GetAccelMap is the getter for the AccelMap singleton. There should only be
-// one AccelMap per CDK Display.
+// GetAccelMap is the getter for the current Application AccelMap singleton.
+// Returns nil if there is no Application present for the current thread.
 func GetAccelMap() AccelMap {
-	id := uuid.Nil
-	if d := cdk.GetDefaultDisplay(); d != nil {
-		id = d.ObjectID()
+	if data := cdk.GetLocalContextData(); data != nil {
+		if app, ok := data.(Application); ok {
+			return app.AccelMap()
+		}
 	}
-	ctkAccelMapsLock.RLock()
-	if am, ok := ctkAccelMaps[id]; ok {
-		ctkAccelMapsLock.RUnlock()
-		return am
-	}
-	ctkAccelMapsLock.RUnlock()
-	a := new(CAccelMap)
-	a.Init()
-	ctkAccelMapsLock.Lock()
-	ctkAccelMaps[id] = a
-	ctkAccelMapsLock.Unlock()
-	return a
+	return nil
 }
 
 // Init initializes an AccelMap object. This must be called at least once to
