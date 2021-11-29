@@ -71,6 +71,7 @@ clean-cmd: clean-build-logs
 
 clean-examples: clean-build-logs
 	@echo "# cleaning built examples"
+	@rm -fv *.so || true
 	@for tgt in `ls examples`; do \
 		if [ -f $$tgt ]; then rm -fv $$tgt; fi; \
 	done
@@ -83,6 +84,13 @@ build: clean-cmd
 	@echo -n "# building command ${BUILD_CMD}... "
 	@cd cmd/${BUILD_CMD}; \
 		( go build -v \
+				-trimpath \
+				-gcflags=all="-N -l" \
+				-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
 				-o ../../${BUILD_CMD} \
 			2>&1 ) > ../../${BUILD_CMD}.build.log; \
 		cd ../..; \
@@ -101,7 +109,13 @@ build-all: clean-cmd
 			echo -n "# building command $$tgt... "; \
 			cd cmd/$$tgt; \
 			( go build -v \
-					-tags `echo "cmd-$$tgt" | perl -pe 's/-/_/g'` \
+					-trimpath \
+					-gcflags=all="-N -l" \
+					-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
 					-o ../../$$tgt \
 				2>&1 ) > ../../$$tgt.build.log; \
 			cd ../..; \
@@ -125,7 +139,7 @@ generate:
 	@echo "# generate go sources..."
 	@go generate -v ./...
 
-examples: clean-examples
+examples: clean-examples hello-plugin.so
 	@echo "# building all examples..."
 	@for tgt in `ls examples`; \
 	do \
@@ -134,7 +148,13 @@ examples: clean-examples
 			echo -n "#\tbuilding example $$tgt... "; \
 			cd examples/$$tgt; \
 			( go build -v \
-					-tags "`echo "example-$$tgt" | perl -pe 's/-/_/g'`" \
+					-trimpath \
+					-gcflags=all="-N -l" \
+					-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
 					-o ../../$$tgt \
 				2>&1 ) > ../../$$tgt.build.log; \
 			cd ../..; \
@@ -198,9 +218,14 @@ dev: clean
 		echo -n "# building: ${DEV_EXAMPLE} [dev]... "; \
 		cd examples/${DEV_EXAMPLE}; \
 		( go build -v \
-				-tags "debug `echo "example-${DEV_EXAMPLE}" | perl -pe 's/-/_/g'`" \
-				-ldflags="-X 'main.IncludeProfiling=true'" \
+				-trimpath \
 				-gcflags=all="-N -l" \
+				-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
+				-tags "lockStack" \
 				-o ../../${DEV_EXAMPLE} \
 			2>&1 ) > ../../${DEV_EXAMPLE}.build.log; \
 		cd ../..; \
@@ -272,6 +297,35 @@ profile.mem: dev
 			fi ; \
 		fi
 
+%.so: PLUGNAME=$(basename $@)
+%.so:
+	@if [ -d examples/plugin-world/$(PLUGNAME) ]; \
+	then \
+		echo -n "# building plugin $(PLUGNAME)... "; \
+		cd examples/plugin-world/$(PLUGNAME); \
+		( go build -v \
+				-buildmode=plugin \
+				-trimpath \
+				-gcflags=all="-N -l" \
+				-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
+				-o ../../../$@ \
+			2>&1 ) > ../../../$(PLUGNAME).build.log; \
+		cd - > /dev/null; \
+		if [ -f $@ ]; \
+		then \
+			echo "done."; \
+		else \
+			echo "fail.\n#\tsee ./$(PLUGNAME).build.log"; \
+		fi; \
+	else \
+		echo "not a plugin: $@"; \
+		false; \
+	fi
+
 %:
 	@if [ -f $@ -o -f $@.build.log ]; \
 	then \
@@ -284,7 +338,13 @@ profile.mem: dev
 		echo -n "# building example $@... "; \
 		cd examples/$@; \
 		( go build -v \
-				-tags "`echo "example-$@" | perl -pe 's/-/_/g'`" \
+				-trimpath \
+				-gcflags=all="-N -l" \
+				-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
 				-o ../../$@ \
 			2>&1 ) > ../../$@.build.log; \
 		cd ../..; \
@@ -299,7 +359,13 @@ profile.mem: dev
 		echo -n "# building command $@... "; \
 		cd cmd/$@; \
 		( go build -v \
-				-tags `echo "cmd-$@" | perl -pe 's/-/_/g'` \
+				-trimpath \
+				-gcflags=all="-N -l" \
+				-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
 				-o ../../$@ \
 			2>&1 ) > ../../$@.build.log; \
 		cd ../..; \
