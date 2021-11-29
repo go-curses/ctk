@@ -62,7 +62,8 @@ func init() {
 
 func main() {
 	cdk.Init()
-	app := cdk.NewApplication(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty", setupUi)
+	app := ctk.NewApplication(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty")
+	app.Connect(cdk.SignalStartup, "demo-app-startup-handler", setupUi)
 	app.AddFlag(&cli.BoolFlag{
 		Name:    "debug",
 		Aliases: []string{"d"},
@@ -84,182 +85,186 @@ func main() {
 	}
 }
 
-func setupUi(manager cdk.Display) error {
-	if manager.App().GetContext().Bool("debug") {
-		log.DebugF("enabling debug")
-		Debug = true
-	}
-	// note that screen is captured at this time!
-	manager.CaptureCtrlC()
-	accelMap := ctk.GetAccelMap()
-	accelMap.LoadFromString(demoAppAccelMap)
-	w := ctk.NewWindowWithTitle(APP_TITLE)
-	w.SetName("Demo-App-Window")
-	w.Show()
-	w.SetSensitive(true)
-	if err := w.AddStylesFromString(demoAppStyles); err != nil {
-		w.LogErr(err)
-	}
-	manager.SetActiveWindow(w)
-	ag := ctk.NewAccelGroup()
-	// ag.AccelConnect(cdk.KeySmallQ, cdk.ModCtrl, ctk.ACCEL_VISIBLE, "quit-accel", func(argv ...interface{}) (handled bool) {
-	// 	ag.LogDebug("quit-accelerator called")
-	// 	manager.RequestQuit()
-	// 	return
-	// })
-	ag.ConnectByPath(
-		"<Demo-App-Window>/File/Quit",
-		"quit-accel",
-		func(argv ...interface{}) (handled bool) {
-			ag.LogDebug("quit-accelerator called")
-			manager.RequestQuit()
-			return
-		},
-	)
-	w.AddAccelGroup(ag)
-	vbox := w.GetVBox()
-	vbox.SetHomogeneous(true)
-	// vbox.SetBoolProperty("debug", true)
-	b := newButton("b1", "Quit Button (expand,fill)", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
-		log.InfoF("Exiting now.")
-		manager.RequestQuit()
-		return cenums.EVENT_STOP
-	})
-	b.Show()
-	vbox.PackStart(b, true, true, 0)
-
-	// another row
-	hbox2 := ctk.NewHBox(false, 0)
-	hbox2.Show()
-	if Debug {
-		hbox2.SetBoolProperty("debug", true)
-		hbox2.SetBoolProperty("debug-children", true)
-	}
-	vbox.PackStart(hbox2, true, true, 0)
-
-	frame := ctk.NewFrame("This is a frame")
-	frame.SetSizeRequest(30, -1)
-	frame.SetFocusWithChild(true)
-	frame.SetLabelAlign(0.5, 0.5)
-	frame.Show()
-	hbox2.PackStart(frame, false, false, 0)
-	if Debug {
-		frame.SetBoolProperty("debug", true)
-	}
-	l1 := newLabel(IPSUM_LONG_MARKUP)
-	l1.SetSizeRequest(35, -1)
-	// l1.SetMaxWidthChars(35)
-	l1.SetLineWrapMode(cenums.WRAP_CHAR)
-	l1.SetJustify(cenums.JUSTIFY_LEFT)
-	l1.SetSingleLineMode(false)
-	if Debug {
-		l1.SetBoolProperty("debug", true)
-	}
-	l1.Show()
-
-	sv := ctk.NewScrolledViewport()
-	sv.SetPolicy(enums.PolicyAutomatic, enums.PolicyAutomatic)
-	sv.Show()
-	sv.Add(l1)
-	frame.Add(sv)
-
-	hbox3 := ctk.NewHBox(false, 0)
-	hbox3.Show()
-	if Debug {
-		hbox3.SetBoolProperty("debug", true)
-		hbox3.SetBoolProperty("debug-children", true)
-	}
-	// hbox2.SetBoolProperty("debug-children", true)
-	hbox2.PackStart(hbox3, true, true, 0)
-
-	b2 := newButton("b2", "B2 (expand+fill)", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
-		log.InfoF("pressed button #2")
-		return cenums.EVENT_STOP
-	})
-	b2.Show()
-	b2.SetSensitive(false)
-	hbox3.PackStart(b2, true, true, 0)
-
-	var b4 ctk.Button
-	b4 = newButton("curses", "_Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
-		log.InfoF("pressed Curses!")
-		dialog := ctk.NewDialogWithButtons(
-			"dialog title", w,
-			enums.DialogModal,
-			ctk.StockOk, enums.ResponseOk,
-			ctk.StockCancel, enums.ResponseCancel,
-		)
-		help := ctk.NewButtonFromStock(ctk.StockHelp)
-		help.SetName("help")
-		help.Show()
-		dialog.AddSecondaryActionWidget(help, enums.ResponseHelp)
-		dialog.SetSizeRequest(40, 10)
-		label := ctk.NewLabel("testing the content area")
-		label.Show()
-		label.SetAlignment(0.5, 0.5)
-		label.SetJustify(cenums.JUSTIFY_CENTER)
-		dialog.GetContentArea().PackStart(label, true, true, 0)
-		for _, child := range dialog.GetActionArea().GetChildren() {
-			if cb, ok := child.(ctk.Button); ok {
-				switch cb.GetLabel() {
-				case "OK":
-					cb.SetName("ok")
-				case "Cancel":
-					cb.SetName("cancel")
-				}
-			}
+func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	if app, d, _, _, _, ok := cdk.ApplicationSignalStartupArgv(argv...); ok {
+		if d.App().GetContext().Bool("debug") {
+			log.DebugF("enabling debug")
+			Debug = true
 		}
-		dialog.ShowAll()
-		// if Debug {
-		// dialog.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
-		// dialog.GetVBox().SetBoolProperty(Property, true)
-		// }
-		dialog.SetDefaultResponse(enums.ResponseHelp)
-
-		label.Connect(ctk.SignalGetThemeRequest, "test-theme-request", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
-			if theme, ok := argv[0].(*paint.Theme); ok {
-				if modified, ok := argv[1].(paint.Theme); ok {
-					theme.Content.ArrowRunes = modified.Content.ArrowRunes
-					theme.Content.BorderRunes = modified.Content.BorderRunes
-					theme.Content.Selected = modified.Content.Selected.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
-					theme.Content.Active = modified.Content.Active.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
-					theme.Content.Normal = modified.Content.Normal.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
-					return cenums.EVENT_STOP
-				}
-			} else {
-				label.LogError("argv[0] is not a theme: %v", argv)
-			}
-			return cenums.EVENT_PASS
+		// note that screen is captured at this time!
+		d.CaptureCtrlC()
+		accelMap := ctk.GetAccelMap()
+		accelMap.LoadFromString(demoAppAccelMap)
+		w := ctk.NewWindowWithTitle(APP_TITLE)
+		w.SetName("Demo-App-Window")
+		w.Show()
+		w.SetSensitive(true)
+		if err := w.AddStylesFromString(demoAppStyles); err != nil {
+			w.LogErr(err)
+		}
+		d.SetActiveWindow(w)
+		ag := ctk.NewAccelGroup()
+		// ag.AccelConnect(cdk.KeySmallQ, cdk.ModCtrl, ctk.ACCEL_VISIBLE, "quit-accel", func(argv ...interface{}) (handled bool) {
+		// 	ag.LogDebug("quit-accelerator called")
+		// 	d.RequestQuit()
+		// 	return
+		// })
+		ag.ConnectByPath(
+			"<Demo-App-Window>/File/Quit",
+			"quit-accel",
+			func(argv ...interface{}) (handled bool) {
+				ag.LogDebug("quit-accelerator called")
+				d.RequestQuit()
+				return
+			},
+		)
+		w.AddAccelGroup(ag)
+		vbox := w.GetVBox()
+		vbox.SetHomogeneous(true)
+		// vbox.SetBoolProperty("debug", true)
+		b := newButton("b1", "Quit Button (expand,fill)", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
+			log.InfoF("Exiting now.")
+			d.RequestQuit()
+			return cenums.EVENT_STOP
 		})
+		b.Show()
+		vbox.PackStart(b, true, true, 0)
 
-		response := dialog.Run()
-		gls.Go(func() {
-			select {
-			case r := <-response:
-				dialog.Destroy()
-				if err := dialog.DestroyObject(); err != nil {
-					log.Error(err)
-				}
-				log.DebugF("dialog response: %v", r)
-			}
+		// another row
+		hbox2 := ctk.NewHBox(false, 0)
+		hbox2.Show()
+		if Debug {
+			hbox2.SetBoolProperty("debug", true)
+			hbox2.SetBoolProperty("debug-children", true)
+		}
+		vbox.PackStart(hbox2, true, true, 0)
+
+		frame := ctk.NewFrame("This is a frame")
+		frame.SetSizeRequest(30, -1)
+		frame.SetFocusWithChild(true)
+		frame.SetLabelAlign(0.5, 0.5)
+		frame.Show()
+		hbox2.PackStart(frame, false, false, 0)
+		if Debug {
+			frame.SetBoolProperty("debug", true)
+		}
+		l1 := newLabel(IPSUM_LONG_MARKUP)
+		l1.SetSizeRequest(35, -1)
+		// l1.SetMaxWidthChars(35)
+		l1.SetLineWrapMode(cenums.WRAP_CHAR)
+		l1.SetJustify(cenums.JUSTIFY_LEFT)
+		l1.SetSingleLineMode(false)
+		if Debug {
+			l1.SetBoolProperty("debug", true)
+		}
+		l1.Show()
+
+		sv := ctk.NewScrolledViewport()
+		sv.SetPolicy(enums.PolicyAutomatic, enums.PolicyAutomatic)
+		sv.Show()
+		sv.Add(l1)
+		frame.Add(sv)
+
+		hbox3 := ctk.NewHBox(false, 0)
+		hbox3.Show()
+		if Debug {
+			hbox3.SetBoolProperty("debug", true)
+			hbox3.SetBoolProperty("debug-children", true)
+		}
+		// hbox2.SetBoolProperty("debug-children", true)
+		hbox2.PackStart(hbox3, true, true, 0)
+
+		b2 := newButton("b2", "B2 (expand+fill)", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
+			log.InfoF("pressed button #2")
+			return cenums.EVENT_STOP
 		})
-		return cenums.EVENT_STOP
-	})
-	b4.SetSizeRequest(13, 3)
-	b4.Show()
-	b4.SetUseUnderline(true)
-	hbox3.PackEnd(b4, false, false, 0)
-	b4.GrabFocus()
+		b2.Show()
+		b2.SetSensitive(false)
+		hbox3.PackStart(b2, true, true, 0)
 
-	b3 := newButton("b3", "B3 (expand)", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
-		log.InfoF("pressed button #3")
-		return cenums.EVENT_STOP
-	})
-	// b3.SetSizeRequest(10, 3)
-	b3.Show()
-	hbox3.PackStart(b3, true, false, 0)
-	w.ShowAll()
-	return nil
+		var b4 ctk.Button
+		b4 = newButton("curses", "_Curses<u><i>!</i></u>", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
+			log.InfoF("pressed Curses!")
+			dialog := ctk.NewDialogWithButtons(
+				"dialog title", w,
+				enums.DialogModal,
+				ctk.StockOk, enums.ResponseOk,
+				ctk.StockCancel, enums.ResponseCancel,
+			)
+			help := ctk.NewButtonFromStock(ctk.StockHelp)
+			help.SetName("help")
+			help.Show()
+			dialog.AddSecondaryActionWidget(help, enums.ResponseHelp)
+			dialog.SetSizeRequest(40, 10)
+			label := ctk.NewLabel("testing the content area")
+			label.Show()
+			label.SetAlignment(0.5, 0.5)
+			label.SetJustify(cenums.JUSTIFY_CENTER)
+			dialog.GetContentArea().PackStart(label, true, true, 0)
+			for _, child := range dialog.GetActionArea().GetChildren() {
+				if cb, ok := child.(ctk.Button); ok {
+					switch cb.GetLabel() {
+					case "OK":
+						cb.SetName("ok")
+					case "Cancel":
+						cb.SetName("cancel")
+					}
+				}
+			}
+			dialog.ShowAll()
+			// if Debug {
+			// dialog.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
+			// dialog.GetVBox().SetBoolProperty(Property, true)
+			// }
+			dialog.SetDefaultResponse(enums.ResponseHelp)
+
+			label.Connect(ctk.SignalGetThemeRequest, "test-theme-request", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
+				if theme, ok := argv[0].(*paint.Theme); ok {
+					if modified, ok := argv[1].(paint.Theme); ok {
+						theme.Content.ArrowRunes = modified.Content.ArrowRunes
+						theme.Content.BorderRunes = modified.Content.BorderRunes
+						theme.Content.Selected = modified.Content.Selected.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
+						theme.Content.Active = modified.Content.Active.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
+						theme.Content.Normal = modified.Content.Normal.Background(paint.ColorYellow).Foreground(paint.ColorDarkBlue)
+						return cenums.EVENT_STOP
+					}
+				} else {
+					label.LogError("argv[0] is not a theme: %v", argv)
+				}
+				return cenums.EVENT_PASS
+			})
+
+			response := dialog.Run()
+			gls.Go(func() {
+				select {
+				case r := <-response:
+					dialog.Destroy()
+					if err := dialog.DestroyObject(); err != nil {
+						log.Error(err)
+					}
+					log.DebugF("dialog response: %v", r)
+				}
+			})
+			return cenums.EVENT_STOP
+		})
+		b4.SetSizeRequest(13, 3)
+		b4.Show()
+		b4.SetUseUnderline(true)
+		hbox3.PackEnd(b4, false, false, 0)
+		b4.GrabFocus()
+
+		b3 := newButton("b3", "B3 (expand)", func(d []interface{}, argv ...interface{}) cenums.EventFlag {
+			log.InfoF("pressed button #3")
+			return cenums.EVENT_STOP
+		})
+		// b3.SetSizeRequest(10, 3)
+		b3.Show()
+		hbox3.PackStart(b3, true, false, 0)
+		w.ShowAll()
+		app.NotifyStartupComplete()
+		return cenums.EVENT_PASS
+	}
+	return cenums.EVENT_STOP
 }
 
 var (
