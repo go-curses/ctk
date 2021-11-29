@@ -88,13 +88,13 @@ func (b *CBuilder) AddNamedSignalHandler(name string, fn cdk.SignalListenerFn) {
 	if _, ok := b.handlers[name]; ok {
 		b.LogWarn("overwriting existing handler: %v", name)
 	}
-	b.LogInfo("adding handler: %v", name)
+	log.DebugDF(1, "adding handler: %v", name)
 	b.handlers[name] = fn
 }
 
 func (b *CBuilder) GetWidget(name string) (w interface{}) {
 	w = cdk.TypesManager.GetTypeItemByName(name)
-	b.LogDebug("GetWidget(%v) = %v", name, w)
+	log.DebugDF(1, "GetWidget(%v) = %v", name, w)
 	return
 }
 
@@ -148,7 +148,7 @@ func (b *CBuilder) LoadFromString(raw string) (topElement *CBuilderElement, err 
 		return nil, err
 	}
 	topElement = b.walkElements(n)
-	b.LogDebug("reporting:\n%v", b.report(0, topElement))
+	b.LogDebug("see report:\n[report]\n%v[/report]", b.report(0, topElement))
 	_ = b.Build(topElement)
 	return topElement, nil
 }
