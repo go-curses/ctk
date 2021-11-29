@@ -701,7 +701,7 @@ func (w *CWindow) GetFocus() (focus Widget) {
 	var focusStruct interface{}
 	if focusStruct, err = w.GetStructProperty(PropertyFocusedWidget); err != nil {
 		w.LogErr(err)
-	} else if focus, ok = focusStruct.(Widget); !ok {
+	} else if focus, ok = focusStruct.(Widget); !ok && focusStruct != nil {
 		w.LogError("value stored in %v property is not of Widget type: %v (%T)", PropertyFocusedWidget, focusStruct, focusStruct)
 	} else if ok {
 		return
