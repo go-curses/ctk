@@ -52,23 +52,12 @@ func init() {
 }
 
 func main() {
-	app := cdk.NewApplication(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty", setupUi)
+	app := ctk.NewApplication(APP_NAME, APP_USAGE, APP_DESC, APP_VERSION, APP_TAG, APP_TITLE, "/dev/tty")
+	app.Connect(cdk.SignalStartup, "kitchen-sink-startup-handler", setupUi)
 	app.AddFlag(&cli.BoolFlag{
 		Name:    "Debug",
 		Aliases: []string{"d"},
 	})
-	// app.AddFlag(&cli.StringFlag{
-	// 	Name:  "example-flag",
-	// 	Value: "testing",
-	// })
-	// app.AddCommand(&cli.Command{
-	// 	Name:  "demo-cmd",
-	// 	Usage: "demonstrate custom commands",
-	// 	Action: func(c *cli.Context) error {
-	// 		log.InfoF("demo-cmd command action")
-	// 		return nil
-	// 	},
-	// })
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
@@ -87,30 +76,38 @@ var (
 	actionNote  ctk.Label
 )
 
-func setupUi(d cdk.Display) error {
-	if d.App().GetContext().Bool("Debug") {
-		log.DebugF("enabling Debug")
-		Debug = true
+func setupUi(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if app, d, _, _, _, ok := ctk.ArgvApplicationSignalStartup(argv...); ok {
+		if d.App().GetContext().Bool("Debug") {
+			log.DebugF("enabling Debug")
+			Debug = true
+		}
+		// note that screen is captured at this time!
+		d.CaptureCtrlC()
+		w := ctk.NewWindowWithTitle(APP_TITLE)
+		d.SetActiveWindow(w)
+		w.Show()
+		if err := setupDruidUi(d, w); err != nil {
+			d.LogErr(err)
+			return enums.EVENT_STOP
+		}
+		if err := setupPage0(d); err != nil {
+			d.LogErr(err)
+			return enums.EVENT_STOP
+		}
+		if err := setupPage1(d); err != nil {
+			d.LogErr(err)
+			return enums.EVENT_STOP
+		}
+		if err := setupPage2(d); err != nil {
+			d.LogErr(err)
+			return enums.EVENT_STOP
+		}
+		switchPage(0)
+		app.NotifyStartupComplete()
+		return enums.EVENT_PASS
 	}
-	// note that screen is captured at this time!
-	d.CaptureCtrlC()
-	w := ctk.NewWindowWithTitle(APP_TITLE)
-	d.SetActiveWindow(w)
-	w.Show()
-	if err := setupDruidUi(d, w); err != nil {
-		return err
-	}
-	if err := setupPage0(d); err != nil {
-		return err
-	}
-	if err := setupPage1(d); err != nil {
-		return err
-	}
-	if err := setupPage2(d); err != nil {
-		return err
-	}
-	switchPage(0)
-	return nil
+	return enums.EVENT_STOP
 }
 
 func setupDruidUi(d cdk.Display, w ctk.Window) error {
