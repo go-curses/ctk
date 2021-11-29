@@ -1,5 +1,3 @@
-// +build example_demo_app
-
 package main
 
 import (

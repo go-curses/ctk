@@ -1,5 +1,3 @@
-// +build example_hello_world
-
 package main
 
 import (

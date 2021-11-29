@@ -1,5 +1,3 @@
-// +build example_kitchen_sink
-
 package main
 
 import (
