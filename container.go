@@ -215,13 +215,14 @@ func (c *CContainer) ShowAll() {
 func (c *CContainer) Add(w Widget) {
 	// TODO: if can default and no default yet, set
 	if f := c.Emit(SignalAdd, c, w); f == cenums.EVENT_PASS {
-		window := c.GetWindow()
-		log.DebugDF(1, "child=%v", w.ObjectName())
+		log.DebugDF(1, "add child: %v", w.ObjectName())
 		w.SetParent(c)
-		if wc, ok := w.Self().(Container); ok {
-			wc.SetWindow(window)
-		} else {
-			w.SetWindow(window)
+		if window := c.GetWindow(); window != nil {
+			if wc, ok := w.Self().(Container); ok {
+				wc.SetWindow(window)
+			} else {
+				w.SetWindow(window)
+			}
 		}
 		w.Connect(SignalLostFocus, ContainerLostFocusHandle, c.childLostFocus)
 		w.Connect(SignalGainedFocus, ContainerGainedFocusHandle, c.childGainedFocus)
