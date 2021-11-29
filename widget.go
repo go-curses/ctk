@@ -59,7 +59,6 @@ type Widget interface {
 	CssFullPath() (selector string)
 	CssState() (state enums.StateType)
 	SetParent(parent Container)
-	SetParentWindow(parentWindow Window)
 	GetParentWindow() (value Window)
 	SetEvents(events cdk.EventMask)
 	AddEvents(events cdk.EventMask)
@@ -167,7 +166,6 @@ type Widget interface {
 type CWidget struct {
 	CObject
 
-	display   cdk.Display
 	parent    Widget
 	state     enums.StateType
 	flags     enums.WidgetFlags
@@ -585,16 +583,19 @@ func (w *CWidget) SetParent(parent Container) {
 	}
 }
 
-// Sets a non default parent window for widget .
-// Parameters:
-// 	parentWindow	the new parent window.
-func (w *CWidget) SetParentWindow(parentWindow Window) {}
-
 // Gets widget's parent window.
 // Returns:
 // 	the parent window of widget.
 func (w *CWidget) GetParentWindow() (value Window) {
-	return nil
+	var ok bool
+	p := w.GetParent()
+	for p != nil {
+		if value, ok = p.(Window); ok {
+			return
+		}
+		p = p.GetParent()
+	}
+	return
 }
 
 // Sets the event mask (see EventMask) for a widget. The event mask
@@ -1025,7 +1026,10 @@ func (w *CWidget) GetParent() (value Container) {
 // Returns:
 // 	the Display for the toplevel for this widget.
 func (w *CWidget) GetDisplay() (value cdk.Display) {
-	return w.display
+	if window := w.GetParentWindow(); window != nil {
+		value = window.GetDisplay()
+	}
+	return
 }
 
 // Returns the clipboard object for the given selection to be used with
@@ -1328,34 +1332,8 @@ func (w *CWidget) GetWindow() (window Window) {
 			return nil
 		}
 	}
-	if window == nil && w.parent != nil {
-		p := w.parent
-		for {
-			if wc, ok := p.Self().(Window); ok {
-				window = wc
-				break
-			} else if pc, ok := p.Self().(Container); ok {
-				p = pc.GetParent()
-			} else {
-				break
-			}
-		}
-		if pw, ok := p.Self().(Window); ok && window == nil {
-			window = pw
-		}
-	}
-	if dm := w.GetDisplay(); dm != nil {
-		if window != nil {
-			if overlay := dm.GetWindowTopOverlay(window.ObjectID()); overlay != nil {
-				if wo, ok := overlay.Self().(Window); ok {
-					window = wo
-				}
-			}
-		} else { // window == nil
-			if tw := dm.ActiveWindow(); tw != nil {
-				window, _ = tw.(Window)
-			}
-		}
+	if window == nil {
+		window = w.GetParentWindow()
 	}
 	return
 }
