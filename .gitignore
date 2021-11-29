@@ -127,8 +127,10 @@ go-ctk
 !cmd/go-charmap/
 !cmd/go-ctk/
 demo-app
-hello-world
-kitchen-sink
-!examples/hello-world/
 !examples/demo-app/
+hello-world
+!examples/hello-world/
+kitchen-sink
 !examples/kitchen-sink/
+plugin-world
+!examples/plugin-world/
