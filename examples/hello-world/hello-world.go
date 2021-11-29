@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Construct a new CDK application
-	app := cdk.NewApplication(
+	app := ctk.NewApplication(
 		// program binary name
 		"hello-world",
 		// usage summary
@@ -27,68 +27,74 @@ func main() {
 		"Hello World",
 		// the TTY device to use, /dev/tty is the default
 		"/dev/tty",
-		// initialize the user-interface
-		func(d cdk.Display) error {
-			// tell the display to listen for CTRL+C and interrupt gracefully
-			d.CaptureCtrlC()
-			// create a new window, give it a human-readable title
-			w := ctk.NewWindowWithTitle("Hello World")
-			// get the vertical box for the content area of the window
-			vbox := w.GetVBox()
-			// here is where we add other widgets and such to implement the
-			// desired user interface elements, in this case we want a nice
-			// button in the middle of the window. One way to do this is to
-			// use an Alignment widget to place the button neatly for us.
-			align := ctk.MakeAlignment()
-			// the alignment scales are from 0 (left) to 1 (right) with the 0.5
-			// being centered
-			align.Set(0.5, 0.5, 0.0, 0.0)
-			// a nice button for us to press
-			button := ctk.NewButtonWithLabel("_Curses<u><i>!</i></u>")
-			button.SetUseMarkup(true)    // enable markup in the label
-			button.SetUseUnderline(true) // enable mnemonics
-			button.SetSizeRequest(11, 3) // request a certain size
-			// make the button quit the application when activated by connecting
-			// a handler to the button's activate signal
-			button.Connect(
-				ctk.SignalActivate,
-				"hello-button-handle",
-				func(data []interface{}, argv ...interface{}) enums.EventFlag {
-					d.RequestQuit() // ask the display to exit nicely
-					return enums.EVENT_STOP
-				},
-			)
-			align.Add(button) // add the button to the alignment
-			// finally adding the alignment to the window's content area by
-			// packing them into the window's vertical box
-			vbox.PackStart(align, true /*expand*/, true /*fill*/, 0 /*padding*/)
-			// tell CTK that the window and its contents are to be drawn upon
-			// the terminal display, this effectively calls Show() on the vbox,
-			// alignment and button
-			w.ShowAll()
-			// tell CDK that this window is the foreground window
-			d.SetActiveWindow(w)
-			// now that the button is visible, grab the focus
-			button.GrabFocus()
-			// add a quit handler to say goodbye when the program exits
-			d.AddQuitHandler(
-				"hello-world-quit-handler",
-				func() {
-					// Note that the Display and other CTK things are no longer
-					// functional at this point.
-					fmt.Println("Hello World says Goodbye!")
-					// Logging however still works.
-					log.InfoF("Hello World logging goodbye!")
-				},
-			)
-			// no errors to report, nil to proceed
-			return nil
-		},
 	)
+	// handle the startup signal
+	app.Connect(cdk.SignalStartup, "hello-world-startup-handler", startup)
+	// do something on shutdown (terminal should be fully restored)
+	app.Connect(cdk.SignalShutdown, "hello-world-quit-handler", shutdown)
 	// run the application, handing over the command-line arguments received
 	if err := app.Run(os.Args); err != nil {
 		// doesn't have to be a Fatal exit
 		log.Fatal(err)
 	}
 	// end of program
+}
+
+func startup(data []interface{}, argv ...interface{}) enums.EventFlag {
+	if app, d, _, _, _, ok := ctk.ArgvApplicationSignalStartup(argv...); ok {
+		// tell the display to listen for CTRL+C and interrupt gracefully
+		d.CaptureCtrlC()
+		// create a new window, give it a human-readable title
+		w := ctk.NewWindowWithTitle("Hello World")
+		// get the vertical box for the content area of the window
+		vbox := w.GetVBox()
+		// here is where we add other widgets and such to implement the
+		// desired user interface elements, in this case we want a nice
+		// button in the middle of the window. One way to do this is to
+		// use an Alignment widget to place the button neatly for us.
+		align := ctk.MakeAlignment()
+		// the alignment scales are from 0 (left) to 1 (right) with the 0.5
+		// being centered
+		align.Set(0.5, 0.5, 0.0, 0.0)
+		// a nice button for us to press
+		button := ctk.NewButtonWithLabel("_Curses<u><i>!</i></u>")
+		button.SetUseMarkup(true)    // enable markup in the label
+		button.SetUseUnderline(true) // enable mnemonics
+		button.SetSizeRequest(11, 3) // request a certain size
+		// make the button quit the application when activated by connecting
+		// a handler to the button's activate signal
+		button.Connect(
+			ctk.SignalActivate,
+			"hello-button-handle",
+			func(data []interface{}, argv ...interface{}) enums.EventFlag {
+				d.RequestQuit() // ask the display to exit nicely
+				return enums.EVENT_STOP
+			},
+		)
+		align.Add(button) // add the button to the alignment
+		// finally adding the alignment to the window's content area by
+		// packing them into the window's vertical box
+		vbox.PackStart(align, true /*expand*/, true /*fill*/, 0 /*padding*/)
+		// tell CTK that the window and its contents are to be drawn upon
+		// the terminal display, this effectively calls Show() on the vbox,
+		// alignment and button
+		w.ShowAll()
+		// tell CDK that this window is the foreground window
+		d.SetActiveWindow(w)
+		// now that the button is visible, grab the focus
+		button.GrabFocus()
+		// notify that startup has completed
+		app.NotifyStartupComplete()
+		return enums.EVENT_PASS
+	}
+	return enums.EVENT_STOP
+}
+
+func shutdown(_ []interface{}, _ ...interface{}) enums.EventFlag {
+	// Note that the Display and other CTK things are no longer functioning at
+	// this point.
+	fmt.Println("Hello World says Goodbye!")
+	// Logging however still works.
+	log.InfoF("Hello World logging goodbye!")
+	return enums.EVENT_PASS
 }
