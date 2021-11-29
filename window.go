@@ -1446,14 +1446,15 @@ func (w *CWindow) SetMnemonicsVisible(setting bool) {
 }
 
 func (w *CWindow) GetDisplay() (dm cdk.Display) {
-	if w.display == nil {
-		w.display = cdk.GetDefaultDisplay()
-	}
+	w.RLock()
+	defer w.RUnlock()
 	return w.display
 }
 
 func (w *CWindow) SetDisplay(dm cdk.Display) {
+	w.Lock()
 	w.display = dm
+	w.Unlock()
 }
 
 func (w *CWindow) GetVBox() (vbox VBox) {
