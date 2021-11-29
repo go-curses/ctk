@@ -129,11 +129,14 @@ func (a *CAccelGroup) AccelConnect(accelKey cdk.Key, accelMods cdk.ModMask, acce
 //	handle 	string to tag the closure for later use
 // 	closure	code to be executed upon accelerator activation
 func (a *CAccelGroup) ConnectByPath(accelPath string, handle string, closure enums.GClosure) {
-	accelMap := GetAccelMap()
-	if accelerator, ok := accelMap.LookupEntry(accelPath); ok {
-		a.AccelConnect(accelerator.Key(), accelerator.Mods(), enums.ACCEL_VISIBLE, handle, closure)
+	if accelMap := GetAccelMap(); accelMap != nil {
+		if accelerator, ok := accelMap.LookupEntry(accelPath); ok {
+			a.AccelConnect(accelerator.Key(), accelerator.Mods(), enums.ACCEL_VISIBLE, handle, closure)
+		} else {
+			a.LogError("accelerator path not found: %v", accelPath)
+		}
 	} else {
-		a.LogError("accelerator path not found: %v", accelPath)
+		a.LogError("accelmap not found for current application thread")
 	}
 }
 
