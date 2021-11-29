@@ -131,7 +131,7 @@ func (o *CObject) ObjectInfo() string {
 	o.RLock()
 	origin := o.origin
 	o.RUnlock()
-	info := fmt.Sprintf("%v %v,%v %v", o.ObjectID(), origin, o.GetAllocation(), o.ObjectName())
+	info := fmt.Sprintf("%v(%v,%v)", o.ObjectName(), origin, o.GetAllocation())
 	return info
 }
 
