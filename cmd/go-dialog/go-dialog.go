@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/go-curses/cdk/lib/enums"
@@ -21,8 +23,8 @@ import (
 
 const (
 	AppName    = "go-dialog"
-	AppUsage   = "go-dialog [options] command [command options]"
-	AppDesc    = "display dialog boxes from shell scripts"
+	AppUsage   = "display dialog boxes from shell scripts"
+	AppDesc    = "go-dialog is another version of (c)dialog, just written in Go and using the Curses Tool Kit"
 	AppVersion = "0.0.1"
 	AppTag     = "go-dialog"
 	AppTitle   = "go-dialog"
@@ -62,27 +64,36 @@ func init() {
 }
 
 func main() {
-	app := cdk.NewApplication(
+	app := ctk.NewApplication(
 		AppName, AppUsage,
 		AppDesc, AppVersion,
 		AppTag, AppTitle,
 		"/dev/tty",
-		setupUserInterface,
+	)
+	app.Connect(
+		cdk.SignalStartup, "go-dialog-startup-handler",
+		ctk.WithArgvApplicationSignalStartup(
+			func(app ctk.Application, display cdk.Display, ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) enums.EventFlag {
+				if err := setupUserInterface(app, display); err != nil {
+					app.LogErr(err)
+					return enums.EVENT_STOP
+				}
+				return enums.EVENT_PASS
+			},
+		),
 	)
 	app.AddFlag(&cli.StringFlag{
 		Name:  "back-title",
 		Usage: "specify the window title text",
-		Value: "",
 	})
 	app.AddFlag(&cli.StringFlag{
 		Name:  "title",
 		Usage: "specify the dialog title text",
-		Value: "",
 	})
 	app.AddFlag(&cli.BoolFlag{
-		Name:  "print-maxsize",
-		Usage: "print the width and height on stdout and exit",
-		Value: false,
+		Name:        "print-maxsize",
+		Usage:       "print the width and height on stdout and exit",
+		DefaultText: "",
 	})
 	app.AddCommand(&cli.Command{
 		Name:      "msgbox",
@@ -109,54 +120,56 @@ func main() {
 	}
 }
 
-func setupUserInterface(dm cdk.Display) error {
-	ctx := dm.App().GetContext()
+func setupUserInterface(app ctk.Application, d cdk.Display) error {
+	ctx := app.GetContext()
 	if ctx.Bool("print-maxsize") {
-		if display := dm.Screen(); display != nil {
+		if display := d.Screen(); display != nil {
 			w, h := display.Size()
-			dm.AddQuitHandler("print-maxsize", func() {
+			app.Connect(cdk.SignalShutdown, "print-maxsize", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
 				fmt.Printf("%v %v\n", w, h)
+				return enums.EVENT_PASS
 			})
-			dm.RequestQuit()
+			d.RequestQuit()
 			return nil
 		}
 	}
-	dm.LogInfo("setting up user interface")
-	dm.CaptureCtrlC()
-
+	d.LogInfo("setting up user interface")
+	d.CaptureCtrlC()
 	builder := ctk.NewBuilder()
 	var proceed bool
 	switch ctx.Command.Name {
 	case "msgbox":
-		if err := setupUiMsgbox(ctx, builder, dm); err != nil {
+		if err := setupUiMsgbox(ctx, builder, app, d); err != nil {
 			return err
 		}
 		proceed = true
 	case "yesno":
-		if err := setupUiYesNo(ctx, builder, dm); err != nil {
+		if err := setupUiYesNo(ctx, builder, app, d); err != nil {
 			return err
 		}
 		proceed = true
 	case "":
-		dm.AddQuitHandler("see-help", func() {
-			fmt.Printf("see: %v --help\n", dm.App().Name())
+		app.Connect(cdk.SignalShutdown, "see-help", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
+			fmt.Printf("see: %v --help\n", app.Name())
+			return enums.EVENT_PASS
 		})
-		dm.RequestQuit()
+		d.RequestQuit()
 		return nil
 	default:
 		return fmt.Errorf("invalid command: %v", ctx.Command.Name)
 	}
 	if proceed {
-		if err := startupUiDialog(ctx, builder, dm); err != nil {
+		if err := startupUiDialog(ctx, builder, app, d); err != nil {
 			return err
 		}
-		dm.LogInfo("user interface set up complete")
+		d.LogInfo("user interface set up complete")
 		return nil
 	}
 	return fmt.Errorf("error intializing user interface")
 }
 
-func startupUiDialog(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
+func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application, display cdk.Display) error {
+	app.NotifyStartupComplete()
 	backTitle := ctx.String("back-title")
 	title := ctx.String("title")
 	window := getWindow(builder)
@@ -164,54 +177,59 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) erro
 	if window != nil {
 		window.Show()
 		window.SetTitle(backTitle)
-		dm.SetActiveWindow(window)
+		display.SetActiveWindow(window)
 		if dialog != nil {
-			if display := dm.Screen(); display != nil {
-				dw, dh := display.Size()
-				if dw > 22 && dh > 12 {
-					sr := ptypes.NewRectangle(dw/3, dh/3)
-					sr.Clamp(20, 10, dw, dh)
-					dialog.SetSizeRequest(sr.W, sr.H)
-				}
-				dialog.SetTransientFor(window)
-				dialog.SetTitle(title)
-			}
 			dialog.Show()
+			dw, dh := display.Screen().Size()
+			if dw > 22 && dh > 12 {
+				sr := ptypes.NewRectangle(dw/3, dh/3)
+				sr.Clamp(20, 10, dw, dh)
+				dialog.SetSizeRequest(sr.W, sr.H)
+			}
+			dialog.SetTransientFor(window)
+			dialog.SetParent(window)
+			if err := dialog.AddStylesFromString(window.ExportStylesToString()); err != nil {
+				dialog.LogErr(err)
+			}
+			dialog.SetTitle(title)
 			dialog.LogInfo("starting Run()")
 			defBtn := ctx.String("default")
 			switch strings.ToLower(defBtn) {
 			case "no", "ctk-no":
-				if no := builder.GetWidget("yesno-no"); no != nil {
-					if nw, ok := no.(ctk.Widget); ok {
+				if no := builder.GetWidget("main-yesno-no"); no != nil {
+					if nw, ok := no.(ctk.Sensitive); ok {
 						nw.GrabFocus()
 					}
 				}
-			case "yes", "ctk-yes":
-				fallthrough
 			default:
-				if yes := builder.GetWidget("yesno-yes"); yes != nil {
-					if yw, ok := yes.(ctk.Widget); ok {
+				if yes := builder.GetWidget("main-yesno-yes"); yes != nil {
+					if yw, ok := yes.(ctk.Sensitive); ok {
+						yw.GrabFocus()
+					}
+				} else if okay := builder.GetWidget("main-msgbox-ok"); okay != nil {
+					if yw, ok := okay.(ctk.Sensitive); ok {
 						yw.GrabFocus()
 					}
 				}
 			}
-			dm.RequestDraw()
-			dm.RequestShow()
+			display.RequestDraw()
+			display.RequestShow()
 			response := dialog.Run()
-			go func() {
+			cdk.Go(func() {
 				select {
 				case r := <-response:
 					dialog.Destroy()
 					_ = dialog.DestroyObject()
 					switch ctx.Command.Name {
 					case "yesno":
-						dm.AddQuitHandler("dialog-response", func() {
+						app.Connect(cdk.SignalShutdown, "dialog-response", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
 							fmt.Printf("%v\n", r)
+							return enums.EVENT_PASS
 						})
 					}
-					dm.RequestQuit()
+					display.RequestQuit()
 				}
-			}()
+			})
 		} else {
 			builder.LogError("missing main-dialog")
 		}
@@ -221,7 +239,7 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) erro
 	return nil
 }
 
-func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
+func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, app ctk.Application, dm cdk.Display) error {
 	builder.AddNamedSignalHandler("msgbox-ok", func(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
 			dialog.Response(enums2.ResponseOk)
@@ -230,9 +248,9 @@ func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error 
 		}
 		return enums.EVENT_STOP
 	})
-	if tmpl, err := template.New("msgbox").Parse(gladeMsgBox); err != nil || tmpl == nil {
-		dm.LogErr(err)
-	} else {
+	if tmpl, err := template.New("msgbox").Parse(gladeMsgBox); err != nil {
+		return err
+	} else if tmpl != nil {
 		content := ""
 		if ctx.Args().Len() < 1 {
 			return fmt.Errorf("msgbox missing message to display")
@@ -261,7 +279,7 @@ func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error 
 	return nil
 }
 
-func setupUiYesNo(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
+func setupUiYesNo(ctx *cli.Context, builder ctk.Builder, app ctk.Application, dm cdk.Display) error {
 	builder.AddNamedSignalHandler("yesno-yes", func(data []interface{}, argv ...interface{}) enums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
 			dialog.Response(enums2.ResponseYes)
@@ -278,9 +296,9 @@ func setupUiYesNo(ctx *cli.Context, builder ctk.Builder, dm cdk.Display) error {
 		}
 		return enums.EVENT_STOP
 	})
-	if tmpl, err := template.New("yesno").Parse(gladeYesNo); err != nil || tmpl == nil {
-		dm.LogErr(err)
-	} else {
+	if tmpl, err := template.New("yesno").Parse(gladeYesNo); err != nil {
+		return err
+	} else if tmpl != nil {
 		content := ""
 		if ctx.Args().Len() < 1 {
 			return fmt.Errorf("yesno missing message to display")
