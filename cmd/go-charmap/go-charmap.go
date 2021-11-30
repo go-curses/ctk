@@ -56,7 +56,7 @@ func init() {
 }
 
 func main() {
-	app := cdk.NewApplication(
+	app := ctk.NewApplication(
 		AppName,
 		AppUsage,
 		AppDesc,
@@ -64,8 +64,18 @@ func main() {
 		AppTag,
 		AppTitle,
 		"/dev/tty",
-		setup,
 	)
+	app.Connect(cdk.SignalStartup, "go-charmap-startup-handler", func(_ []interface{}, argv ...interface{}) enums.EventFlag {
+		if _, d, _, _, _, ok := ctk.ArgvApplicationSignalStartup(argv...); ok {
+			if err := setup(d); err != nil {
+				app.LogErr(err)
+				return enums.EVENT_STOP
+			}
+			app.NotifyStartupComplete()
+			return enums.EVENT_PASS
+		}
+		return enums.EVENT_STOP
+	})
 	// app.CLI().Commands = nil
 	app.CLI().UsageText = "go-charmap [integer]"
 	if err := app.Run(os.Args); err != nil {
