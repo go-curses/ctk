@@ -75,8 +75,8 @@ func main() {
 		CtkTitle,
 		CtkTtyPath,
 	)
-	app.Connect(cdk.SignalStartup, "main-startup-handler", ctk.WrapArgvApplicationSignalStartup(CtkStartup))
-	app.Connect(cdk.SignalShutdown, "main-shutdown-handler", ctk.WrapArgvNoneWithFlagsSignal(CtkShutdown))
+	app.Connect(cdk.SignalStartup, "main-startup-handler", ctk.WithArgvApplicationSignalStartup(CtkStartup))
+	app.Connect(cdk.SignalShutdown, "main-shutdown-handler", ctk.WithArgvNoneWithFlagsSignal(CtkShutdown))
 	CtkInit(app)
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println(err)
