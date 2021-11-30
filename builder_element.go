@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	cstrings "github.com/go-curses/cdk/lib/strings"
+	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -144,7 +145,7 @@ func (b *CBuilderElement) ApplyProperty(k, v string) (set bool) {
 		default:
 			kp := cdk.Property(k)
 			if err := buildableWidget.SetPropertyFromString(kp, v); err != nil {
-				buildableWidget.LogErr(err)
+				log.WarnF("%v: %v", err, buildableWidget.ObjectName())
 				return false
 			}
 		}
