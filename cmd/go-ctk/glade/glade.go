@@ -55,8 +55,17 @@ func glade(ctx *cli.Context) error {
 	} else if gladeFile[len(gladeFile)-6:] != ".glade" {
 		fmt.Printf("not a .glade interface file: %v\n", gladeFile)
 	}
-	app := cdk.NewApplication("ctk-glade", "", "", "", "ctk-glade", "CTK Glade", "/dev/tty", func(d cdk.Display) error {
-		return ProcessFile(ctx, gladeFile, d)
+	app := ctk.NewApplication("ctk-glade", "", "", "", "ctk-glade", "CTK Glade", "/dev/tty")
+	app.Connect(cdk.SignalStartup, "go-ctk-glade-startup-handler", func(_ []interface{}, argv ...interface{}) enums.EventFlag {
+		if _, d, _, _, _, ok := ctk.ArgvApplicationSignalStartup(argv...); ok {
+			if err := ProcessFile(ctx, gladeFile, app, d); err != nil {
+				app.LogErr(err)
+				return enums.EVENT_STOP
+			}
+			app.NotifyStartupComplete()
+			return enums.EVENT_PASS
+		}
+		return enums.EVENT_STOP
 	})
 	if err := app.Run([]string{"ctk-glade"}); err != nil {
 		log.Fatal(err)
@@ -64,7 +73,7 @@ func glade(ctx *cli.Context) error {
 	return nil
 }
 
-func ProcessFile(ctx *cli.Context, path string, dm cdk.Display) (err error) {
+func ProcessFile(ctx *cli.Context, path string, app ctk.Application, d cdk.Display) (err error) {
 	var bytes []byte
 	if bytes, err = ioutil.ReadFile(path); err != nil {
 		return fmt.Errorf("error reading glade file: %v", err)
@@ -77,14 +86,15 @@ func ProcessFile(ctx *cli.Context, path string, dm cdk.Display) (err error) {
 	for _, bi := range builder.GetWidgetsBuiltByType(ctk.TypeButton) {
 		if button, ok := bi.(ctk.Button); ok {
 			button.Connect(ctk.SignalActivate, fmt.Sprintf("glade.activate"), func(data []interface{}, argv ...interface{}) enums.EventFlag {
-				dm.AddQuitHandler(button.ObjectName(), func() {
+				app.Connect(cdk.SignalShutdown, button.ObjectName(), func(_ []interface{}, _ ...interface{}) enums.EventFlag {
 					if label, err := button.GetStringProperty(ctk.PropertyLabel); err == nil && label != "" {
 						fmt.Printf("button pressed: %v \"%v\"\n", button.ObjectName(), label)
 					} else {
 						fmt.Printf("button pressed: %v \"%v\"\n", button.ObjectName(), button.GetLabel())
 					}
+					return enums.EVENT_PASS
 				})
-				dm.RequestQuit()
+				d.RequestQuit()
 				return enums.EVENT_STOP
 			})
 		}
@@ -93,21 +103,21 @@ func ProcessFile(ctx *cli.Context, path string, dm cdk.Display) (err error) {
 	dialog := ctx.String("dialog")
 	if dialog != "" {
 		if do := builder.GetWidget(dialog); do != nil {
-			return setupUi(builder, do, dm)
+			return setupUi(builder, do, app, d)
 		}
 	}
 	if window != "" {
 		if wo := builder.GetWidget(window); wo != nil {
-			return setupUi(builder, wo, dm)
+			return setupUi(builder, wo, app, d)
 		}
 	}
 	return fmt.Errorf("auto-window selection not implemented yet")
 }
 
-func setupUi(builder ctk.Builder, widget interface{}, dm cdk.Display) error {
+func setupUi(builder ctk.Builder, widget interface{}, app ctk.Application, dm cdk.Display) error {
 	if widget != nil {
 		if dialog, ok := widget.(ctk.Dialog); ok {
-			return setupUiDialog(dialog, dm)
+			return setupUiDialog(dialog, app, dm)
 		}
 		if window, ok := widget.(ctk.Window); ok {
 			window.Show()
@@ -120,7 +130,7 @@ func setupUi(builder ctk.Builder, widget interface{}, dm cdk.Display) error {
 	return fmt.Errorf("widget is nil")
 }
 
-func setupUiDialog(dialog ctk.Dialog, dm cdk.Display) error {
+func setupUiDialog(dialog ctk.Dialog, app ctk.Application, dm cdk.Display) error {
 	window := dialog.GetTransientFor()
 	if window != nil {
 		dm.SetActiveWindow(window)
@@ -137,16 +147,17 @@ func setupUiDialog(dialog ctk.Dialog, dm cdk.Display) error {
 	dialog.Show()
 	dialog.LogInfo("starting Run()")
 	response := dialog.Run()
-	go func() {
+	cdk.Go(func() {
 		select {
 		case r := <-response:
 			dialog.Destroy()
 			_ = dialog.DestroyObject()
-			dm.AddQuitHandler("dialog-response", func() {
+			app.Connect(cdk.SignalShutdown, "dialog-response", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
 				fmt.Printf("dialog response: %v\n", r)
+				return enums.EVENT_PASS
 			})
 			dm.RequestQuit()
 		}
-	}()
+	})
 	return nil
 }
