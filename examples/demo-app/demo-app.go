@@ -86,7 +86,7 @@ func main() {
 }
 
 func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if app, d, _, _, _, ok := cdk.ApplicationSignalStartupArgv(argv...); ok {
+	if app, d, _, _, _, ok := cdk.ArgvApplicationSignalStartup(argv...); ok {
 		if d.App().GetContext().Bool("debug") {
 			log.DebugF("enabling debug")
 			Debug = true
