@@ -1647,7 +1647,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				}
 			}
 		case *cdk.EventResize:
-			alloc := ptypes.MakeRectangle(w.GetDisplay().Screen().Size())
+			alloc := ptypes.MakeRectangle(e.Size())
 			origin := ptypes.MakePoint2I(0, 0)
 			w.SetAllocation(alloc)
 			w.SetOrigin(origin.X, origin.Y)
@@ -1660,14 +1660,12 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 			}
 		}
 		w.LogTrace("ProcessEvent(cdk.Event): %v", evt)
-		// return w.Emit(SignalCdkEvent, w, evt)
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
 }
 
 func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	// w.rebuildFocusChain()
 	origin := w.GetOrigin()
 	alloc := w.GetAllocation()
 	if err := memphis.ConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
