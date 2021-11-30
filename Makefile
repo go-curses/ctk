@@ -73,7 +73,8 @@ clean-cmd: clean-build-logs
 
 clean-examples: clean-build-logs
 	@echo "# cleaning built examples"
-	@rm -fv *.so || true
+	@rm -fv *.so         || true
+	@rm -fv hello-plugin || true
 	@for tgt in `ls examples`; do \
 		if [ -f $$tgt ]; then rm -fv $$tgt; fi; \
 	done
@@ -141,7 +142,7 @@ generate:
 	@echo "# generate go sources..."
 	@go generate -v ./...
 
-examples: clean-examples hello-plugin.so
+examples: clean-examples hello-plugin.so hello-plugin
 	@echo "# building all examples..."
 	@for tgt in `ls examples`; \
 	do \
