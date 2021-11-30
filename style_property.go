@@ -220,7 +220,7 @@ func (p *CStyleProperty) SetFromString(value string) error {
 				return p.Set(nv)
 			}
 		}
-		return fmt.Errorf("complex property %v not supported by builder features", p.Name())
+		return fmt.Errorf("complex property %v not supported", p.Name())
 	}
 	return fmt.Errorf("error")
 }
