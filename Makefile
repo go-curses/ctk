@@ -31,6 +31,8 @@ help:
 	@echo "  build       - build the go-ctk command"
 	@echo "  build-all   - build all commands"
 	@echo "  dev         - build ${DEV_EXAMPLE} with profiling"
+	@echo "  *.so        - build a plugin-world shared object file"
+	@echo "  *           - build only the given example (by name)"
 	@echo
 	@echo "run targets:"
 	@echo "  run         - run the dev build (sanely handle crashes)"
@@ -93,7 +95,7 @@ build: clean-cmd
 " \
 				-o ../../${BUILD_CMD} \
 			2>&1 ) > ../../${BUILD_CMD}.build.log; \
-		cd ../..; \
+		cd - > /dev/null; \
 		if [ -f ${BUILD_CMD} ]; \
 		then \
 			echo "done."; \
@@ -118,7 +120,7 @@ build-all: clean-cmd
 " \
 					-o ../../$$tgt \
 				2>&1 ) > ../../$$tgt.build.log; \
-			cd ../..; \
+			cd - > /dev/null; \
 			if [ -f $$tgt ]; \
 			then \
 				echo "done."; \
@@ -157,7 +159,7 @@ examples: clean-examples hello-plugin.so
 " \
 					-o ../../$$tgt \
 				2>&1 ) > ../../$$tgt.build.log; \
-			cd ../..; \
+			cd - > /dev/null; \
 			if [ -f $$tgt ]; \
 			then \
 				echo "done."; \
@@ -228,7 +230,7 @@ dev: clean
 				-tags "lockStack" \
 				-o ../../${DEV_EXAMPLE} \
 			2>&1 ) > ../../${DEV_EXAMPLE}.build.log; \
-		cd ../..; \
+		cd - > /dev/null; \
 		[ -f ${DEV_EXAMPLE} ] \
 			&& echo "done." \
 			|| echo "failed.\n>\tsee ./${DEV_EXAMPLE}.build.log for errors"; \
@@ -327,13 +329,7 @@ profile.mem: dev
 	fi
 
 %:
-	@if [ -f $@ -o -f $@.build.log ]; \
-	then \
-		echo -n "# cleaning $@... "; \
-		rm -f $@ $@.build.log; \
-		echo "done."; \
-	fi; \
-	if [ -d examples/$@ ]; \
+	@if [ -d examples/$@ ]; \
 	then \
 		echo -n "# building example $@... "; \
 		cd examples/$@; \
@@ -347,7 +343,28 @@ profile.mem: dev
 " \
 				-o ../../$@ \
 			2>&1 ) > ../../$@.build.log; \
-		cd ../..; \
+		cd - > /dev/null; \
+		if [ -f $@ ]; \
+		then \
+			echo "done."; \
+		else \
+			echo "fail.\n#\tsee ./$@.build.log"; \
+		fi; \
+	elif [ -d examples/plugin-world/$@ ]; \
+	then \
+		echo -n "# building example plugin-world/$@... "; \
+		cd examples/plugin-world/$@; \
+		( go build -v \
+				-trimpath \
+				-gcflags=all="-N -l" \
+				-ldflags="\
+-X 'main.IncludeProfiling=true' \
+-X 'main.IncludeLogFile=true'   \
+-X 'main.IncludeLogLevel=true'  \
+" \
+				-o ../../../$@ \
+			2>&1 ) > ../../../$@.build.log; \
+		cd - > /dev/null; \
 		if [ -f $@ ]; \
 		then \
 			echo "done."; \
@@ -368,7 +385,7 @@ profile.mem: dev
 " \
 				-o ../../$@ \
 			2>&1 ) > ../../$@.build.log; \
-		cd ../..; \
+		cd - > /dev/null; \
 		if [ -f $@ ]; \
 		then \
 			echo "done."; \
