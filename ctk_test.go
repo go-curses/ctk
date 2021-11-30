@@ -4,15 +4,13 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/go-curses/cdk"
 )
 
 func TestCtk(t *testing.T) {
-	Convey("Checking CDK Rigging", t, func() {
-		Convey("typical", cdk.WithApp(
+	Convey("Checking CTK Rigging", t, func() {
+		Convey("typical", WithApp(
 			TestingWithCtkWindow,
-			func(app cdk.Application) {
+			func(app Application) {
 				So(app.Version(), ShouldEqual, "v0.0.0")
 				d := app.Display()
 				w := d.ActiveWindow()
