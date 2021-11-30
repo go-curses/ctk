@@ -6,6 +6,8 @@ import (
 )
 
 type Buildable interface {
+	Object
+
 	ListProperties() (known []cdk.Property)
 	InitWithProperties(properties map[cdk.Property]string) (already bool, err error)
 	Build(builder Builder, element *CBuilderElement) error
@@ -18,6 +20,4 @@ type Buildable interface {
 	LogErr(err error)
 	Show()
 	GrabFocus()
-	// GetSizeRequest() (size cdk.Rectangle)
-	// SetSizeRequest(w, h int)
 }
