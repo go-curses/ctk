@@ -36,7 +36,6 @@
                         <property name="layout_style">end</property>
                         <child>
                             <object class="GtkButton" id="main-yesno-yes">
-                                <property name="name">yesno-yes</property>
                                 <property name="label">gtk-yes</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
@@ -52,7 +51,6 @@
                         </child>
                         <child>
                             <object class="GtkButton" id="main-yesno-no">
-                                <property name="name">yesno-no</property>
                                 <property name="label">gtk-no</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
