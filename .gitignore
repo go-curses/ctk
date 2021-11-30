@@ -126,11 +126,13 @@ go-ctk
 !cmd/go-dialog/
 !cmd/go-charmap/
 !cmd/go-ctk/
-demo-app
+/demo-app
 !examples/demo-app/
-hello-world
+/hello-world
 !examples/hello-world/
-kitchen-sink
+/kitchen-sink
 !examples/kitchen-sink/
-plugin-world
+/plugin-world
 !examples/plugin-world/
+/hello-plugin
+!examples/plugin-world/hello-plugin
