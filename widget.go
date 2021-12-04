@@ -42,9 +42,15 @@ type Widget interface {
 	Init() (already bool)
 	Destroy()
 	Unparent()
+	Map()
+	Unmap()
+	IsMapped() (mapped bool)
 	Show()
 	Hide()
-	ShowAll()
+	LockDraw()
+	UnlockDraw()
+	LockEvent()
+	UnlockEvent()
 	AddAccelerator(accelSignal string, accelGroup AccelGroup, accelKey int, accelMods enums.ModifierType, accelFlags enums.AccelFlags)
 	RemoveAccelerator(accelGroup AccelGroup, accelKey int, accelMods enums.ModifierType) (value bool)
 	SetAccelPath(accelPath string, accelGroup AccelGroup)
@@ -298,6 +304,35 @@ func (w *CWidget) Unparent() {
 	}
 }
 
+func (w *CWidget) Map() {
+	if !w.IsMapped() {
+		region := w.GetRegion()
+		if err := memphis.RegisterSurface(
+			w.ObjectID(),
+			region.Origin(),
+			region.Size(),
+			w.GetThemeRequest().Content.Normal,
+		); err != nil {
+			w.LogErr(err)
+			return
+		}
+		w.Emit(SignalMap, w, region)
+	}
+}
+
+func (w *CWidget) Unmap() {
+	if w.IsMapped() {
+		memphis.RemoveSurface(w.ObjectID())
+		w.Emit(SignalUnmap, w)
+	}
+}
+
+func (w *CWidget) IsMapped() (mapped bool) {
+	_, err := memphis.GetSurface(w.ObjectID())
+	mapped = err == nil
+	return
+}
+
 // Show flags a widget to be displayed. Any widget that isn't shown will not
 // appear on the screen. If you want to show all the widgets in a container,
 // it's easier to call ShowAll on the container, instead of
@@ -307,10 +342,13 @@ func (w *CWidget) Unparent() {
 // immediately realized and mapped; other shown widgets are realized and
 // mapped when their toplevel container is realized and mapped.
 func (w *CWidget) Show() {
-	if !w.HasFlags(enums.VISIBLE) {
-		w.SetFlags(enums.VISIBLE)
-		if r := w.Emit(SignalShow, w); r == cenums.EVENT_PASS {
-			w.Invalidate()
+	if w.HasFlags(enums.APP_PAINTABLE) {
+		if !w.HasFlags(enums.VISIBLE) {
+			w.Map()
+			w.SetFlags(enums.VISIBLE)
+			if r := w.Emit(SignalShow, w); r == cenums.EVENT_PASS {
+				w.Invalidate()
+			}
 		}
 	}
 }
@@ -318,10 +356,13 @@ func (w *CWidget) Show() {
 // Hide reverses the effects of Show, causing the widget to be hidden (invisible
 // to the user).
 func (w *CWidget) Hide() {
-	if w.HasFlags(enums.VISIBLE) {
-		w.UnsetFlags(enums.VISIBLE)
-		if r := w.Emit(SignalHide, w); r == cenums.EVENT_PASS {
-			w.Invalidate()
+	if w.HasFlags(enums.APP_PAINTABLE) {
+		if w.HasFlags(enums.VISIBLE) {
+			w.Unmap()
+			w.UnsetFlags(enums.VISIBLE)
+			if r := w.Emit(SignalHide, w); r == cenums.EVENT_PASS {
+				w.Invalidate()
+			}
 		}
 	}
 }
@@ -492,7 +533,6 @@ func (w *CWidget) GrabFocus() {
 					if focused.ObjectID() != w.ObjectID() {
 						focused.UnsetState(enums.StateSelected)
 						focused.Emit(SignalLostFocus)
-						// focused.Invalidate()
 					}
 				}
 				tl.SetFocus(w)
