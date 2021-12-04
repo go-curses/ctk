@@ -520,22 +520,9 @@ func (w *CWindow) SetDestroyWithParent(setting bool) {
 // Returns:
 // 	TRUE if the window part of the current active window.
 func (w *CWindow) IsActive() (active bool) {
-	if aw := w.display.ActiveWindow(); aw != nil {
-		if aw.ObjectID() == w.ObjectID() {
+	if focused := w.display.FocusedWindow(); focused != nil {
+		if focused.ObjectID() == w.ObjectID() {
 			return true
-		}
-		if parent := w.GetParent(); parent != nil {
-			if pw, ok := parent.Self().(Window); ok {
-				if overlays := w.display.GetWindowOverlays(pw.ObjectID()); overlays != nil {
-					for _, overlay := range overlays {
-						if ow, ok := overlay.Self().(Window); ok {
-							if ow.ObjectID() == w.ObjectID() {
-								return true
-							}
-						}
-					}
-				}
-			}
 		}
 	}
 	return false

@@ -39,7 +39,7 @@ func WithApp(initFn cdk.SignalListenerFn, action AppFn) func() {
 func TestingWithCtkWindow(_ []interface{}, argv ...interface{}) enums.EventFlag {
 	if _, d, _, _, _, ok := ArgvApplicationSignalStartup(argv...); ok {
 		w := NewWindowWithTitle(d.GetTitle())
-		d.SetActiveWindow(w)
+		d.FocusWindow(w)
 	}
 	return enums.EVENT_PASS
 }

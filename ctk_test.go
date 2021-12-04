@@ -13,7 +13,7 @@ func TestCtk(t *testing.T) {
 			func(app Application) {
 				So(app.Version(), ShouldEqual, "v0.0.0")
 				d := app.Display()
-				w := d.ActiveWindow()
+				w := d.FocusedWindow()
 				So(w, ShouldNotBeNil)
 			},
 		))
