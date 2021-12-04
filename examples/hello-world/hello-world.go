@@ -79,8 +79,6 @@ func startup(data []interface{}, argv ...interface{}) enums.EventFlag {
 		// the terminal display, this effectively calls Show() on the vbox,
 		// alignment and button
 		w.ShowAll()
-		// tell CDK that this window is the foreground window
-		d.SetActiveWindow(w)
 		// now that the button is visible, grab the focus
 		button.GrabFocus()
 		// notify that startup has completed

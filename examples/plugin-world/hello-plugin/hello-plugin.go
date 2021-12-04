@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	cstrings "github.com/go-curses/cdk/lib/strings"
+	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk"
 )
@@ -126,8 +126,6 @@ func CtkStartup(app ctk.Application, d cdk.Display, ctx context.Context, cancel 
 	// the terminal display, this effectively calls Show() on the vbox,
 	// alignment and button
 	w.ShowAll()
-	// tell CDK that this window is the foreground window
-	d.SetActiveWindow(w)
 	// now that the button is visible, grab the focus
 	button.GrabFocus()
 	// notify that startup has completed

@@ -122,7 +122,6 @@ func setupUi(builder ctk.Builder, widget interface{}, app ctk.Application, dm cd
 		if window, ok := widget.(ctk.Window); ok {
 			window.Show()
 			dm.CaptureCtrlC()
-			dm.SetActiveWindow(window)
 			return nil
 		}
 		return fmt.Errorf("widget is not a window or dialog")
@@ -131,20 +130,12 @@ func setupUi(builder ctk.Builder, widget interface{}, app ctk.Application, dm cd
 }
 
 func setupUiDialog(dialog ctk.Dialog, app ctk.Application, dm cdk.Display) error {
-	window := dialog.GetTransientFor()
-	if window != nil {
-		dm.SetActiveWindow(window)
-	} else {
-		dm.SetActiveWindow(dialog)
-	}
 	if display := dm.Screen(); display != nil {
 		dw, dh := display.Size()
 		sr := ptypes.NewRectangle(dw/2, dh/2)
 		sr.Clamp(20, 10, dw, dh)
 		dialog.SetSizeRequest(sr.W, sr.H)
-		dialog.SetTransientFor(window)
 	}
-	dialog.Show()
 	dialog.LogInfo("starting Run()")
 	response := dialog.Run()
 	cdk.Go(func() {

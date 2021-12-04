@@ -102,7 +102,6 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if err := w.AddStylesFromString(demoAppStyles); err != nil {
 			w.LogErr(err)
 		}
-		d.SetActiveWindow(w)
 		ag := ctk.NewAccelGroup()
 		// ag.AccelConnect(cdk.KeySmallQ, cdk.ModCtrl, ctk.ACCEL_VISIBLE, "quit-accel", func(argv ...interface{}) (handled bool) {
 		// 	ag.LogDebug("quit-accelerator called")
@@ -197,9 +196,9 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			dialog.AddSecondaryActionWidget(help, enums.ResponseHelp)
 			dialog.SetSizeRequest(40, 10)
 			label := ctk.NewLabel("testing the content area")
-			label.Show()
 			label.SetAlignment(0.5, 0.5)
 			label.SetJustify(cenums.JUSTIFY_CENTER)
+			label.Show()
 			dialog.GetContentArea().PackStart(label, true, true, 0)
 			for _, child := range dialog.GetActionArea().GetChildren() {
 				if cb, ok := child.(ctk.Button); ok {
@@ -211,7 +210,6 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 					}
 				}
 			}
-			dialog.ShowAll()
 			// if Debug {
 			// dialog.GetVBox().SetBoolProperty(cdk.PropertyDebug, true)
 			// dialog.GetVBox().SetBoolProperty(Property, true)

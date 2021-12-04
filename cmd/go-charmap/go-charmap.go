@@ -7,13 +7,13 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/go-curses/cdk/lib/enums"
-	"github.com/go-curses/cdk/lib/paint"
-	"github.com/go-curses/cdk/lib/ptypes"
 	"golang.org/x/text/unicode/runenames"
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/env"
+	"github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/cdk/lib/paint"
+	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk"
@@ -114,8 +114,6 @@ func setup(d cdk.Display) error {
 	label.SetText("loading...")
 	label.SetPadding(1, 1)
 	_ = label.SetBoolProperty(cdk.PropertyDebug, false)
-	// frame.SetSizeRequest(41, 8)
-	// label.SetSizeRequest(30, 6)
 	_ = frame.SetBoolProperty(cdk.PropertyDebug, false)
 	label.Show()
 	frame.Add(label)
@@ -159,8 +157,7 @@ func setup(d cdk.Display) error {
 		)
 	}
 	label.SetText(message)
-	w.ShowAll()
-	d.SetActiveWindow(w)
+	w.Show()
 	d.RequestDraw()
 	d.RequestShow()
 	return nil

@@ -7,18 +7,18 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"text/template"
 
-	"github.com/go-curses/cdk/lib/enums"
-	"github.com/go-curses/cdk/lib/ptypes"
-	enums2 "github.com/go-curses/ctk/lib/enums"
 	"github.com/urfave/cli/v2"
 
 	"github.com/go-curses/cdk"
+	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
+	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const (
@@ -73,12 +73,12 @@ func main() {
 	app.Connect(
 		cdk.SignalStartup, "go-dialog-startup-handler",
 		ctk.WithArgvApplicationSignalStartup(
-			func(app ctk.Application, display cdk.Display, ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) enums.EventFlag {
+			func(app ctk.Application, display cdk.Display, ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) cenums.EventFlag {
 				if err := setupUserInterface(app, display); err != nil {
 					app.LogErr(err)
-					return enums.EVENT_STOP
+					return cenums.EVENT_STOP
 				}
-				return enums.EVENT_PASS
+				return cenums.EVENT_PASS
 			},
 		),
 	)
@@ -125,9 +125,9 @@ func setupUserInterface(app ctk.Application, d cdk.Display) error {
 	if ctx.Bool("print-maxsize") {
 		if display := d.Screen(); display != nil {
 			w, h := display.Size()
-			app.Connect(cdk.SignalShutdown, "print-maxsize", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
+			app.Connect(cdk.SignalShutdown, "print-maxsize", func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 				fmt.Printf("%v %v\n", w, h)
-				return enums.EVENT_PASS
+				return cenums.EVENT_PASS
 			})
 			d.RequestQuit()
 			return nil
@@ -149,9 +149,9 @@ func setupUserInterface(app ctk.Application, d cdk.Display) error {
 		}
 		proceed = true
 	case "":
-		app.Connect(cdk.SignalShutdown, "see-help", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
+		app.Connect(cdk.SignalShutdown, "see-help", func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 			fmt.Printf("see: %v --help\n", app.Name())
-			return enums.EVENT_PASS
+			return cenums.EVENT_PASS
 		})
 		d.RequestQuit()
 		return nil
@@ -175,9 +175,8 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application,
 	window := getWindow(builder)
 	dialog := getDialog(builder)
 	if window != nil {
-		window.Show()
 		window.SetTitle(backTitle)
-		display.SetActiveWindow(window)
+		window.Show()
 		if dialog != nil {
 			dialog.Show()
 			dw, dh := display.Screen().Size()
@@ -222,9 +221,9 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application,
 					_ = dialog.DestroyObject()
 					switch ctx.Command.Name {
 					case "yesno":
-						app.Connect(cdk.SignalShutdown, "dialog-response", func(_ []interface{}, _ ...interface{}) enums.EventFlag {
+						app.Connect(cdk.SignalShutdown, "dialog-response", func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 							fmt.Printf("%v\n", r)
-							return enums.EVENT_PASS
+							return cenums.EVENT_PASS
 						})
 					}
 					display.RequestQuit()
@@ -240,13 +239,13 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application,
 }
 
 func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, app ctk.Application, dm cdk.Display) error {
-	builder.AddNamedSignalHandler("msgbox-ok", func(data []interface{}, argv ...interface{}) enums.EventFlag {
+	builder.AddNamedSignalHandler("msgbox-ok", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
-			dialog.Response(enums2.ResponseOk)
+			dialog.Response(enums.ResponseOk)
 		} else {
 			builder.LogError("msgbox-ok missing main-dialog")
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	if tmpl, err := template.New("msgbox").Parse(gladeMsgBox); err != nil {
 		return err
@@ -280,21 +279,21 @@ func setupUiMsgbox(ctx *cli.Context, builder ctk.Builder, app ctk.Application, d
 }
 
 func setupUiYesNo(ctx *cli.Context, builder ctk.Builder, app ctk.Application, dm cdk.Display) error {
-	builder.AddNamedSignalHandler("yesno-yes", func(data []interface{}, argv ...interface{}) enums.EventFlag {
+	builder.AddNamedSignalHandler("yesno-yes", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
-			dialog.Response(enums2.ResponseYes)
+			dialog.Response(enums.ResponseYes)
 		} else {
 			builder.LogError("yesno-yes missing main-dialog")
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
-	builder.AddNamedSignalHandler("yesno-no", func(data []interface{}, argv ...interface{}) enums.EventFlag {
+	builder.AddNamedSignalHandler("yesno-no", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if dialog := getDialog(builder); dialog != nil {
-			dialog.Response(enums2.ResponseNo)
+			dialog.Response(enums.ResponseNo)
 		} else {
 			builder.LogError("yesno-no missing main-dialog")
 		}
-		return enums.EVENT_STOP
+		return cenums.EVENT_STOP
 	})
 	if tmpl, err := template.New("yesno").Parse(gladeYesNo); err != nil {
 		return err

@@ -85,7 +85,6 @@ func setupUi(data []interface{}, argv ...interface{}) enums.EventFlag {
 		// note that screen is captured at this time!
 		d.CaptureCtrlC()
 		w := ctk.NewWindowWithTitle(APP_TITLE)
-		d.SetActiveWindow(w)
 		w.Show()
 		if err := setupDruidUi(d, w); err != nil {
 			d.LogErr(err)
