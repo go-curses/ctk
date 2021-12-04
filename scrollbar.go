@@ -852,8 +852,10 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.
 			}
 			local := b.GetOrigin()
 			local.SubPoint(origin)
-			if err := memphis.ConfigureSurface(bid, local, size, style); err != nil {
-				b.LogErr(err)
+			if b.IsMapped() {
+				if err := memphis.ConfigureSurface(bid, local, size, style); err != nil {
+					b.LogErr(err)
+				}
 			}
 			b.Invalidate()
 		}
