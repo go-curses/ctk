@@ -6,8 +6,6 @@ package ctk
 import (
 	"fmt"
 
-	"github.com/gofrs/uuid"
-
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
@@ -58,6 +56,8 @@ type Dialog interface {
 	Response(responseId enums.ResponseType)
 	Add(w Widget)
 	GetWindow() Window
+	GetDialogFlags() (flags enums.DialogFlags)
+	SetDialogFlags(flags enums.DialogFlags)
 	AddButton(buttonText string, responseId enums.ResponseType) (button Button)
 	AddButtons(argv ...interface{})
 	AddActionWidget(child Widget, responseId enums.ResponseType)
@@ -247,27 +247,12 @@ func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 // After Run returns, you are responsible for hiding or destroying the dialog if
 // you wish to do so.
 func (d *CDialog) Run() (response chan enums.ResponseType) {
-	d.Show()
 	response = make(chan enums.ResponseType, 1)
 	display := d.GetDisplay()
-	screen := display.Screen()
-	if screen == nil {
-		d.LogError("screen not found")
+	if !display.IsRunning() {
+		d.LogError("display not running")
 		response <- enums.ResponseNone
 		return
-	}
-	parentId := uuid.Nil
-	dw, dh := screen.Size()
-	previousWindow := display.ActiveWindow()
-	if transient := d.GetTransientFor(); transient != nil {
-		parentId = transient.ObjectID()
-		display.AddWindowOverlay(parentId, d, d.getDialogRegion())
-		d.Resize()
-		display.SetActiveWindow(transient)
-	} else {
-		d.SetAllocation(ptypes.MakeRectangle(dw, dh))
-		d.Resize()
-		display.SetActiveWindow(d)
 	}
 	if d.defResponse != enums.ResponseNone {
 		if ab, ok := d.widgets[d.defResponse]; ok {
@@ -277,6 +262,13 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 			}
 		}
 	}
+	if transient := d.GetTransientFor(); transient != nil {
+		// make sure the dialog will be "on top" of the correct window
+		display.FocusWindow(transient)
+	}
+	d.SetRegion(d.getDialogRegion())
+	d.Resize()
+	d.Show()
 	display.RequestDraw()
 	display.RequestShow()
 	cdk.Go(func() {
@@ -285,10 +277,6 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 		case <-d.done:
 		}
 		response <- d.response
-		if parentId != uuid.Nil {
-			display.RemoveWindowOverlay(parentId, d.ObjectID())
-		}
-		display.SetActiveWindow(previousWindow)
 		display.RequestDraw()
 		display.RequestShow()
 	})
@@ -313,6 +301,19 @@ func (d *CDialog) Add(w Widget) {
 
 func (d *CDialog) GetWindow() Window {
 	return d
+}
+
+func (d *CDialog) GetDialogFlags() (flags enums.DialogFlags) {
+	d.RLock()
+	flags = d.dialogFlags
+	d.RUnlock()
+	return
+}
+
+func (d *CDialog) SetDialogFlags(flags enums.DialogFlags) {
+	d.Lock()
+	d.dialogFlags = d.dialogFlags.Set(flags)
+	d.Unlock()
 }
 
 // AddButton is a convenience method for AddActionWidget to create a Button with
@@ -438,7 +439,10 @@ func (d *CDialog) SetResponseSensitive(responseId enums.ResponseType, sensitive 
 // Parameters:
 // 	widget	a widget in the action area of dialog
 func (d *CDialog) GetResponseForWidget(widget Widget) (value enums.ResponseType) {
-	for response, widgets := range d.widgets {
+	d.RLock()
+	dwidgets := d.widgets
+	d.RUnlock()
+	for response, widgets := range dwidgets {
 		for _, w := range widgets {
 			if w.ObjectID() == widget.ObjectID() {
 				return response
@@ -454,6 +458,8 @@ func (d *CDialog) GetResponseForWidget(widget Widget) (value enums.ResponseType)
 // Parameters:
 // 	responseId	the response ID used by the dialog widget
 func (d *CDialog) GetWidgetForResponse(responseId enums.ResponseType) (value Widget) {
+	d.RLock()
+	defer d.RUnlock()
 	if widgets, ok := d.widgets[responseId]; ok {
 		if last := len(widgets) - 1; last > -1 {
 			value = widgets[last]
@@ -464,17 +470,20 @@ func (d *CDialog) GetWidgetForResponse(responseId enums.ResponseType) (value Wid
 
 // GetActionArea returns the action area ButtonBox of a Dialog instance.
 func (d *CDialog) GetActionArea() (value ButtonBox) {
+	d.RLock()
+	defer d.RUnlock()
 	return d.action
 }
 
 // GetContentArea returns the content area VBox of a Dialog instance.
 func (d *CDialog) GetContentArea() (value VBox) {
+	d.RLock()
+	defer d.RUnlock()
 	return d.content
 }
 
 // Show ensures that the Dialog, content and action areas are all set to VISIBLE
 func (d *CDialog) Show() {
-	d.SetFlags(enums.VISIBLE)
 	d.CWindow.Show()
 	d.content.Show()
 	d.action.Show()
@@ -483,16 +492,24 @@ func (d *CDialog) Show() {
 // ShowAll calls ShowAll upon the Dialog, content area, action area and all the
 // action Widget children.
 func (d *CDialog) ShowAll() {
-	d.SetFlags(enums.VISIBLE)
+	d.Show()
 	d.CWindow.ShowAll()
 	d.content.ShowAll()
 	d.action.ShowAll()
 	for _, child := range d.GetChildren() {
-		child.ShowAll()
+		if cc, ok := child.Self().(Container); ok {
+			cc.ShowAll()
+		} else {
+			child.Show()
+		}
 	}
 	for _, children := range d.widgets {
 		for _, child := range children {
-			child.ShowAll()
+			if cc, ok := child.Self().(Container); ok {
+				cc.ShowAll()
+			} else {
+				child.Show()
+			}
 		}
 	}
 }
@@ -502,13 +519,14 @@ func (d *CDialog) ShowAll() {
 // signal.
 func (d *CDialog) Destroy() {
 	d.Hide()
-	dm := d.GetDisplay()
+	display := d.GetDisplay()
 	if tf := d.GetTransientFor(); tf != nil {
 		tf.SetTransientFor(nil)
 		d.SetTransientFor(nil)
-		dm.RemoveWindowOverlay(tf.ObjectID(), d.ObjectID())
+		display.UnmapWindow(d)
+		display.FocusWindow(tf)
 	} else {
-		dm.RemoveWindow(d.ObjectID())
+		display.UnmapWindow(d)
 	}
 	d.Emit(SignalDestroyEvent, d)
 }
@@ -535,29 +553,33 @@ func (d *CDialog) SetFocus(focus Widget) {
 }
 
 func (d *CDialog) getDialogRegion() (region ptypes.Region) {
-	if dm := cdk.GetDefaultDisplay(); dm != nil {
-		var origin ptypes.Point2I
-		alloc := ptypes.MakeRectangle(dm.Screen().Size())
-		if tf := d.GetTransientFor(); tf != nil {
-			req := d.SizeRequest()
-			if req.W <= -1 || req.W > alloc.W {
-				req.W = alloc.W
-			}
-			if req.H <= -1 || req.H > alloc.H {
-				req.H = alloc.H
-			}
-			if alloc.W > req.W {
-				delta := alloc.W - req.W
-				origin.X = int(float64(delta) * 0.5)
-			}
-			if alloc.H > req.H {
-				delta := alloc.H - req.H
-				origin.Y = int(float64(delta) * 0.5)
-			}
-			region = ptypes.MakeRegion(origin.X, origin.Y, req.W, req.H)
-		} else {
-			region = ptypes.MakeRegion(origin.X, origin.Y, alloc.W, alloc.H)
+	if display := cdk.GetDefaultDisplay(); display != nil && display.IsRunning() {
+		alloc := ptypes.MakeRectangle(display.Screen().Size())
+		region = d.getDialogRegionForAllocation(alloc)
+	}
+	return
+}
+
+func (d *CDialog) getDialogRegionForAllocation(alloc ptypes.Rectangle) (region ptypes.Region) {
+	if display := cdk.GetDefaultDisplay(); display != nil && display.IsRunning() {
+		origin := ptypes.MakePoint2I(0, 0)
+		req := d.SizeRequest()
+		if req.W <= -1 || req.W > alloc.W {
+			req.W = alloc.W
 		}
+		if req.H <= -1 || req.H > alloc.H {
+			req.H = alloc.H
+		}
+		// center placement gravity
+		if alloc.W > req.W {
+			delta := alloc.W - req.W
+			origin.X = int(float64(delta) * 0.5)
+		}
+		if alloc.H > req.H {
+			delta := alloc.H - req.H
+			origin.Y = int(float64(delta) * 0.5)
+		}
+		region = ptypes.MakeRegion(origin.X, origin.Y, req.W, req.H)
 	}
 	return
 }
@@ -577,19 +599,32 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				return cenums.EVENT_STOP
 			}
 		case *cdk.EventResize:
-			if tw := d.GetTransientFor(); tw != nil {
-				tw.ProcessEvent(evt)
-			}
+			alloc := ptypes.MakeRectangle(e.Size())
+			region := d.getDialogRegionForAllocation(alloc)
+			d.SetOrigin(region.X, region.Y)
+			d.SetAllocation(region.Size())
 			return d.Resize()
 		case *cdk.EventMouse:
 			if f := d.Emit(SignalEventMouse, d, evt); f == cenums.EVENT_PASS {
 				if child := d.GetChild(); child != nil {
-					point := ptypes.NewPoint2I(e.Position())
+					position := ptypes.NewPoint2I(e.Position())
+					point := position.NewClone()
 					point.AddPoint(d.GetOrigin())
 					if mw := child.GetWidgetAt(point); mw != nil {
 						if ms, ok := mw.Self().(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
 							if f := ms.ProcessEvent(evt); f == cenums.EVENT_STOP {
 								return cenums.EVENT_STOP
+							}
+						}
+					} else if !e.IsMoving() && !e.IsDragging() {
+						d.RLock()
+						modal := d.dialogFlags.Has(enums.DialogModal)
+						d.RUnlock()
+						if !modal {
+							if display := d.GetDisplay(); display != nil {
+								if found := display.GetWindowAtPoint(*position); found != nil {
+									display.FocusWindow(found)
+								}
 							}
 						}
 					}
@@ -604,35 +639,33 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	// d.rebuildFocusChain()
 	origin := d.GetOrigin()
 	alloc := d.GetAllocation()
-	if err := memphis.ConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
-		d.LogErr(err)
+	if d.IsMapped() {
+		if err := memphis.ConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
+			d.LogErr(err)
+		}
 	}
 	return cenums.EVENT_STOP
 }
 
 func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	region := d.getDialogRegion().NewClone()
-	if tf := d.GetTransientFor(); tf != nil {
-		if dm := d.GetDisplay(); dm != nil {
-			dm.SetWindowOverlayRegion(tf.ObjectID(), d.ObjectID(), *region)
-		}
-	}
 	d.SetOrigin(region.X, region.Y)
 	d.SetAllocation(region.Size())
 
 	if child := d.GetChild(); child != nil {
 		local := ptypes.MakePoint2I(1, 1)
-		child.SetOrigin(region.X+local.X, region.Y+local.Y)
 		alloc := region.Size().NewClone()
 		alloc.Sub(2, 2)
+		if child.IsMapped() {
+			if err := memphis.ConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
+				child.LogErr(err)
+			}
+		}
+		child.SetOrigin(region.X+local.X, region.Y+local.Y)
 		child.SetAllocation(*alloc)
 		child.Resize()
-		if err := memphis.ConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
-			child.LogErr(err)
-		}
 	}
 
 	d.Invalidate()
