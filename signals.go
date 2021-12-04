@@ -35,7 +35,6 @@ const (
 	SignalSetSizeRequest    cdk.Signal = "set-size-request"
 	SignalSetState          cdk.Signal = "set-state"
 	SignalSetTheme          cdk.Signal = "set-theme"
-	SignalSetThemeRequest   cdk.Signal = "set-theme-request"
 	SignalSetWindow         cdk.Signal = "set-window"
 	SignalShowAll           cdk.Signal = "show-all"
 	SignalSpacing           cdk.Signal = "spacing"
