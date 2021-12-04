@@ -945,15 +945,15 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			b.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
-		b.RLock()
+
+		b.LockDraw()
+		defer b.UnlockDraw()
+
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
-		b.RUnlock()
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
 		theme := b.GetThemeRequest()
-		b.Lock()
-		defer b.Unlock()
 		surface.Fill(theme)
 		for _, child := range children {
 			if child.widget.IsVisible() {

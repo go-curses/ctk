@@ -874,6 +874,9 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventF
 			return cenums.EVENT_PASS
 		}
 
+		s.LockDraw()
+		defer s.UnlockDraw()
+
 		theme := s.GetThemeRequest()
 		origin := s.GetOrigin()
 		trough := s.GetTroughRegion()
@@ -881,9 +884,6 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventF
 		trough.Y -= origin.Y
 
 		fwd, bwd, sFwd, sBwd := s.GetAllStepperRegions()
-
-		s.Lock()
-		defer s.Unlock()
 
 		surface.Box(
 			trough.Origin(), trough.Size(),

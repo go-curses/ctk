@@ -1711,12 +1711,12 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 			return cenums.EVENT_PASS
 		}
 
+		w.LockDraw()
+		defer w.UnlockDraw()
+
 		title := w.GetTitle()
 		theme := w.GetThemeRequest()
 		child := w.GetChild()
-
-		w.Lock()
-		defer w.Unlock()
 
 		if title != "" {
 			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)

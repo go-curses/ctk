@@ -624,6 +624,10 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums
 			s.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
+
+		s.LockDraw()
+		defer s.UnlockDraw()
+
 		child := s.GetChild()
 		origin := s.GetOrigin()
 		vs := s.GetVScrollbar()
@@ -631,9 +635,6 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums
 		verticalShow := s.VerticalShowByPolicy()
 		horizontalShow := s.HorizontalShowByPolicy()
 		theme := s.GetThemeRequest()
-
-		s.Lock()
-		defer s.Unlock()
 
 		if child != nil {
 			surface.BoxWithTheme(

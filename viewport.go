@@ -283,8 +283,8 @@ func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFl
 			return cenums.EVENT_PASS
 		}
 
-		v.Lock()
-		defer v.Unlock()
+		v.LockDraw()
+		defer v.UnlockDraw()
 
 		if child := v.GetChild(); child != nil {
 			if f := child.Draw(); f == cenums.EVENT_STOP {
@@ -292,7 +292,6 @@ func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFl
 					v.LogError("composite error: %v", err)
 				}
 			}
-
 		}
 
 		if debug, _ := v.GetBoolProperty(cdk.PropertyDebug); debug {

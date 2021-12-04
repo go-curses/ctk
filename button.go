@@ -800,6 +800,9 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 			return cenums.EVENT_STOP
 		}
 
+		b.LockDraw()
+		defer b.UnlockDraw()
+
 		var child Widget
 		var label Label
 		if child = b.GetChild(); child == nil {
@@ -811,9 +814,6 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 
 		theme := b.GetThemeRequest()
 		border := b.getBorderRequest()
-
-		b.Lock()
-		defer b.Unlock()
 
 		surface.Box(
 			ptypes.MakePoint2I(0, 0),

@@ -306,29 +306,26 @@ func (a *CAlignment) draw(data []interface{}, argv ...interface{}) cenums.EventF
 			return cenums.EVENT_PASS
 		}
 
+		a.LockDraw()
+		defer a.UnlockDraw()
+
 		theme := a.GetThemeRequest()
 		boxOrigin := ptypes.MakePoint2I(0, 0)
 		boxSize := alloc
 
-		a.Lock()
 		surface.BoxWithTheme(boxOrigin, boxSize, false, true, theme)
-		a.Unlock()
 
 		if child := a.GetChild(); child != nil {
-			a.Lock()
 			if f := child.Draw(); f == cenums.EVENT_STOP {
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					a.LogError("composite error: %v", err)
 				}
 			}
-			a.Unlock()
 		}
 
-		a.Lock()
 		if debug, _ := a.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, a.ObjectInfo())
 		}
-		a.Unlock()
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS

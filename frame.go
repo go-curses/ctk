@@ -511,6 +511,9 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 			return cenums.EVENT_PASS
 		}
 
+		f.LockDraw()
+		defer f.UnlockDraw()
+
 		// render the box and border, with widget
 		_, yAlign := f.GetLabelAlign()
 		widget := f.GetLabelWidget()
@@ -519,9 +522,6 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		if child != nil {
 			theme = child.GetThemeRequest()
 		}
-
-		f.Lock()
-		defer f.Unlock()
 
 		boxOrigin := ptypes.MakePoint2I(0, 0)
 		boxSize := alloc

@@ -369,13 +369,15 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventF
 			b.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
+
+		b.LockDraw()
+		defer b.UnlockDraw()
+
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
 		theme := b.GetThemeRequest()
-		b.Lock()
-		defer b.Unlock()
 		surface.Fill(theme)
 		for _, child := range children {
 			if child.widget.IsVisible() {

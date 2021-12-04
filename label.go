@@ -1044,10 +1044,10 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 			return cenums.EVENT_PASS
 		}
 
-		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
+		l.LockDraw()
+		defer l.UnlockDraw()
 
-		l.Lock()
-		defer l.Unlock()
+		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
 
 		if l.tbuffer != nil {
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {

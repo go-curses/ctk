@@ -567,8 +567,6 @@ func (d *CDialog) getDialogRegion() (region ptypes.Region) {
 
 func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
-		// d.Lock()
-		// defer d.Unlock()
 		switch e := evt.(type) {
 		case *cdk.EventKey:
 			switch e.Key() {
@@ -648,12 +646,14 @@ func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 			d.LogDebug("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
+
+		d.LockDraw()
+		defer d.UnlockDraw()
+
 		d.LogTrace("%v", size)
 		title := d.GetTitle()
 		theme := d.GetThemeRequest()
 		vbox := d.GetVBox()
-		d.Lock()
-		defer d.Unlock()
 		if d.GetTitle() != "" {
 			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
 		} else {
