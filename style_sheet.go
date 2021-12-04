@@ -5,10 +5,11 @@ package ctk
 import (
 	"bytes"
 	"fmt"
-	"sync"
 
 	"github.com/tdewolff/parse/v2"
 	tcss "github.com/tdewolff/parse/v2/css"
+
+	"github.com/go-curses/cdk/lib/sync"
 )
 
 type cStyleSheet struct {

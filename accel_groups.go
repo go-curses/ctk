@@ -1,10 +1,10 @@
 package ctk
 
 import (
-	"sync"
+	"github.com/gofrs/uuid"
 
 	"github.com/go-curses/cdk"
-	"github.com/gofrs/uuid"
+	"github.com/go-curses/cdk/lib/sync"
 )
 
 var (

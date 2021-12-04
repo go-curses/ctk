@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"plugin"
-	"sync"
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/cdk/lib/sync"
 )
 
 // NewApplicationFromPlugin constructs an Application from a Go plugin shared

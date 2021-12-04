@@ -2,10 +2,10 @@ package ctk
 
 import (
 	"context"
-	"sync"
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
+	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/log"
 )
 

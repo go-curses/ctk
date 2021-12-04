@@ -3,12 +3,12 @@ package ctk
 import (
 	_ "embed"
 	"fmt"
-	"sync"
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
+	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/memphis"
 	"github.com/go-curses/ctk/lib/enums"
 )
