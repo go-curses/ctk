@@ -61,6 +61,9 @@ type Window interface {
 	ReplaceStylesFromString(css string) (err error)
 	ExportStylesToString() (css string)
 	ApplyStylesTo(widget Widget)
+	Show()
+	ShowAll()
+	Hide()
 	SetTitle(title string)
 	SetResizable(resizable bool)
 	GetResizable() (value bool)
@@ -323,6 +326,27 @@ func (w *CWindow) ExportStylesToString() (css string) {
 
 func (w *CWindow) ApplyStylesTo(widget Widget) {
 	w.styleSheet.ApplyStylesTo(widget)
+}
+
+func (w *CWindow) Show() {
+	w.CBin.Show()
+	w.GetVBox().Show()
+	if display := w.GetDisplay(); display != nil {
+		display.MapWindowWithRegion(w, w.GetRegion())
+		display.FocusWindow(w)
+	}
+}
+
+func (w *CWindow) ShowAll() {
+	w.GetVBox().ShowAll()
+	w.Show()
+}
+
+func (w *CWindow) Hide() {
+	w.CBin.Hide()
+	if display := w.GetDisplay(); display != nil {
+		display.UnmapWindow(w)
+	}
 }
 
 // SetTitle updates the title of the Window. The title of a window will be

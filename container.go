@@ -194,7 +194,11 @@ func (c *CContainer) ShowAll() {
 	c.Show()
 	children := c.GetChildren()
 	for _, child := range children {
-		child.ShowAll()
+		if cc, ok := child.Self().(Container); ok {
+			cc.ShowAll()
+		} else {
+			child.Show()
+		}
 	}
 }
 
