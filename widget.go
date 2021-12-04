@@ -169,6 +169,8 @@ type CWidget struct {
 	state     enums.StateType
 	flags     enums.WidgetFlags
 	flagsLock *sync.RWMutex
+	drawLock  *sync.Mutex
+	eventLock *sync.Mutex
 }
 
 // Init initializes a Widget object. This must be called at least once to
@@ -251,6 +253,8 @@ func (w *CWidget) Init() (already bool) {
 		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
 	}
 	w.flagsLock = &sync.RWMutex{}
+	w.drawLock = &sync.Mutex{}
+	w.eventLock = &sync.Mutex{}
 	w.state = enums.StateNormal
 	w.flags = enums.NULL_WIDGET_FLAG
 	w.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
@@ -322,10 +326,20 @@ func (w *CWidget) Hide() {
 	}
 }
 
-// ShowAll recursively shows a widget, and any child widgets (if the widget is a
-// container).
-func (w *CWidget) ShowAll() {
-	w.Show()
+func (w *CWidget) LockDraw() {
+	w.drawLock.Lock()
+}
+
+func (w *CWidget) UnlockDraw() {
+	w.drawLock.Unlock()
+}
+
+func (w *CWidget) LockEvent() {
+	w.eventLock.Lock()
+}
+
+func (w *CWidget) UnlockEvent() {
+	w.eventLock.Unlock()
 }
 
 // Installs an accelerator for this widget in accel_group that causes
