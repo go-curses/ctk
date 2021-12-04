@@ -43,6 +43,8 @@ type Object interface {
 	SetOrigin(x, y int)
 	GetOrigin() (origin ptypes.Point2I)
 	SetAllocation(size ptypes.Rectangle)
+	GetRegion() (region ptypes.Region)
+	SetRegion(region ptypes.Region)
 	GetAllocation() (alloc ptypes.Rectangle)
 	GetObjectAt(p *ptypes.Point2I) Object
 	HasPoint(p *ptypes.Point2I) (contains bool)
@@ -157,7 +159,7 @@ func (o *CObject) GetOrigin() (origin ptypes.Point2I) {
 }
 
 // SetAllocation updates the allocated size of the Object instance. This method
-// is only useful for custom CTK types that need to render child Widgets. This
+// is only useful for custom CTK types that need to render Widget children. This
 // method emits an allocation signal initially and if the listeners return
 // EVENT_PASS the change is applied and constrained to a minimum width and
 // height of zero.
@@ -168,6 +170,23 @@ func (o *CObject) SetAllocation(size ptypes.Rectangle) {
 		o.allocation.Floor(0, 0)
 		o.Unlock()
 	}
+}
+
+// GetRegion returns the current origin and allocation in a Region type.
+func (o *CObject) GetRegion() (region ptypes.Region) {
+	origin := o.GetOrigin()
+	alloc := o.GetAllocation()
+	region = ptypes.MakeRegion(origin.X, origin.Y, alloc.W, alloc.H)
+	return
+}
+
+// SetRegion updates the origin and allocated size of the Object instance. This
+// method is only useful for custom CTK types that need to render Widget
+// children. This method uses SetOrigin and SetAllocation, both of which will
+// emit corresponding signals.
+func (o *CObject) SetRegion(region ptypes.Region) {
+	o.SetOrigin(region.X, region.Y)
+	o.SetAllocation(region.Size())
 }
 
 // GetAllocation returns the current allocation size of the Object instance.
