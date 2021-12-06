@@ -99,7 +99,7 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		w.SetName("Demo-App-Window")
 		w.Show()
 		w.SetSensitive(true)
-		if err := w.AddStylesFromString(demoAppStyles); err != nil {
+		if err := w.ImportStylesFromString(demoAppStyles); err != nil {
 			w.LogErr(err)
 		}
 		ag := ctk.NewAccelGroup()
@@ -179,6 +179,8 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		})
 		b2.Show()
 		b2.SetSensitive(false)
+		b2.SetHasTooltip(true)
+		b2.SetTooltipMarkup("Curses<u><i>!</i></u>")
 		hbox3.PackStart(b2, true, true, 0)
 
 		var b4 ctk.Button
