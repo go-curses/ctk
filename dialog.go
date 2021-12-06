@@ -131,7 +131,7 @@ func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, 
 		parent.SetTransientFor(d)
 		d.SetTransientFor(parent)
 		d.SetParent(parent)
-		if err := d.AddStylesFromString(parent.ExportStylesToString()); err != nil {
+		if err := d.ImportStylesFromString(parent.ExportStylesToString()); err != nil {
 			d.LogErr(err)
 		}
 	}
@@ -157,7 +157,7 @@ func (d *CDialog) Init() (already bool) {
 		d.dialogFlags = enums.DialogModal | enums.DialogDestroyWithParent
 	}
 	d.flags = enums.NULL_WIDGET_FLAG
-	d.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
+	d.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE | enums.TOPLEVEL)
 	d.SetParent(d)
 	d.SetWindow(d)
 	d.defResponse = enums.ResponseNone
@@ -198,7 +198,7 @@ func (d *CDialog) Init() (already bool) {
 func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 	d.Freeze()
 	defer d.Thaw()
-	if err := d.CObject.Build(builder, element); err != nil {
+	if err := d.CWindow.Build(builder, element); err != nil {
 		return err
 	}
 	if len(element.Children) > 0 {
