@@ -132,19 +132,6 @@ func WithArgvApplicationSignalStartup(startupFn ApplicationStartupFn) cdk.Signal
 	}
 }
 
-func WithArgvNoneWithFlagsSignal(fn func() cenums.EventFlag) cdk.SignalListenerFn {
-	return func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
-		return fn()
-	}
-}
-
-func WithArgvNoneSignal(fn func(), eventFlag cenums.EventFlag) cdk.SignalListenerFn {
-	return func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
-		fn()
-		return eventFlag
-	}
-}
-
 func lookupPluginStringValue(key string, plug *plugin.Plugin) (value string, err error) {
 	var symbol plugin.Symbol
 	if symbol, err = plug.Lookup(key); err != nil {

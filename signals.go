@@ -2,6 +2,7 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	cenums "github.com/go-curses/cdk/lib/enums"
 )
 
 const (
@@ -43,3 +44,40 @@ const (
 	SignalUnsetFlags        cdk.Signal = "unset-flags"
 	SignalUnsetState        cdk.Signal = "unset-state"
 )
+
+func WithArgvNoneSignal(fn func(), eventFlag cenums.EventFlag) cdk.SignalListenerFn {
+	return func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
+		fn()
+		return eventFlag
+	}
+}
+
+func WithArgvNoneWithFlagsSignal(fn func() cenums.EventFlag) cdk.SignalListenerFn {
+	return func(_ []interface{}, _ ...interface{}) cenums.EventFlag {
+		return fn()
+	}
+}
+
+func ArgvSignalEvent(argv ...interface{}) (object Object, event cdk.Event, ok bool) {
+	if len(argv) == 2 {
+		if object, ok = argv[0].(Object); ok {
+			if event, ok = argv[1].(cdk.Event); ok {
+				return
+			}
+			event = nil
+		}
+		object = nil
+	}
+	return
+}
+
+func WithArgvSignalEvent(fn SignalEventFn) cdk.SignalListenerFn {
+	return func(_ []interface{}, argv ...interface{}) cenums.EventFlag {
+		if widget, event, ok := ArgvSignalEvent(argv...); ok {
+			return fn(widget, event)
+		}
+		return cenums.EVENT_STOP
+	}
+}
+
+type SignalEventFn = func(object Object, event cdk.Event) cenums.EventFlag
