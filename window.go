@@ -335,7 +335,8 @@ func (w *CWindow) Show() {
 	w.GetVBox().Show()
 	if display := w.GetDisplay(); display != nil {
 		display.MapWindowWithRegion(w, w.GetRegion())
-		display.FocusWindow(w)
+		display.RequestDraw()
+		display.RequestShow()
 	}
 }
 
