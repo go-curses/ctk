@@ -57,7 +57,7 @@ type Window interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
-	AddStylesFromString(css string) (err error)
+	ImportStylesFromString(css string) (err error)
 	ReplaceStylesFromString(css string) (err error)
 	ExportStylesToString() (css string)
 	ApplyStylesTo(widget Widget)
@@ -298,7 +298,7 @@ func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-func (w *CWindow) AddStylesFromString(css string) (err error) {
+func (w *CWindow) ImportStylesFromString(css string) (err error) {
 	w.Lock()
 	if err = w.styleSheet.ParseString(css); err != nil {
 		w.LogErr(err)
