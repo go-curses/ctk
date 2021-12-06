@@ -52,8 +52,8 @@ var DefaultStyles string
 // within the Curses Development Kit framework. A Window is a TOPLEVEL Widget
 // that can contain other widgets.
 type Window interface {
-	Bin
 	cdk.Window
+	Bin
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
@@ -271,7 +271,7 @@ func (w *CWindow) Init() (already bool) {
 func (w *CWindow) Build(builder Builder, element *CBuilderElement) error {
 	w.Freeze()
 	defer w.Thaw()
-	if err := w.CObject.Build(builder, element); err != nil {
+	if err := w.CBin.Build(builder, element); err != nil {
 		return err
 	}
 	if len(element.Children) > 0 {
@@ -1656,11 +1656,11 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					if w.hoverFocus != nil {
 						if w.hoverFocus.ObjectID() != mw.ObjectID() {
 							var wantRefresh bool
-							if f := w.hoverFocus.Emit(SignalLeave); f == cenums.EVENT_STOP {
+							if f := w.hoverFocus.Emit(SignalLeave, e); f == cenums.EVENT_STOP {
 								wantRefresh = true
 								w.hoverFocus.Invalidate()
 							}
-							if f := mw.Emit(SignalEnter); f == cenums.EVENT_STOP {
+							if f := mw.Emit(SignalEnter, e); f == cenums.EVENT_STOP {
 								wantRefresh = true
 								mw.Invalidate()
 							}
