@@ -187,7 +187,7 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application,
 			}
 			dialog.SetTransientFor(window)
 			dialog.SetParent(window)
-			if err := dialog.AddStylesFromString(window.ExportStylesToString()); err != nil {
+			if err := dialog.ImportStylesFromString(window.ExportStylesToString()); err != nil {
 				dialog.LogErr(err)
 			}
 			dialog.SetTitle(title)
