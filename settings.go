@@ -3,6 +3,7 @@ package ctk
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/enums"
@@ -29,16 +30,16 @@ type Settings interface {
 	GetColorPalette() (value string)
 	GetColorScheme() (value string)
 	GetCursorBlink() (value bool)
-	GetCursorBlinkTime() (value int)
-	GetCursorBlinkTimeout() (value int)
+	GetCursorBlinkTime() (value time.Duration)
+	GetCursorBlinkTimeout() (value time.Duration)
 	GetCursorThemeName() (value string)
-	GetDndDragThreshold() (value int)
+	GetDndDragThreshold() (value time.Duration)
 	GetDoubleClickDistance() (value int)
-	GetDoubleClickTime() (value int)
+	GetDoubleClickTime() (value time.Duration)
 	GetEnableAccels() (value bool)
 	GetEnableMnemonics() (value bool)
 	GetEnableTooltips() (value bool)
-	GetEntryPasswordHintTimeout() (value int)
+	GetEntryPasswordHintTimeout() (value time.Duration)
 	GetEntrySelectOnFocus() (value bool)
 	GetErrorBell() (value bool)
 	GetFallbackIconTheme() (value string)
@@ -52,39 +53,39 @@ type Settings interface {
 	GetKeynavWrapAround() (value bool)
 	GetLabelSelectOnFocus() (value bool)
 	GetMenuBarAccel() (value string)
-	GetMenuBarPopupDelay() (value int)
+	GetMenuBarPopupDelay() (value time.Duration)
 	GetMenuImages() (value bool)
-	GetMenuPopdownDelay() (value int)
-	GetMenuPopupDelay() (value int)
+	GetMenuPopdownDelay() (value time.Duration)
+	GetMenuPopupDelay() (value time.Duration)
 	GetModules() (value string)
 	GetPrimaryButtonWarpsSlider() (value bool)
 	GetScrolledWindowPlacement() (value interface{})
 	GetShowInputMethodMenu() (value bool)
 	GetShowUnicodeMenu() (value bool)
 	GetThemeName() (value string)
-	GetTimeoutExpand() (value int)
-	GetTimeoutInitial() (value int)
-	GetTimeoutRepeat() (value int)
+	GetTimeoutExpand() (value time.Duration)
+	GetTimeoutInitial() (value time.Duration)
+	GetTimeoutRepeat() (value time.Duration)
 	GetToolbarStyle() (value interface{})
-	GetTooltipBrowseModeTimeout() (value int)
-	GetTooltipBrowseTimeout() (value int)
-	GetTooltipTimeout() (value int)
+	GetTooltipBrowseModeTimeout() (value time.Duration)
+	GetTooltipBrowseTimeout() (value time.Duration)
+	GetTooltipTimeout() (value time.Duration)
 	GetTouchscreenMode() (value bool)
 	SetCtkAlternativeButtonOrder(value bool)
 	SetCtkAlternativeSortArrows(value bool)
 	SetCtkColorPalette(value string)
 	SetCtkColorScheme(value string)
 	SetCtkCursorBlink(value bool)
-	SetCtkCursorBlinkTime(value int)
-	SetCtkCursorBlinkTimeout(value int)
+	SetCtkCursorBlinkTime(value time.Duration)
+	SetCtkCursorBlinkTimeout(value time.Duration)
 	SetCtkCursorThemeName(value string)
-	SetCtkDndDragThreshold(value int)
+	SetCtkDndDragThreshold(value time.Duration)
 	SetCtkDoubleClickDistance(value int)
-	SetCtkDoubleClickTime(value int)
+	SetCtkDoubleClickTime(value time.Duration)
 	SetCtkEnableAccels(value bool)
 	SetCtkEnableMnemonics(value bool)
 	SetCtkEnableTooltips(value bool)
-	SetCtkEntryPasswordHintTimeout(value int)
+	SetCtkEntryPasswordHintTimeout(value time.Duration)
 	SetCtkEntrySelectOnFocus(value bool)
 	SetCtkErrorBell(value bool)
 	SetCtkFallbackIconTheme(value string)
@@ -98,23 +99,23 @@ type Settings interface {
 	SetCtkKeynavWrapAround(value bool)
 	SetCtkLabelSelectOnFocus(value bool)
 	SetCtkMenuBarAccel(value string)
-	SetCtkMenuBarPopupDelay(value int)
+	SetCtkMenuBarPopupDelay(value time.Duration)
 	SetCtkMenuImages(value bool)
-	SetCtkMenuPopdownDelay(value int)
-	SetCtkMenuPopupDelay(value int)
+	SetCtkMenuPopdownDelay(value time.Duration)
+	SetCtkMenuPopupDelay(value time.Duration)
 	SetCtkModules(value string)
 	SetCtkPrimaryButtonWarpsSlider(value bool)
 	SetCtkScrolledWindowPlacement(value interface{})
 	SetCtkShowInputMethodMenu(value bool)
 	SetCtkShowUnicodeMenu(value bool)
 	SetCtkThemeName(value string)
-	SetCtkTimeoutExpand(value int)
-	SetCtkTimeoutInitial(value int)
-	SetCtkTimeoutRepeat(value int)
+	SetCtkTimeoutExpand(value time.Duration)
+	SetCtkTimeoutInitial(value time.Duration)
+	SetCtkTimeoutRepeat(value time.Duration)
 	SetCtkToolbarStyle(value interface{})
-	SetCtkTooltipBrowseModeTimeout(value int)
-	SetCtkTooltipBrowseTimeout(value int)
-	SetCtkTooltipTimeout(value int)
+	SetCtkTooltipBrowseModeTimeout(value time.Duration)
+	SetCtkTooltipBrowseTimeout(value time.Duration)
+	SetCtkTooltipTimeout(value time.Duration)
 	SetCtkTouchscreenMode(value bool)
 }
 
@@ -148,16 +149,16 @@ func (s *CSettings) Init() (already bool) {
 	_ = s.InstallProperty(PropertyCtkColorPalette, cdk.StringProperty, true, nil)
 	_ = s.InstallProperty(PropertyCtkColorScheme, cdk.StringProperty, true, "")
 	_ = s.InstallProperty(PropertyCtkCursorBlink, cdk.BoolProperty, true, true)
-	_ = s.InstallProperty(PropertyCtkCursorBlinkTime, cdk.IntProperty, true, 1200)
-	_ = s.InstallProperty(PropertyCtkCursorBlinkTimeout, cdk.IntProperty, true, 2147483647)
+	_ = s.InstallProperty(PropertyCtkCursorBlinkTime, cdk.TimeProperty, true, 1200*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkCursorBlinkTimeout, cdk.TimeProperty, true, 2147483647*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkCursorThemeName, cdk.StringProperty, true, nil)
-	_ = s.InstallProperty(PropertyCtkDndDragThreshold, cdk.IntProperty, true, 8)
-	_ = s.InstallProperty(PropertyCtkDoubleClickDistance, cdk.IntProperty, true, 5)
-	_ = s.InstallProperty(PropertyCtkDoubleClickTime, cdk.IntProperty, true, 250)
+	_ = s.InstallProperty(PropertyCtkDndDragThreshold, cdk.IntProperty, true, 2)
+	_ = s.InstallProperty(PropertyCtkDoubleClickDistance, cdk.IntProperty, true, 1)
+	_ = s.InstallProperty(PropertyCtkDoubleClickTime, cdk.TimeProperty, true, 250*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkEnableAccels, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkEnableMnemonics, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkEnableTooltips, cdk.BoolProperty, true, true)
-	_ = s.InstallProperty(PropertyCtkEntryPasswordHintTimeout, cdk.IntProperty, true, 0)
+	_ = s.InstallProperty(PropertyCtkEntryPasswordHintTimeout, cdk.TimeProperty, true, 0*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkEntrySelectOnFocus, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkErrorBell, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkFallbackIconTheme, cdk.StringProperty, true, nil)
@@ -171,23 +172,23 @@ func (s *CSettings) Init() (already bool) {
 	_ = s.InstallProperty(PropertyCtkKeynavWrapAround, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkLabelSelectOnFocus, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkMenuBarAccel, cdk.StringProperty, true, nil)
-	_ = s.InstallProperty(PropertyCtkMenuBarPopupDelay, cdk.IntProperty, true, 0)
+	_ = s.InstallProperty(PropertyCtkMenuBarPopupDelay, cdk.TimeProperty, true, 0*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkMenuImages, cdk.BoolProperty, true, true)
-	_ = s.InstallProperty(PropertyCtkMenuPopdownDelay, cdk.IntProperty, true, 1000)
-	_ = s.InstallProperty(PropertyCtkMenuPopupDelay, cdk.IntProperty, true, 225)
+	_ = s.InstallProperty(PropertyCtkMenuPopdownDelay, cdk.TimeProperty, true, 1000*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkMenuPopupDelay, cdk.TimeProperty, true, 225*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkModules, cdk.StringProperty, true, nil)
 	_ = s.InstallProperty(PropertyCtkPrimaryButtonWarpsSlider, cdk.BoolProperty, true, false)
 	_ = s.InstallProperty(PropertyCtkScrolledWindowPlacement, cdk.StructProperty, true, nil)
 	_ = s.InstallProperty(PropertyCtkShowInputMethodMenu, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkShowUnicodeMenu, cdk.BoolProperty, true, true)
 	_ = s.InstallProperty(PropertyCtkThemeName, cdk.StringProperty, true, nil)
-	_ = s.InstallProperty(PropertyCtkTimeoutExpand, cdk.IntProperty, true, 500)
-	_ = s.InstallProperty(PropertyCtkTimeoutInitial, cdk.IntProperty, true, 200)
-	_ = s.InstallProperty(PropertyCtkTimeoutRepeat, cdk.IntProperty, true, 20)
+	_ = s.InstallProperty(PropertyCtkTimeoutExpand, cdk.TimeProperty, true, 500*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkTimeoutInitial, cdk.TimeProperty, true, 200*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkTimeoutRepeat, cdk.TimeProperty, true, 20*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkToolbarStyle, cdk.StructProperty, true, nil)
-	_ = s.InstallProperty(PropertyCtkTooltipBrowseModeTimeout, cdk.IntProperty, true, 500)
-	_ = s.InstallProperty(PropertyCtkTooltipBrowseTimeout, cdk.IntProperty, true, 60)
-	_ = s.InstallProperty(PropertyCtkTooltipTimeout, cdk.IntProperty, true, 500)
+	_ = s.InstallProperty(PropertyCtkTooltipBrowseModeTimeout, cdk.TimeProperty, true, 500*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkTooltipBrowseTimeout, cdk.TimeProperty, true, 60*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkTooltipTimeout, cdk.TimeProperty, true, 500*time.Millisecond)
 	_ = s.InstallProperty(PropertyCtkTouchscreenMode, cdk.BoolProperty, true, false)
 	return false
 }
@@ -270,17 +271,17 @@ func (s *CSettings) GetCursorBlink() (value bool) {
 	return
 }
 
-func (s *CSettings) GetCursorBlinkTime() (value int) {
+func (s *CSettings) GetCursorBlinkTime() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkCursorBlinkTime); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkCursorBlinkTime); err != nil {
 		s.LogErr(err)
 	}
 	return
 }
 
-func (s *CSettings) GetCursorBlinkTimeout() (value int) {
+func (s *CSettings) GetCursorBlinkTimeout() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkCursorBlinkTimeout); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkCursorBlinkTimeout); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -294,9 +295,9 @@ func (s *CSettings) GetCursorThemeName() (value string) {
 	return
 }
 
-func (s *CSettings) GetDndDragThreshold() (value int) {
+func (s *CSettings) GetDndDragThreshold() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkDndDragThreshold); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkDndDragThreshold); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -310,9 +311,9 @@ func (s *CSettings) GetDoubleClickDistance() (value int) {
 	return
 }
 
-func (s *CSettings) GetDoubleClickTime() (value int) {
+func (s *CSettings) GetDoubleClickTime() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkDoubleClickTime); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkDoubleClickTime); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -342,9 +343,9 @@ func (s *CSettings) GetEnableTooltips() (value bool) {
 	return
 }
 
-func (s *CSettings) GetEntryPasswordHintTimeout() (value int) {
+func (s *CSettings) GetEntryPasswordHintTimeout() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkEntryPasswordHintTimeout); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkEntryPasswordHintTimeout); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -454,9 +455,9 @@ func (s *CSettings) GetMenuBarAccel() (value string) {
 	return
 }
 
-func (s *CSettings) GetMenuBarPopupDelay() (value int) {
+func (s *CSettings) GetMenuBarPopupDelay() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkMenuBarPopupDelay); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkMenuBarPopupDelay); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -470,17 +471,17 @@ func (s *CSettings) GetMenuImages() (value bool) {
 	return
 }
 
-func (s *CSettings) GetMenuPopdownDelay() (value int) {
+func (s *CSettings) GetMenuPopdownDelay() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkMenuPopdownDelay); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkMenuPopdownDelay); err != nil {
 		s.LogErr(err)
 	}
 	return
 }
 
-func (s *CSettings) GetMenuPopupDelay() (value int) {
+func (s *CSettings) GetMenuPopupDelay() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkMenuPopupDelay); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkMenuPopupDelay); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -534,25 +535,25 @@ func (s *CSettings) GetThemeName() (value string) {
 	return
 }
 
-func (s *CSettings) GetTimeoutExpand() (value int) {
+func (s *CSettings) GetTimeoutExpand() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkTimeoutExpand); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkTimeoutExpand); err != nil {
 		s.LogErr(err)
 	}
 	return
 }
 
-func (s *CSettings) GetTimeoutInitial() (value int) {
+func (s *CSettings) GetTimeoutInitial() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkTimeoutInitial); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkTimeoutInitial); err != nil {
 		s.LogErr(err)
 	}
 	return
 }
 
-func (s *CSettings) GetTimeoutRepeat() (value int) {
+func (s *CSettings) GetTimeoutRepeat() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkTimeoutRepeat); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkTimeoutRepeat); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -566,25 +567,25 @@ func (s *CSettings) GetToolbarStyle() (value interface{}) {
 	return
 }
 
-func (s *CSettings) GetTooltipBrowseModeTimeout() (value int) {
+func (s *CSettings) GetTooltipBrowseModeTimeout() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkTooltipBrowseModeTimeout); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkTooltipBrowseModeTimeout); err != nil {
 		s.LogErr(err)
 	}
 	return
 }
 
-func (s *CSettings) GetTooltipBrowseTimeout() (value int) {
+func (s *CSettings) GetTooltipBrowseTimeout() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkTooltipBrowseTimeout); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkTooltipBrowseTimeout); err != nil {
 		s.LogErr(err)
 	}
 	return
 }
 
-func (s *CSettings) GetTooltipTimeout() (value int) {
+func (s *CSettings) GetTooltipTimeout() (value time.Duration) {
 	var err error
-	if value, err = s.GetIntProperty(PropertyCtkTooltipTimeout); err != nil {
+	if value, err = s.GetTimeProperty(PropertyCtkTooltipTimeout); err != nil {
 		s.LogErr(err)
 	}
 	return
@@ -638,17 +639,17 @@ func (s *CSettings) SetCtkCursorBlink(value bool) {
 	}
 }
 
-func (s *CSettings) SetCtkCursorBlinkTime(value int) {
+func (s *CSettings) SetCtkCursorBlinkTime(value time.Duration) {
 	if f := s.Emit(SignalSetCtkCursorBlinkTime, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkCursorBlinkTime, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkCursorBlinkTime, value); err != nil {
 			s.LogErr(err)
 		}
 	}
 }
 
-func (s *CSettings) SetCtkCursorBlinkTimeout(value int) {
+func (s *CSettings) SetCtkCursorBlinkTimeout(value time.Duration) {
 	if f := s.Emit(SignalSetCtkCursorBlinkTimeout, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkCursorBlinkTimeout, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkCursorBlinkTimeout, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -662,9 +663,9 @@ func (s *CSettings) SetCtkCursorThemeName(value string) {
 	}
 }
 
-func (s *CSettings) SetCtkDndDragThreshold(value int) {
+func (s *CSettings) SetCtkDndDragThreshold(value time.Duration) {
 	if f := s.Emit(SignalSetCtkDndDragThreshold, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkDndDragThreshold, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkDndDragThreshold, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -678,9 +679,9 @@ func (s *CSettings) SetCtkDoubleClickDistance(value int) {
 	}
 }
 
-func (s *CSettings) SetCtkDoubleClickTime(value int) {
+func (s *CSettings) SetCtkDoubleClickTime(value time.Duration) {
 	if f := s.Emit(SignalSetCtkDoubleClickTime, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkDoubleClickTime, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkDoubleClickTime, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -710,9 +711,9 @@ func (s *CSettings) SetCtkEnableTooltips(value bool) {
 	}
 }
 
-func (s *CSettings) SetCtkEntryPasswordHintTimeout(value int) {
+func (s *CSettings) SetCtkEntryPasswordHintTimeout(value time.Duration) {
 	if f := s.Emit(SignalSetCtkEntryPasswordHintTimeout, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkEntryPasswordHintTimeout, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkEntryPasswordHintTimeout, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -822,9 +823,9 @@ func (s *CSettings) SetCtkMenuBarAccel(value string) {
 	}
 }
 
-func (s *CSettings) SetCtkMenuBarPopupDelay(value int) {
+func (s *CSettings) SetCtkMenuBarPopupDelay(value time.Duration) {
 	if f := s.Emit(SignalSetCtkMenuBarPopupDelay, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkMenuBarPopupDelay, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkMenuBarPopupDelay, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -838,17 +839,17 @@ func (s *CSettings) SetCtkMenuImages(value bool) {
 	}
 }
 
-func (s *CSettings) SetCtkMenuPopdownDelay(value int) {
+func (s *CSettings) SetCtkMenuPopdownDelay(value time.Duration) {
 	if f := s.Emit(SignalSetCtkMenuPopdownDelay, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkMenuPopdownDelay, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkMenuPopdownDelay, value); err != nil {
 			s.LogErr(err)
 		}
 	}
 }
 
-func (s *CSettings) SetCtkMenuPopupDelay(value int) {
+func (s *CSettings) SetCtkMenuPopupDelay(value time.Duration) {
 	if f := s.Emit(SignalSetCtkMenuPopupDelay, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkMenuPopupDelay, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkMenuPopupDelay, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -902,25 +903,25 @@ func (s *CSettings) SetCtkThemeName(value string) {
 	}
 }
 
-func (s *CSettings) SetCtkTimeoutExpand(value int) {
+func (s *CSettings) SetCtkTimeoutExpand(value time.Duration) {
 	if f := s.Emit(SignalSetCtkTimeoutExpand, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkTimeoutExpand, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkTimeoutExpand, value); err != nil {
 			s.LogErr(err)
 		}
 	}
 }
 
-func (s *CSettings) SetCtkTimeoutInitial(value int) {
+func (s *CSettings) SetCtkTimeoutInitial(value time.Duration) {
 	if f := s.Emit(SignalSetCtkTimeoutInitial, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkTimeoutInitial, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkTimeoutInitial, value); err != nil {
 			s.LogErr(err)
 		}
 	}
 }
 
-func (s *CSettings) SetCtkTimeoutRepeat(value int) {
+func (s *CSettings) SetCtkTimeoutRepeat(value time.Duration) {
 	if f := s.Emit(SignalSetCtkTimeoutRepeat, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkTimeoutRepeat, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkTimeoutRepeat, value); err != nil {
 			s.LogErr(err)
 		}
 	}
@@ -934,25 +935,25 @@ func (s *CSettings) SetCtkToolbarStyle(value interface{}) {
 	}
 }
 
-func (s *CSettings) SetCtkTooltipBrowseModeTimeout(value int) {
+func (s *CSettings) SetCtkTooltipBrowseModeTimeout(value time.Duration) {
 	if f := s.Emit(SignalSetCtkTooltipBrowseModeTimeout, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkTooltipBrowseModeTimeout, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkTooltipBrowseModeTimeout, value); err != nil {
 			s.LogErr(err)
 		}
 	}
 }
 
-func (s *CSettings) SetCtkTooltipBrowseTimeout(value int) {
+func (s *CSettings) SetCtkTooltipBrowseTimeout(value time.Duration) {
 	if f := s.Emit(SignalSetCtkTooltipBrowseTimeout, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkTooltipBrowseTimeout, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkTooltipBrowseTimeout, value); err != nil {
 			s.LogErr(err)
 		}
 	}
 }
 
-func (s *CSettings) SetCtkTooltipTimeout(value int) {
+func (s *CSettings) SetCtkTooltipTimeout(value time.Duration) {
 	if f := s.Emit(SignalSetCtkTooltipTimeout, value); f == enums.EVENT_PASS {
-		if err := s.SetIntProperty(PropertyCtkTooltipTimeout, value); err != nil {
+		if err := s.SetTimeProperty(PropertyCtkTooltipTimeout, value); err != nil {
 			s.LogErr(err)
 		}
 	}
