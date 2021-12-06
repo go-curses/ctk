@@ -103,6 +103,7 @@ type Window interface {
 	SetDecorated(setting bool)
 	SetDeletable(setting bool)
 	SetMnemonicModifier(modifier cdk.ModMask)
+	SetTypeHint(hint enums.WindowTypeHint)
 	SetSkipTaskbarHint(setting bool)
 	SetSkipPagerHint(setting bool)
 	SetUrgencyHint(setting bool)
@@ -121,6 +122,7 @@ type Window interface {
 	GetSize() (width, height int)
 	GetTitle() (value string)
 	GetTransientFor() (value Window)
+	GetTypeHint() (value enums.WindowTypeHint)
 	GetSkipTaskbarHint() (value bool)
 	GetSkipPagerHint() (value bool)
 	GetUrgencyHint() (value bool)
@@ -216,6 +218,7 @@ func (w *CWindow) Init() (already bool) {
 	w.mnemonics = make([]*mnemonicEntry, 0)
 	w.mnemonicMod = cdk.ModAlt
 	w.mnemonicLock = &sync.RWMutex{}
+	_ = w.InstallProperty(PropertyWindowType, cdk.StructProperty, true, cenums.WINDOW_TOPLEVEL)
 	_ = w.InstallProperty(PropertyAcceptFocus, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyDecorated, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyDefaultHeight, cdk.IntProperty, true, -1)
@@ -240,7 +243,6 @@ func (w *CWindow) Init() (already bool) {
 	_ = w.InstallProperty(PropertyStartupId, cdk.StringProperty, true, "")
 	_ = w.InstallProperty(PropertyTitle, cdk.StringProperty, true, "")
 	_ = w.InstallProperty(PropertyTransientFor, cdk.StructProperty, true, nil)
-	_ = w.InstallProperty(PropertyType, cdk.StructProperty, true, enums.WindowTopLevel)
 	_ = w.InstallProperty(PropertyTypeHint, cdk.StructProperty, true, enums.WindowTypeHintNormal)
 	_ = w.InstallProperty(PropertyUrgencyHint, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyWindowPosition, cdk.StructProperty, true, enums.WinPosNone)
@@ -971,6 +973,14 @@ func (w *CWindow) SetMnemonicModifier(modifier cdk.ModMask) {
 	w.mnemonicLock.Unlock()
 }
 
+// SetWindowType updates the type of the window.
+// See: enums.WindowType
+func (w *CWindow) SetWindowType(hint cenums.WindowType) {
+	if err := w.SetStructProperty(PropertyWindowType, hint); err != nil {
+		w.LogErr(err)
+	}
+}
+
 // By setting the type hint for the window, you allow the window manager to
 // decorate and handle the window in a way which is suitable to the function
 // of the window in your application. This function should be called before
@@ -979,11 +989,11 @@ func (w *CWindow) SetMnemonicModifier(modifier cdk.ModMask) {
 // SetTypeHint on your behalf.
 // Parameters:
 // 	hint	the window type
-// func (w *CWindow) SetTypeHint(hint WindowTypeHint) {
-// 	if err := w.SetStructProperty(PropertyTypeHint, hint); err != nil {
-// 		w.LogErr(err)
-// 	}
-// }
+func (w *CWindow) SetTypeHint(hint enums.WindowTypeHint) {
+	if err := w.SetStructProperty(PropertyTypeHint, hint); err != nil {
+		w.LogErr(err)
+	}
+}
 
 // Windows may set a hint asking the desktop environment not to display the
 // window in the task bar. This function sets this hint.
@@ -1255,16 +1265,31 @@ func (w *CWindow) GetTransientFor() (value Window) {
 	return
 }
 
+// GetWindowType returns the type of the window.
+// See: enums.WindowType.
+func (w *CWindow) GetWindowType() (value cenums.WindowType) {
+	var ok bool
+	if v, err := w.GetStructProperty(PropertyWindowType); err != nil {
+		w.LogErr(err)
+	} else if value, ok = v.(cenums.WindowType); !ok {
+		value = cenums.WINDOW_TOPLEVEL // default is top-level?
+		w.LogError("value stored in %v is not of cenums.WindowType: %v (%T)", PropertyWindowType, v, v)
+	}
+	return
+}
+
 // Gets the type hint for this window. See SetTypeHint.
 // Returns:
 // 	the type hint for window .
-// func (w *CWindow) GetTypeHint() (value WindowTypeHint) {
-// 	var err error
-// 	if value, err = w.GetStructProperty(PropertyTypeHint); err != nil {
-// 		w.LogErr(err)
-// 	}
-// 	return
-// }
+func (w *CWindow) GetTypeHint() (value enums.WindowTypeHint) {
+	var ok bool
+	if v, err := w.GetStructProperty(PropertyTypeHint); err != nil {
+		w.LogErr(err)
+	} else if value, ok = v.(enums.WindowTypeHint); !ok {
+		w.LogError("value stored in %v is not of enums.WindowTypeHint: %v (%T)", PropertyTypeHint, v, v)
+	}
+	return
+}
 
 // Gets the value set by SetSkipTaskbarHint
 // Returns:
@@ -1337,13 +1362,6 @@ func (w *CWindow) GetFocusOnMap() (value bool) {
 func (w *CWindow) HasGroup() (value bool) {
 	return false
 }
-
-// Gets the type of the window. See WindowType.
-// Returns:
-// 	the type of the window
-// func (w *CWindow) GetWindowType() (value WindowType) {
-// 	return nil
-// }
 
 // Asks the window manager to move window to the given position. Window
 // managers are free to ignore this; most window managers ignore requests for
@@ -1875,7 +1893,7 @@ const PropertyTransientFor cdk.Property = "transient-for"
 // The type of the window.
 // Flags: Read / Write / Construct Only
 // Default value: GTK_WINDOW_TOPLEVEL
-const PropertyType cdk.Property = "type"
+const PropertyWindowType = cdk.PropertyWindowType
 
 // Hint to help the desktop environment understand what kind of window this
 // is and how to treat it.
