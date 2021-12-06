@@ -1391,7 +1391,17 @@ func (w *CWindow) HasGroup() (value bool) {
 // Parameters:
 // 	x	X coordinate to move window to
 // 	y	Y coordinate to move window to
-func (w *CWindow) Move(x int, y int) {}
+func (w *CWindow) Move(x int, y int) {
+	// update the origin and surface configuration?
+	w.SetOrigin(x, y)
+	if w.IsMapped() {
+		if surface, err := memphis.GetSurface(w.ObjectID()); err != nil {
+			w.LogErr(err)
+		} else {
+			surface.SetOrigin(ptypes.MakePoint2I(x, y))
+		}
+	}
+}
 
 // Parses a standard X Window System geometry string - see the manual page
 // for X (type 'man X') for details on this. ParseGeometry does
