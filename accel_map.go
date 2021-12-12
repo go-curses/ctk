@@ -56,8 +56,10 @@ type CAccelMap struct {
 // GetAccelMap is the getter for the current Application AccelMap singleton.
 // Returns nil if there is no Application present for the current thread.
 func GetAccelMap() AccelMap {
-	if data := cdk.GetLocalContextData(); data != nil {
-		if app, ok := data.(Application); ok {
+	if acd, err := cdk.GetLocalContext(); err != nil {
+		log.Error(err)
+	} else {
+		if app, ok := acd.Data.(Application); ok {
 			return app.AccelMap()
 		}
 	}
