@@ -613,10 +613,10 @@ func (b *CButton) GetSizeRequest() (width, height int) {
 	if child := b.GetChild(); child != nil {
 		labelSizeReq := ptypes.NewRectangle(child.GetSizeRequest())
 		if size.W <= -1 && labelSizeReq.W > -1 {
-			size.W = 2 + labelSizeReq.W + 2 // borders and bookends
+			size.W = labelSizeReq.W + 2 // bookends
 		}
 		if size.H <= -1 && labelSizeReq.H > -1 {
-			size.H = labelSizeReq.H + 2 // borders
+			size.H = labelSizeReq.H
 		}
 	}
 	return size.W, size.H
