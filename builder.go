@@ -177,7 +177,9 @@ func (b *CBuilder) Build(element *CBuilderElement) (newObject interface{}) {
 					break
 				}
 				element.Instance = newObject
-				newBuildable.Show()
+				if newWidget, ok := newBuildable.(Widget); ok {
+					newWidget.Show()
+				}
 				if err := newBuildable.Build(b, element); err != nil {
 					b.LogErr(err)
 				}
