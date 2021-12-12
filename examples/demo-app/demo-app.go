@@ -97,7 +97,6 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		accelMap.LoadFromString(demoAppAccelMap)
 		w := ctk.NewWindowWithTitle(APP_TITLE)
 		w.SetName("Demo-App-Window")
-		w.Show()
 		w.SetSensitive(true)
 		if err := w.ImportStylesFromString(demoAppStyles); err != nil {
 			w.LogErr(err)
