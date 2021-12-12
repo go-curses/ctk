@@ -290,7 +290,7 @@ func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) cenums.
 		childOrigin := child.GetOrigin()
 		childOrigin.SubPoint(origin)
 		childSize := child.GetAllocation()
-		if err := memphis.ConfigureSurface(child.ObjectID(), childOrigin, childSize, style); err != nil {
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, childSize, style); err != nil {
 			child.LogErr(err)
 		}
 		a.Unlock()

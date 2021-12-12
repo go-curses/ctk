@@ -119,6 +119,8 @@ type CLabel struct {
 	text string
 
 	tid     uuid.UUID
+	tRegion ptypes.Region
+
 	tbuffer memphis.TextBuffer
 	tbStyle paint.Style
 }
@@ -201,7 +203,8 @@ func (l *CLabel) Init() (already bool) {
 	l.text = ""
 	l.tbuffer = nil
 	l.tid, _ = uuid.NewV4()
-	if err := memphis.RegisterSurface(l.tid, ptypes.Point2I{}, ptypes.Rectangle{}, paint.DefaultColorStyle); err != nil {
+	l.tRegion = ptypes.MakeRegion(0, 0, 0, 0)
+	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
 		l.LogErr(err)
 	}
 	// _ = l.SetBoolProperty(PropertyDebug, true)
@@ -1008,6 +1011,8 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 		local.Y += int(float64(delta) * yAlign)
 	}
 
+	l.tRegion = ptypes.MakeRegion(local.X, local.Y, size.W, size.H)
+
 	if err := memphis.ConfigureSurface(l.tid, local, *size, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
@@ -1024,10 +1029,23 @@ func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 	}
 	l.refreshMnemonics()
 	id := l.ObjectID()
+	// region := l.GetRegion()
+	origin := l.GetOrigin()
+	alloc := l.GetAllocation()
 	l.Lock()
+	if !memphis.HasSurface(id) {
+		if err := memphis.MakeSurface(id, origin, alloc, theme.Content.Normal); err != nil {
+			l.LogErr(err)
+		}
+	}
 	theme.Content.FillRune = rune(0)
 	if err := memphis.FillSurface(id, theme); err != nil {
 		l.LogErr(err)
+	}
+	if !memphis.HasSurface(l.tid) {
+		if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
+			l.LogErr(err)
+		}
 	}
 	if err := memphis.FillSurface(l.tid, theme); err != nil {
 		l.LogErr(err)

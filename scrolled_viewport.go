@@ -697,7 +697,7 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 		child.SetState(enums.StateNone)
 		child.SetState(state)
 		style := child.GetThemeRequest().Content.Normal
-		if err := memphis.ConfigureSurface(child.ObjectID(), local, size, style); err != nil {
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, size, style); err != nil {
 			child.LogErr(err)
 		}
 	}
@@ -705,7 +705,7 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 		if verticalShow {
 			local := vs.GetOrigin()
 			local.SubPoint(origin)
-			if err := memphis.ConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), theme.Content.Normal); err != nil {
+			if err := memphis.MakeConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), theme.Content.Normal); err != nil {
 				vs.LogErr(err)
 			}
 		}
@@ -714,7 +714,7 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 		if horizontalShow {
 			local := hs.GetOrigin()
 			local.SubPoint(origin)
-			if err := memphis.ConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), theme.Content.Normal); err != nil {
+			if err := memphis.MakeConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), theme.Content.Normal); err != nil {
 				hs.LogErr(err)
 			}
 		}

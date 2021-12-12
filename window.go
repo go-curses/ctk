@@ -1708,14 +1708,14 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	origin := w.GetOrigin()
 	alloc := w.GetAllocation()
-	if err := memphis.ConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
+	if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
 		w.LogErr(err)
 	}
 	if child := w.GetChild(); child != nil {
 		childOrigin := child.GetOrigin()
 		childOrigin.SubPoint(w.GetOrigin())
 		childAlloc := child.GetAllocation()
-		if err := memphis.ConfigureSurface(child.ObjectID(), childOrigin, childAlloc, child.GetThemeRequest().Content.Normal); err != nil {
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, childAlloc, child.GetThemeRequest().Content.Normal); err != nil {
 			child.LogErr(err)
 		}
 	}
@@ -1734,7 +1734,7 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		child.SetAllocation(size)
 		childOrigin := child.GetOrigin()
 		childOrigin.SubPoint(w.GetOrigin())
-		if err := memphis.ConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
 			child.LogErr(err)
 		}
 		child.Resize()

@@ -642,7 +642,7 @@ func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.Eve
 	origin := d.GetOrigin()
 	alloc := d.GetAllocation()
 	if d.IsMapped() {
-		if err := memphis.ConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
+		if err := memphis.MakeConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
 			d.LogErr(err)
 		}
 	}
@@ -659,7 +659,7 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		alloc := region.Size().NewClone()
 		alloc.Sub(2, 2)
 		if child.IsMapped() {
-			if err := memphis.ConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
+			if err := memphis.MakeConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
 				child.LogErr(err)
 			}
 		}

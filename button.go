@@ -782,7 +782,7 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		child.SetOrigin(origin.X+local.X, origin.Y+local.Y)
 		child.SetAllocation(*size)
 		child.Resize()
-		if err := memphis.ConfigureSurface(child.ObjectID(), *local, *size, theme.Content.Normal); err != nil {
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), *local, *size, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
 	}

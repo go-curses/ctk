@@ -294,10 +294,6 @@ func (w *CWidget) Init() (already bool) {
 	w.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
 	w.Connect(SignalEnter, WidgetEnterHandle, w.enter)
 	w.Connect(SignalLeave, WidgetLeaveHandle, w.leave)
-	// TODO: widget register surface tied to APP_PAINTABLE somehow
-	if err := memphis.RegisterSurface(w.ObjectID(), ptypes.Point2I{}, ptypes.Rectangle{}, w.GetTheme().Content.Normal); err != nil {
-		w.LogErr(err)
-	}
 	return false
 }
 
@@ -518,7 +514,7 @@ func (w *CWidget) Unparent() {
 func (w *CWidget) Map() {
 	if !w.IsMapped() {
 		region := w.GetRegion()
-		_ = memphis.RegisterSurface(
+		_ = memphis.MakeConfigureSurface(
 			w.ObjectID(),
 			region.Origin(),
 			region.Size(),

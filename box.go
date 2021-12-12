@@ -595,7 +595,7 @@ func (b *CBox) invalidate(data []interface{}, argv ...interface{}) cenums.EventF
 		local := child.widget.GetOrigin()
 		local.SubPoint(origin)
 		alloc := child.widget.GetAllocation()
-		if err := memphis.ConfigureSurface(child.widget.ObjectID(), local, alloc, style); err != nil {
+		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), local, alloc, style); err != nil {
 			child.widget.LogErr(err)
 		}
 		b.Unlock()
@@ -735,7 +735,7 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		nextPoint.Add(local.X, local.Y)
 		x := nextPoint.X - origin.X
 		y := nextPoint.Y - origin.Y
-		if err := memphis.ConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), style); err != nil {
+		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), style); err != nil {
 			child.widget.LogErr(err)
 		}
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
@@ -918,7 +918,7 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(ptypes.MakeRectangle(track.w, track.h))
 		child.widget.Resize()
-		if err := memphis.ConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(nextPoint.X-origin.X, nextPoint.Y-origin.Y), ptypes.MakeRectangle(track.w, track.h), style); err != nil {
+		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(nextPoint.X-origin.X, nextPoint.Y-origin.Y), ptypes.MakeRectangle(track.w, track.h), style); err != nil {
 			child.widget.LogErr(err)
 		}
 		if isVertical {

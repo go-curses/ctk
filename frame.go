@@ -430,7 +430,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 		local := child.GetOrigin()
 		local.SubPoint(origin)
 		alloc := child.GetAllocation()
-		if err := memphis.ConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
 		wantStop = true
