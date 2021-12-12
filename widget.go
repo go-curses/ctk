@@ -203,6 +203,7 @@ type CWidget struct {
 	eventLock     *sync.Mutex
 	tooltipWindow Window
 	tooltipTimer  uuid.UUID
+	tooltipPoint  ptypes.Point2I
 }
 
 // Init initializes a Widget object. This must be called at least once to
@@ -302,6 +303,11 @@ func (w *CWidget) openTooltip() {
 	settings := GetDefaultSettings()
 	if settings.GetEnableTooltips() {
 		if w.GetHasTooltip() {
+			if display := w.GetDisplay(); display != nil {
+				w.Lock()
+				w.tooltipPoint, _ = display.CursorPosition()
+				w.Unlock()
+			}
 			timeout := settings.GetTooltipTimeout()
 			w.Lock()
 			w.tooltipTimer = cdk.AddTimeout(
@@ -320,10 +326,29 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 		tooltipWindow := w.GetTooltipWindow()
 		if screen := display.Screen(); screen != nil {
 			position, _ := display.CursorPosition()
+			if !w.tooltipPoint.EqualsTo(position) && w.HasPoint(&position) {
+				// try again if we're not moving
+				w.Lock()
+				w.tooltipPoint = position
+				w.Unlock()
+				settings := GetDefaultSettings()
+				timeout := settings.GetTooltipTimeout()
+				w.tooltipTimer = cdk.AddTimeout(
+					timeout,
+					w.openTooltipHandler,
+				)
+				return cenums.EVENT_STOP
+			}
+			tw, th := w.tooltipTextBufferInfo()
 			if w.HasPoint(&position) {
-				tw, th := w.tooltipTextBufferInfo()
 				if tw > -1 && th > -1 {
 					sw, sh := screen.Size()
+					if position.X+2+tw < sw {
+						position.X += 2
+					}
+					if position.Y+1+th < sh {
+						position.Y += 1
+					}
 					if position.X+tw >= sw {
 						// too far to the right
 						position.X = sw - tw
@@ -358,15 +383,19 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 
 func (w *CWidget) closeTooltip() {
 	w.LogDebug("closing tooltip")
-	w.Lock()
+	w.RLock()
 	if w.tooltipTimer != uuid.Nil {
+		w.RUnlock()
 		cdk.StopTimeout(w.tooltipTimer)
+		w.Lock()
 		w.tooltipTimer = uuid.Nil
+		w.Unlock()
+	} else {
+		w.RUnlock()
 	}
 	if w.tooltipWindow != nil {
 		w.tooltipWindow.Hide()
 	}
-	w.Unlock()
 }
 
 func (w *CWidget) newTooltipWindow() (tooltipWindow Window) {
@@ -412,11 +441,23 @@ func (w *CWidget) tooltipEvent(data []interface{}, argv ...interface{}) cenums.E
 			switch e := event.(type) {
 			case *cdk.EventMouse:
 				point := e.Point2I().NewClone()
-				if !w.HasPoint(point) /*&& !tooltipWindow.HasPoint(point)*/ {
+				if !w.HasPoint(point) {
 					w.closeTooltip()
 					return cenums.EVENT_STOP
 				} else {
-					tooltipWindow.Move(e.Position())
+					x, y := e.Position()
+					mw, mh := w.tooltipTextBufferInfo()
+					if x > mw {
+						x -= mw
+					} else {
+						x = mw - x
+					}
+					if y > mh {
+						y -= mh
+					} else {
+						y = mh - y
+					}
+					tooltipWindow.Move(x, y)
 				}
 			}
 		}
@@ -551,8 +592,8 @@ func (w *CWidget) IsMapped() (mapped bool) {
 func (w *CWidget) Show() {
 	if w.HasFlags(enums.APP_PAINTABLE) {
 		if !w.HasFlags(enums.VISIBLE) {
-			w.Map()
 			w.SetFlags(enums.VISIBLE)
+			w.Map() // not supposed to be here
 			if r := w.Emit(SignalShow, w); r == cenums.EVENT_PASS {
 				w.Invalidate()
 			}
