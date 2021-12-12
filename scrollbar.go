@@ -22,11 +22,11 @@ var (
 	DefaultScrollbarTheme = paint.Theme{
 		// slider
 		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorDarkGray).Background(paint.ColorSilver).Dim(true).Bold(false),
+			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(true).Bold(false),
 			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(true),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false),
+			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
 			ArrowRunes:  paint.DefaultArrowRune,
@@ -35,9 +35,9 @@ var (
 		// trough
 		Border: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkGray).Dim(false).Bold(true),
+			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false).Bold(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(false),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false),
 			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
@@ -839,10 +839,11 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.
 	// s.resizeSlider()
 	origin := s.GetOrigin()
 	isSelected := s.HasState(enums.StateSelected)
+	isPrelight := s.HasState(enums.StatePrelight)
 	size := ptypes.MakeRectangle(1, 1)
 	theme := s.GetThemeRequest()
 	style := theme.Content.Normal
-	doConfigure := func(b Button) {
+	doConfigure := func(b Button, sz ptypes.Rectangle) {
 		if b != nil {
 			bid := b.ObjectID()
 			if isSelected {
@@ -850,21 +851,26 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.
 			} else {
 				b.UnsetState(enums.StateSelected)
 			}
+			if isPrelight {
+				b.SetState(enums.StatePrelight)
+			} else {
+				b.UnsetState(enums.StatePrelight)
+			}
 			local := b.GetOrigin()
 			local.SubPoint(origin)
 			if b.IsMapped() {
-				if err := memphis.ConfigureSurface(bid, local, size, style); err != nil {
+				if err := memphis.MakeConfigureSurface(bid, local, sz, style); err != nil {
 					b.LogErr(err)
 				}
 			}
 			b.Invalidate()
 		}
 	}
-	doConfigure(s.slider)
-	doConfigure(s.forwardStepper)
-	doConfigure(s.backwardStepper)
-	doConfigure(s.secondaryForwardStepper)
-	doConfigure(s.secondaryBackwardStepper)
+	doConfigure(s.slider, s.slider.GetAllocation())
+	doConfigure(s.forwardStepper, size)
+	doConfigure(s.backwardStepper, size)
+	doConfigure(s.secondaryForwardStepper, size)
+	doConfigure(s.secondaryBackwardStepper, size)
 	return cenums.EVENT_STOP
 }
 
