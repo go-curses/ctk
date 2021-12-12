@@ -58,6 +58,8 @@ type Container interface {
 	SetOrigin(x, y int)
 	SetWindow(w Window)
 	ShowAll()
+	Map()
+	Unmap()
 	Add(w Widget)
 	AddWithProperties(widget Widget, argv ...interface{})
 	Remove(w Widget)
@@ -198,6 +200,30 @@ func (c *CContainer) ShowAll() {
 			cc.ShowAll()
 		} else {
 			child.Show()
+		}
+	}
+}
+
+func (c *CContainer) Map() {
+	c.CWidget.Map()
+	children := c.GetChildren()
+	for _, child := range children {
+		if cc, ok := child.Self().(Container); ok {
+			cc.Map()
+		} else {
+			child.Map()
+		}
+	}
+}
+
+func (c *CContainer) Unmap() {
+	c.CWidget.Unmap()
+	children := c.GetChildren()
+	for _, child := range children {
+		if cc, ok := child.Self().(Container); ok {
+			cc.Unmap()
+		} else {
+			child.Unmap()
 		}
 	}
 }
