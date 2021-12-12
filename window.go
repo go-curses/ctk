@@ -336,9 +336,8 @@ func (w *CWindow) Show() {
 	w.CBin.Show()
 	w.GetVBox().Show()
 	if display := w.GetDisplay(); display != nil {
+		w.Map()
 		display.MapWindowWithRegion(w, w.GetRegion())
-		display.RequestDraw()
-		display.RequestShow()
 	}
 }
 
@@ -1691,10 +1690,12 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		case *cdk.EventResize:
 			alloc := ptypes.MakeRectangle(e.Size())
 			origin := ptypes.MakePoint2I(0, 0)
-			w.SetAllocation(alloc)
-			w.SetOrigin(origin.X, origin.Y)
-			if err := memphis.ConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
-				w.LogErr(err)
+			if w.GetWindowType() != cenums.WINDOW_POPUP {
+				w.SetAllocation(alloc)
+				w.SetOrigin(origin.X, origin.Y)
+				if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
+					w.LogErr(err)
+				}
 			}
 			if f := w.Emit(SignalResize, w, e, origin, alloc); f == cenums.EVENT_PASS {
 				w.LogDebug("ProcessEvent(EventResize): (%v) %v", alloc, e)
