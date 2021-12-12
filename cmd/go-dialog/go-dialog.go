@@ -169,16 +169,13 @@ func setupUserInterface(app ctk.Application, d cdk.Display) error {
 }
 
 func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application, display cdk.Display) error {
-	app.NotifyStartupComplete()
 	backTitle := ctx.String("back-title")
 	title := ctx.String("title")
 	window := getWindow(builder)
 	dialog := getDialog(builder)
 	if window != nil {
 		window.SetTitle(backTitle)
-		window.Show()
 		if dialog != nil {
-			dialog.Show()
 			dw, dh := display.Screen().Size()
 			if dw > 22 && dh > 12 {
 				sr := ptypes.NewRectangle(dw/3, dh/3)
@@ -211,9 +208,7 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application,
 					}
 				}
 			}
-			display.RequestDraw()
-			display.RequestShow()
-			response := dialog.Run()
+			response := dialog.Run() // calls dialog.Show after focusing transient window
 			cdk.Go(func() {
 				select {
 				case r := <-response:
@@ -235,6 +230,7 @@ func startupUiDialog(ctx *cli.Context, builder ctk.Builder, app ctk.Application,
 	} else {
 		builder.LogError("missing main-window")
 	}
+	app.NotifyStartupComplete()
 	return nil
 }
 
