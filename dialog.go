@@ -249,6 +249,11 @@ func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 func (d *CDialog) Run() (response chan enums.ResponseType) {
 	response = make(chan enums.ResponseType, 1)
 	display := d.GetDisplay()
+	if display == nil {
+		d.LogError("display not found")
+		response <- enums.ResponseNone
+		return
+	}
 	if !display.IsRunning() {
 		d.LogError("display not running")
 		response <- enums.ResponseNone
@@ -269,8 +274,6 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 	d.SetRegion(d.getDialogRegion())
 	d.Resize()
 	d.Show()
-	display.RequestDraw()
-	display.RequestShow()
 	cdk.Go(func() {
 		// wait for the response event
 		select {
