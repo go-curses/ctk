@@ -71,6 +71,7 @@ type Widget interface {
 	IsMapped() (mapped bool)
 	Show()
 	Hide()
+	GetRegion() (region ptypes.Region)
 	LockDraw()
 	UnlockDraw()
 	LockEvent()
@@ -571,6 +572,20 @@ func (w *CWidget) Hide() {
 			}
 		}
 	}
+}
+
+// GetRegion returns the current origin and allocation in a Region type, taking
+// any positive SizeRequest set.
+func (w *CWidget) GetRegion() (region ptypes.Region) {
+	region = w.CObject.GetRegion()
+	req := w.SizeRequest()
+	if req.W > 0 && region.W > req.W {
+		region.W = req.W
+	}
+	if req.H > 0 && region.H > req.H {
+		region.H = req.H
+	}
+	return
 }
 
 func (w *CWidget) LockDraw() {
