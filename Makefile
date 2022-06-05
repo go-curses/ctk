@@ -228,7 +228,6 @@ dev: clean
 -X 'main.IncludeLogFile=true'   \
 -X 'main.IncludeLogLevel=true'  \
 " \
-				-tags "lockStack" \
 				-o ../../${DEV_EXAMPLE} \
 			2>&1 ) > ../../${DEV_EXAMPLE}.build.log; \
 		cd - > /dev/null; \
