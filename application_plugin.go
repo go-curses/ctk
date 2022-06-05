@@ -102,36 +102,6 @@ func NewApplicationFromPlugin(path string) (app Application, err error) {
 	return
 }
 
-func ArgvApplicationSignalStartup(argv ...interface{}) (app Application, display cdk.Display, ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup, ok bool) {
-	if len(argv) == 5 {
-		if app, ok = argv[0].(Application); ok {
-			if display, ok = argv[1].(cdk.Display); ok {
-				if ctx, ok = argv[2].(context.Context); ok {
-					if cancel, ok = argv[3].(context.CancelFunc); ok {
-						if wg, ok = argv[4].(*sync.WaitGroup); ok {
-							return
-						}
-						cancel = nil
-					}
-					ctx = nil
-				}
-				display = nil
-			}
-			app = nil
-		}
-	}
-	return
-}
-
-func WithArgvApplicationSignalStartup(startupFn ApplicationStartupFn) cdk.SignalListenerFn {
-	return func(_ []interface{}, argv ...interface{}) cenums.EventFlag {
-		if app, display, ctx, cancel, wg, ok := ArgvApplicationSignalStartup(argv...); ok {
-			return startupFn(app, display, ctx, cancel, wg)
-		}
-		return cenums.EVENT_STOP
-	}
-}
-
 func lookupPluginStringValue(key string, plug *plugin.Plugin) (value string, err error) {
 	var symbol plugin.Symbol
 	if symbol, err = plug.Lookup(key); err != nil {

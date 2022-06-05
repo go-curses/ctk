@@ -16,6 +16,7 @@ package ctk
 
 import (
 	"github.com/go-curses/cdk"
+	"github.com/go-curses/cdk/lib/enums"
 )
 
 const TypeApplication cdk.CTypeTag = "ctk-application"
@@ -42,6 +43,7 @@ type CApplication struct {
 
 	accelGroup AccelGroup
 	accelMap   AccelMap
+	windows    []Window
 }
 
 func NewApplication(name, usage, description, version, tag, title, ttyPath string) (app Application) {
@@ -59,6 +61,20 @@ func (app *CApplication) Init() (already bool) {
 	app.accelMap = &CAccelMap{}
 	app.accelMap.Init()
 	app.accelGroup = NewAccelGroup()
+	app.Connect(cdk.SignalSetupDisplay, ApplicationSetupDisplayHandle, func(_ []interface{}, argv ...interface{}) enums.EventFlag {
+		if display, ok := argv[0].(cdk.Display); ok {
+			if !display.Handled(cdk.SignalFocusedWindow, ApplicationFocusedWindowHandle) {
+				display.Connect(cdk.SignalFocusedWindow, ApplicationFocusedWindowHandle, app.displayWindowsChanged)
+			}
+			if !display.Handled(cdk.SignalMappedWindow, ApplicationMappedWindowHandle) {
+				display.Connect(cdk.SignalMappedWindow, ApplicationMappedWindowHandle, app.displayWindowsChanged)
+			}
+			if !display.Handled(cdk.SignalUnmappedWindow, ApplicationUnmappedWindowHandle) {
+				display.Connect(cdk.SignalUnmappedWindow, ApplicationUnmappedWindowHandle, app.displayWindowsChanged)
+			}
+		}
+		return enums.EVENT_PASS
+	})
 	return false
 }
 
@@ -75,3 +91,33 @@ func (app *CApplication) AccelGroup() (accelGroup AccelGroup) {
 	accelGroup = app.accelGroup
 	return
 }
+
+func (app *CApplication) GetWindows() (windows []Window) {
+	app.RLock()
+	for _, w := range app.windows {
+		windows = append(windows, w)
+	}
+	app.RUnlock()
+	return
+}
+
+func (app *CApplication) displayWindowsChanged(_ []interface{}, argv ...interface{}) enums.EventFlag {
+	if display := app.Display(); display != nil {
+		app.Lock()
+		windows := display.GetWindows()
+		ctkWindows := []Window{}
+		for _, w := range windows {
+			if ww, ok := w.Self().(Window); ok {
+				ctkWindows = append(ctkWindows, ww)
+			}
+		}
+		app.windows = ctkWindows
+		app.Unlock()
+	}
+	return enums.EVENT_PASS
+}
+
+const ApplicationSetupDisplayHandle = "application-setup-display-handler"
+const ApplicationFocusedWindowHandle = "application-focused-window-handler"
+const ApplicationMappedWindowHandle = "application-mapped-window-handler"
+const ApplicationUnmappedWindowHandle = "application-unmapped-window-handler"
