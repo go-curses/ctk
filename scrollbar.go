@@ -35,9 +35,9 @@ var (
 		// trough
 		Border: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false).Bold(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(false),
+			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false).Bold(true),
+			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false).Bold(true),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false),
 			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(true),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
