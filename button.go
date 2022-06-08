@@ -69,6 +69,7 @@ type Button interface {
 	Activatable
 	Alignable
 	Buildable
+	Sensitive
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
