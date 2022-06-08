@@ -241,7 +241,7 @@ dev: clean
 run: export GO_CDK_LOG_FILE=./${DEV_EXAMPLE}.cdk.log
 run: export GO_CDK_LOG_LEVEL=debug
 run: export GO_CDK_LOG_FULL_PATHS=true
-run: dev
+run:
 	@if [ -f ${DEV_EXAMPLE} ]; \
 	then \
 		echo "# starting ${DEV_EXAMPLE}..."; \
