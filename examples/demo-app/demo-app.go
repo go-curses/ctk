@@ -13,6 +13,7 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/log"
+
 	"github.com/go-curses/ctk"
 	"github.com/go-curses/ctk/lib/enums"
 )
@@ -201,6 +202,16 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			label.SetJustify(cenums.JUSTIFY_CENTER)
 			label.Show()
 			dialog.GetContentArea().PackStart(label, true, true, 0)
+			tf := ctk.NewTextField("testing")
+			tf.SetSingleLineMode(true)
+			tf.SetSizeRequest(20, 1)
+			//tf.SetBoolProperty(cdk.PropertyDebug, true)
+			tf.Show()
+			dialog.GetContentArea().PackStart(tf, true, false, 0)
+			// tf2 := ctk.NewTextField("multi-line")
+			// tf2.SetSingleLineMode(false)
+			// tf2.Show()
+			// dialog.GetContentArea().PackStart(tf2, true, true, 0)
 			for _, child := range dialog.GetActionArea().GetChildren() {
 				if cb, ok := child.(ctk.Button); ok {
 					switch cb.GetLabel() {
@@ -242,6 +253,8 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 						log.Error(err)
 					}
 					log.DebugF("dialog response: %v", r)
+					log.DebugF(`tf value: "%v"`, tf.GetText())
+					//log.DebugF(`tf2 value: "%v"`, tf2.GetText())
 				}
 			})
 			return cenums.EVENT_STOP
