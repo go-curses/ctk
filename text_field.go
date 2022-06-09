@@ -2,7 +2,9 @@ package ctk
 
 import (
 	"strings"
+	"time"
 
+	"github.com/go-curses/cdk/lib/sync"
 	"github.com/gofrs/uuid"
 
 	"github.com/go-curses/cdk"
@@ -11,6 +13,7 @@ import (
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -116,6 +119,11 @@ type TextField interface {
 	CancelEvent()
 }
 
+type cTextFieldChange struct {
+	name string
+	argv []interface{}
+}
+
 // The CTextField structure implements the TextField interface and is exported
 // to facilitate type embedding with custom implementations. No member variables
 // are exported as the interface methods are the only intended means of
@@ -132,6 +140,9 @@ type CTextField struct {
 	cursor    *ptypes.Point2I
 	selection *ptypes.Point2I
 	position  int
+	queue     []*cTextFieldChange
+	qLock     *sync.RWMutex
+	qTimer    uuid.UUID
 
 	tbuffer memphis.TextBuffer
 	tbStyle paint.Style
@@ -176,6 +187,9 @@ func (l *CTextField) Init() (already bool) {
 	_ = l.InstallProperty(PropertyEditable, cdk.BoolProperty, true, true)
 	l.selection = nil
 	l.position = 0
+	l.queue = make([]*cTextFieldChange, 0)
+	l.qLock = &sync.RWMutex{}
+	l.qTimer = uuid.Nil
 	l.offset = ptypes.NewRegion(0, 0, 0, 0)
 	l.cursor = ptypes.NewPoint2I(0, 0)
 	l.text = ""
@@ -224,13 +238,17 @@ func (l *CTextField) Build(builder Builder, element *CBuilderElement) error {
 //
 // Locking: write
 func (l *CTextField) SetText(text string) {
+	l.setText(text)
+	l.Invalidate()
+}
+
+func (l *CTextField) setText(text string) {
 	l.Lock()
 	l.text = text
 	l.Unlock()
 	if err := l.SetStringProperty(PropertyText, text); err != nil {
 		l.LogErr(err)
 	}
-	l.Invalidate()
 }
 
 // SetAttributes updates the attributes property to be the given paint.Style.
@@ -497,28 +515,42 @@ func (l *CTextField) GetSelectionBounds() (startPos, endPos int, ok bool) {
 }
 
 func (l *CTextField) InsertText(newText string, position int) {
+	l.insertText(newText, position)
+	l.Invalidate()
+	l.updateCursor()
+}
+
+func (l *CTextField) insertText(newText string, position int) {
 	content := l.GetText()
 	contentLength := len(content)
+	var modified string
 	if position >= contentLength {
-		l.SetText(content + newText)
-		return
+		modified = content + newText
+	} else {
+		modified = content[:position] + newText + content[position:]
 	}
-	modified := content[:position] + newText + content[position:]
-	l.SetText(modified)
+	l.setText(modified)
 }
 
 func (l *CTextField) DeleteText(startPos int, endPos int) {
+	l.deleteText(startPos, endPos)
+	l.Invalidate()
+	l.updateCursor()
+}
+
+func (l *CTextField) deleteText(startPos int, endPos int) {
 	content := l.GetText()
 	contentLength := len(content)
 	if startPos >= contentLength {
 		return
 	}
+	var modified string
 	if endPos >= contentLength {
-		l.SetText(content[:startPos])
-		return
+		modified = content[:startPos]
+	} else {
+		modified = content[:startPos] + content[endPos+1:]
 	}
-	modified := content[:startPos] + content[endPos+1:]
-	l.SetText(modified)
+	l.setText(modified)
 }
 
 func (l *CTextField) GetChars(startPos int, endPos int) (value string) {
@@ -554,7 +586,7 @@ func (l *CTextField) DeleteSelection() {
 	panic("implement me")
 }
 
-func (l *CTextField) SetPosition(position int) {
+func (l *CTextField) setPosition(position int) {
 	l.Lock()
 	max := len(l.text)
 	if position < max {
@@ -563,7 +595,11 @@ func (l *CTextField) SetPosition(position int) {
 		l.position = max
 	}
 	l.Unlock()
-	l.refreshTextBuffer()
+}
+
+func (l *CTextField) SetPosition(position int) {
+	l.setPosition(position)
+	l.Invalidate()
 	l.updateCursor()
 }
 
@@ -731,7 +767,7 @@ func (l *CTextField) refreshTextBuffer() (err error) {
 	}
 	// crop text to alloc using offset
 	text := cropText(l.text, *l.offset)
-	//l.LogDebug("posPoint:%v, offset:%v, cursor:%v", posPoint, l.offset, l.cursor)
+	// l.LogDebug("posPoint:%v, offset:%v, cursor:%v", posPoint, l.offset, l.cursor)
 
 	l.tbuffer = memphis.NewTextBuffer(text, style, false)
 	l.Unlock()
@@ -864,6 +900,15 @@ func (l *CTextField) draw(data []interface{}, argv ...interface{}) cenums.EventF
 	return cenums.EVENT_PASS
 }
 
+func (l *CTextField) appendChange(name string, argv ...interface{}) {
+	l.qLock.Lock()
+	l.queue = append(l.queue, &cTextFieldChange{
+		name: name,
+		argv: argv,
+	})
+	l.qLock.Unlock()
+}
+
 func (l *CTextField) moveHome() {
 	pos := l.GetPosition()
 	text := l.GetText()
@@ -871,8 +916,8 @@ func (l *CTextField) moveHome() {
 	posPoint := getTextPosInfo(text, pos)
 	posPoint.X = 0
 	newPos := getTextInfoPos(text, posPoint)
+	l.appendChange("SetPosition", newPos)
 	l.Unlock()
-	l.SetPosition(newPos)
 }
 
 func (l *CTextField) moveEnd() {
@@ -882,8 +927,56 @@ func (l *CTextField) moveEnd() {
 	posPoint := getTextPosInfo(text, pos)
 	posPoint.X = -1
 	newPos := getTextInfoPos(text, posPoint)
+	l.appendChange("SetPosition", newPos)
 	l.Unlock()
-	l.SetPosition(newPos)
+}
+
+func (l *CTextField) processQueue() {
+	l.qLock.Lock()
+	for _, change := range l.queue {
+		switch change.name {
+		case "SetPosition":
+			if len(change.argv) == 1 {
+				if v, ok := change.argv[0].(int); ok {
+					l.setPosition(v)
+				} else {
+					l.LogError("argument is not an 'int' for SetPosition change: %T (%v)", change.argv[0], change.argv)
+				}
+			} else {
+				l.LogError("too many arguments for SetPosition change: %v", change.argv)
+			}
+		case "InsertText":
+			if len(change.argv) == 2 {
+				if newText, ok := change.argv[0].(string); ok {
+					if pos, ok := change.argv[1].(int); ok {
+						l.insertText(newText, pos)
+					} else {
+						l.LogError("second argument is not an 'int' for InsertText change: %T (%v)", change.argv[1], change.argv)
+					}
+				} else {
+					l.LogError("first argument is not a 'string' for InsertText change: %T (%v)", change.argv[0], change.argv)
+				}
+			} else {
+				l.LogError("too many arguments for InsertText change: %v", change.argv)
+			}
+		case "DeleteText":
+			if len(change.argv) == 2 {
+				if start, ok := change.argv[0].(int); ok {
+					if end, ok := change.argv[1].(int); ok {
+						l.deleteText(start, end)
+					} else {
+						l.LogError("second argument is not an 'int' for DeleteText change: %T (%v)", change.argv[1], change.argv)
+					}
+				} else {
+					l.LogError("first argument is not an 'int' for DeleteText change: %T (%v)", change.argv[0], change.argv)
+				}
+			} else {
+				l.LogError("too many arguments for DeleteText change: %v", change.argv)
+			}
+		}
+	}
+	l.queue = nil
+	l.qLock.Unlock()
 }
 
 func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -908,16 +1001,16 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 				if l.GetSingleLineMode() {
 					l.LogDebug("activate default")
 				} else {
-					l.InsertText("\n", pos)
-					l.SetPosition(pos + 1)
+					l.appendChange("InsertText", "\n", pos)
+					l.appendChange("SetPosition", pos+1)
 					l.LogDebug(`printable key: \n, at pos: %v`, pos)
 				}
 				return cenums.EVENT_STOP
 			case 127:
 				if pos > 0 {
 					l.LogDebug("deleting backwards")
-					l.DeleteText(pos-1, pos-1)
-					l.SetPosition(pos - 1)
+					l.appendChange("DeleteText", pos-1, pos-1)
+					l.appendChange("SetPosition", pos-1)
 				} else {
 					l.LogDebug("nothing to delete backwards")
 				}
@@ -940,8 +1033,8 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 
 			if k := e.Key(); k == cdk.KeyRune {
 				pk := string(r)
-				l.InsertText(pk, pos)
-				l.SetPosition(pos + 1)
+				l.appendChange("InsertText", pk, pos)
+				l.appendChange("SetPosition", pos+1)
 				l.LogDebug("printable key: %v, at pos: %v", pk, pos)
 				return cenums.EVENT_STOP
 			}
@@ -957,12 +1050,12 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 				if tLen > 0 {
 					if pos < tLen {
 						l.LogDebug("deleting forwards")
-						l.DeleteText(pos, pos)
-						l.SetPosition(pos)
+						l.appendChange("DeleteText", pos, pos)
+						l.appendChange("SetPosition", pos)
 					} else {
 						l.LogDebug("deleting forwards (EOL)")
-						l.DeleteText(tLen-1, tLen-1)
-						l.SetPosition(tLen - 1)
+						l.appendChange("DeleteText", tLen-1, tLen-1)
+						l.appendChange("SetPosition", tLen-1)
 					}
 				} else {
 					l.LogDebug("nothing to delete forewards")
@@ -971,14 +1064,14 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 			case "Left":
 				if pos > 0 {
 					l.LogDebug("move left one character: %v", pos-1)
-					l.SetPosition(pos - 1)
+					l.appendChange("SetPosition", pos-1)
 				} else {
 					l.LogDebug("all the way left?")
 				}
 				return cenums.EVENT_STOP
 			case "Right":
 				l.LogDebug("move right one character: %v", pos+1)
-				l.SetPosition(pos + 1)
+				l.appendChange("SetPosition", pos+1)
 				return cenums.EVENT_STOP
 			case "Up", "Down":
 				if l.GetSingleLineMode() {
@@ -1005,7 +1098,7 @@ func (l *CTextField) updateCursor() {
 					l.RLock()
 					x, y := o.X+l.cursor.X, o.Y+l.cursor.Y
 					l.RUnlock()
-					//l.LogDebug("x,y = %v,%v", x, y)
+					// l.LogDebug("x,y = %v,%v", x, y)
 					s.ShowCursor(x, y)
 				}
 			}
@@ -1022,16 +1115,30 @@ func (l *CTextField) updateCursor() {
 }
 
 func (l *CTextField) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
-	l.updateCursor()
+	if l.qTimer != uuid.Nil {
+		cdk.StopTimeout(l.qTimer)
+		l.qTimer = uuid.Nil
+	}
 	l.UnsetState(enums.StateSelected)
 	l.Invalidate()
+	l.updateCursor()
 	return cenums.EVENT_STOP
 }
 
 func (l *CTextField) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
-	l.updateCursor()
 	l.SetState(enums.StateSelected)
 	l.Invalidate()
+	l.updateCursor()
+	if l.qTimer != uuid.Nil {
+		cdk.StopTimeout(l.qTimer)
+		l.qTimer = uuid.Nil
+	}
+	l.qTimer = cdk.AddTimeout(time.Millisecond*100, func() cenums.EventFlag {
+		l.processQueue()
+		l.Invalidate()
+		l.updateCursor()
+		return cenums.EVENT_PASS
+	})
 	return cenums.EVENT_STOP
 }
 
