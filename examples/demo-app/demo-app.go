@@ -202,13 +202,13 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			label.SetJustify(cenums.JUSTIFY_CENTER)
 			label.Show()
 			dialog.GetContentArea().PackStart(label, true, true, 0)
-			tf := ctk.NewTextField("testing")
+			tf := ctk.NewEntry("testing")
 			tf.SetSingleLineMode(true)
 			tf.SetSizeRequest(20, 1)
-			//tf.SetBoolProperty(cdk.PropertyDebug, true)
+			// tf.SetBoolProperty(cdk.PropertyDebug, true)
 			tf.Show()
 			dialog.GetContentArea().PackStart(tf, true, false, 0)
-			// tf2 := ctk.NewTextField("multi-line")
+			// tf2 := ctk.NewEntry("multi-line")
 			// tf2.SetSingleLineMode(false)
 			// tf2.Show()
 			// dialog.GetContentArea().PackStart(tf2, true, true, 0)
@@ -254,7 +254,7 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 					}
 					log.DebugF("dialog response: %v", r)
 					log.DebugF(`tf value: "%v"`, tf.GetText())
-					//log.DebugF(`tf2 value: "%v"`, tf2.GetText())
+					// log.DebugF(`tf2 value: "%v"`, tf2.GetText())
 				}
 			})
 			return cenums.EVENT_STOP
