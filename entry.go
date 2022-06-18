@@ -47,12 +47,12 @@ func init() {
 }
 
 var (
-	_ Editable  = (*CEntry)(nil)
-	_ TextField = (*CEntry)(nil)
+	_ Editable = (*CEntry)(nil)
+	_ Entry    = (*CEntry)(nil)
 )
 
 var (
-	DefaultTextFieldTheme = paint.Theme{
+	DefaultEntryTheme = paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(true).Bold(false),
 			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true),
@@ -78,16 +78,16 @@ var (
 	}
 )
 
-// TextField Hierarchy:
+// Entry Hierarchy:
 //	Object
 //	  +- Widget
 //	    +- Misc
-//	      +- TextField
+//	      +- Entry
 //	        +- AccelLabel
 //	        +- TipsQuery
 //
-// The TextField Widget presents text to the end user.
-type TextField interface {
+// The Entry Widget presents text to the end user.
+type Entry interface {
 	Misc
 	Alignable
 	Buildable
@@ -125,10 +125,10 @@ type cTextFieldChange struct {
 	argv []interface{}
 }
 
-// The CTextField structure implements the TextField interface and is exported
+// The CTextField structure implements the Entry interface and is exported
 // to facilitate type embedding with custom implementations. No member variables
 // are exported as the interface methods are the only intended means of
-// interacting with TextField objects.
+// interacting with Entry objects.
 type CEntry struct {
 	CMisc
 
@@ -148,25 +148,25 @@ type CEntry struct {
 	tbStyle  paint.Style
 }
 
-// MakeEntry is used by the Buildable system to construct a new TextField.
-func MakeEntry() TextField {
-	return NewTextField("")
+// MakeEntry is used by the Buildable system to construct a new Entry.
+func MakeEntry() Entry {
+	return NewEntry("")
 }
 
-// NewTextField is the constructor for new TextField instances.
-func NewTextField(plain string) TextField {
+// NewEntry is the constructor for new Entry instances.
+func NewEntry(plain string) Entry {
 	l := new(CEntry)
 	l.Init()
 	l.SetText(plain)
 	return l
 }
 
-// Init initializes a TextField object. This must be called at least once to
+// Init initializes a Entry object. This must be called at least once to
 // set up the necessary defaults and allocate any memory structures. Calling
 // this more than once is safe though unnecessary. Only the first call will
-// result in any effect upon the TextField instance. Init is used in the
-// NewTextField constructor and only necessary when implementing a derivative
-// TextField type.
+// result in any effect upon the Entry instance. Init is used in the
+// NewEntry constructor and only necessary when implementing a derivative
+// Entry type.
 func (l *CEntry) Init() (already bool) {
 	if l.InitTypeItem(TypeEntry, l) {
 		return true
@@ -174,7 +174,7 @@ func (l *CEntry) Init() (already bool) {
 	l.CMisc.Init()
 	l.flags = enums.NULL_WIDGET_FLAG
 	l.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.APP_PAINTABLE | enums.CAN_FOCUS)
-	l.SetTheme(DefaultTextFieldTheme)
+	l.SetTheme(DefaultEntryTheme)
 	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
 	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_NONE)
 	_ = l.InstallProperty(PropertyText, cdk.StringProperty, true, "")
@@ -210,7 +210,7 @@ func (l *CEntry) Init() (already bool) {
 	return false
 }
 
-// Build provides customizations to the Buildable system for TextField Widgets.
+// Build provides customizations to the Buildable system for Entry Widgets.
 func (l *CEntry) Build(builder Builder, element *CBuilderElement) error {
 	l.Freeze()
 	defer l.Thaw()
@@ -229,7 +229,7 @@ func (l *CEntry) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-// SetText updates the text within the TextField widget. It overwrites any text that
+// SetText updates the text within the Entry widget. It overwrites any text that
 // was there before. This will also clear any previously set mnemonic
 // accelerators.
 //
@@ -306,7 +306,7 @@ func (l *CEntry) SetMaxWidthChars(nChars int) {
 	}
 }
 
-// SetLineWrap updates the line wrapping within the TextField widget. TRUE makes it
+// SetLineWrap updates the line wrapping within the Entry widget. TRUE makes it
 // break lines if text exceeds the widget's size. FALSE lets the text get cut
 // off by the edge of the widget if it exceeds the widget size. Note that
 // setting line wrapping to TRUE does not make the label wrap at its parent
@@ -375,7 +375,7 @@ func (l *CEntry) SelectRegion(startOffset int, endOffset int) {
 	}
 }
 
-// SetSelectable updates the selectable property for the TextField. TextFields allow the
+// SetSelectable updates the selectable property for the Entry. TextFields allow the
 // user to select text from the label, for copy-and-paste.
 //
 // Parameters:
@@ -392,7 +392,7 @@ func (l *CEntry) SetSelectable(setting bool) {
 
 // GetAttributes returns the attribute list that was set on the label using
 // SetAttributes, if any. This function does not reflect attributes that come
-// from the TextField markup (see SetMarkup).
+// from the Entry markup (see SetMarkup).
 //
 // Locking: read
 func (l *CEntry) GetAttributes() (value paint.Style) {
@@ -495,7 +495,7 @@ func (l *CEntry) SetSingleLineMode(singleLineMode bool) {
 }
 
 // Settings is a convenience method to return the interesting settings currently
-// configured on the TextField instance.
+// configured on the Entry instance.
 //
 // Locking: read
 func (l *CEntry) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, justify cenums.Justification, maxWidthChars int) {
@@ -612,7 +612,7 @@ func (l *CEntry) GetEditable() (value bool) {
 	return
 }
 
-// GetSizeRequest returns the requested size of the TextField taking into account
+// GetSizeRequest returns the requested size of the Entry taking into account
 // the label's content and any padding set.
 //
 // Locking: read
