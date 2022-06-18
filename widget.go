@@ -188,6 +188,12 @@ type Widget interface {
 	ReleaseEventFocus()
 	GetTopParent() (parent Container)
 	GetWidgetAt(p *ptypes.Point2I) Widget
+	PushCompositeChild(child Widget)
+	PopCompositeChild(child Widget)
+	GetCompositeChildren() []Widget
+	IsDrawPaused() bool
+	DrawPause()
+	DrawResume()
 }
 
 // The CWidget structure implements the Widget interface and is exported
@@ -197,6 +203,7 @@ type Widget interface {
 type CWidget struct {
 	CObject
 
+	composites    []Widget
 	parent        Widget
 	state         enums.StateType
 	flags         enums.WidgetFlags
@@ -287,6 +294,7 @@ func (w *CWidget) Init() (already bool) {
 		_ = w.InstallCssProperty(CssPropertyItalic, state, cdk.BoolProperty, true, false)
 		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
 	}
+	w.composites = make([]Widget, 0)
 	w.flagsLock = &sync.RWMutex{}
 	w.drawLock = &sync.Mutex{}
 	w.eventLock = &sync.Mutex{}
@@ -558,6 +566,7 @@ func (w *CWidget) Unparent() {
 func (w *CWidget) Map() {
 	if !w.IsMapped() {
 		region := w.GetRegion()
+		// w.LockDraw()
 		_ = memphis.MakeConfigureSurface(
 			w.ObjectID(),
 			region.Origin(),
@@ -565,6 +574,7 @@ func (w *CWidget) Map() {
 			w.GetThemeRequest().Content.Normal,
 		)
 		w.SetFlags(enums.MAPPED)
+		// w.UnlockDraw()
 		w.Emit(SignalMap, w, region)
 	}
 }
@@ -595,7 +605,7 @@ func (w *CWidget) Show() {
 	if w.HasFlags(enums.APP_PAINTABLE) {
 		if !w.HasFlags(enums.VISIBLE) {
 			w.SetFlags(enums.VISIBLE)
-			w.Map() // not supposed to be here
+			// w.Map() // not supposed to be here
 			if r := w.Emit(SignalShow, w); r == cenums.EVENT_PASS {
 				w.Invalidate()
 			}
@@ -1137,6 +1147,68 @@ func (w *CWidget) ClassPath(pathLength int, path string, pathReversed string) {}
 // Obtains the composite name of a widget.
 func (w *CWidget) GetCompositeName() (value string) {
 	return ""
+}
+
+func (w *CWidget) PushCompositeChild(child Widget) {
+	if f := w.Emit(SignalPushCompositeChild, w, child); f == cenums.EVENT_PASS {
+		log.DebugDF(1, "push composite child: %v", child.ObjectName())
+		child.Map()
+		if window := w.GetWindow(); window != nil {
+			if wc, ok := child.Self().(Container); ok {
+				wc.SetWindow(window)
+			} else {
+				child.SetWindow(window)
+			}
+		}
+		w.Lock()
+		w.composites = append(w.composites, child)
+		w.Unlock()
+	}
+}
+
+func (w *CWidget) PopCompositeChild(child Widget) {
+	if f := w.Emit(SignalPopCompositeChild, w, child); f == cenums.EVENT_PASS {
+		log.DebugDF(1, "pop composite child: %v", child.ObjectName())
+		w.Lock()
+		id := -1
+		for idx, composite := range w.composites {
+			if composite.ObjectID() == child.ObjectID() {
+				id = idx
+				break
+			}
+		}
+		if id > -1 {
+			count := len(w.composites)
+			if id >= count-1 {
+				w.composites = w.composites[:id]
+			} else {
+				w.composites = append(w.composites[:id], w.composites[id+1:]...)
+			}
+			child.SetWindow(nil)
+		}
+		w.Unlock()
+	}
+}
+
+func (w *CWidget) GetCompositeChildren() (composites []Widget) {
+	w.RLock()
+	defer w.RUnlock()
+	composites = append([]Widget{}, w.composites...)
+	return
+}
+
+func (w *CWidget) IsDrawPaused() bool {
+	return w.IsSignalPassed(SignalInvalidate) && w.IsSignalPassed(SignalDraw)
+}
+
+func (w *CWidget) DrawPause() {
+	w.PassSignal(SignalInvalidate, SignalDraw)
+}
+
+func (w *CWidget) DrawResume() {
+	w.ResumeSignal(SignalInvalidate)
+	w.Resize()
+	w.ResumeSignal(SignalDraw)
 }
 
 // Sets whether the application intends to draw on the widget in an
@@ -1930,7 +2002,7 @@ func (w *CWidget) SetMapped(mapped bool) {}
 // Returns:
 // 	TRUE if the widget is mapped, FALSE otherwise.
 func (w *CWidget) GetMapped() (value bool) {
-	return false
+	return w.IsMapped()
 }
 
 func (w *CWidget) GetTheme() (theme paint.Theme) {
