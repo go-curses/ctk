@@ -76,6 +76,7 @@ type Scrollbar interface {
 	BackwardPage() cenums.EventFlag
 	GetSizeRequest() (width, height int)
 	GetWidgetAt(p *ptypes.Point2I) Widget
+	FindWidgetAt(p *ptypes.Point2I) Widget
 	ValueChanged()
 	Changed()
 	CancelEvent()
@@ -141,6 +142,7 @@ func (s *CScrollbar) Init() (already bool) {
 	l.SetSingleLineMode(true)
 	l.SetMaxWidthChars(1)
 	s.slider = NewButtonWithWidget(l)
+	// s.PushCompositeChild(s.slider)
 	s.Connect(SignalCdkEvent, ScrollbarEventHandle, s.event)
 	s.Connect(SignalInvalidate, ScrollbarInvalidateHandle, s.invalidate)
 	s.Connect(SignalResize, ScrollbarResizeHandle, s.resize)
@@ -238,14 +240,16 @@ func (s *CScrollbar) SetHasSecondaryForwardStepper(hasSecondaryForwardStepper bo
 //
 // Locking: write
 func (s *CScrollbar) Forward(step int) cenums.EventFlag {
-	min, max := s.GetRange()
 	value := s.GetValue()
 	want := value + step
 	s.SetValue(want)
 	got := s.GetValue()
-	s.Invalidate()
-	s.LogDebug("Forward: (step: %v, wants: %d, got:%d, range: %d-%d)", step, want, got, min, max)
 	if value != got {
+		min, max := s.GetRange()
+		s.LogDebug("Forward: (value: %v, step: %v, wants: %d, got:%d, range: %d-%d)", value, step, want, got, min, max)
+		s.Invalidate()
+		s.GetDisplay().RequestDraw()
+		s.GetDisplay().RequestShow()
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
@@ -267,8 +271,8 @@ func (s *CScrollbar) ForwardStep() cenums.EventFlag {
 //
 // Locking: write
 func (s *CScrollbar) ForwardPage() cenums.EventFlag {
-	_, page := s.GetIncrements()
-	return s.Forward(page)
+	page, pageSize := s.GetPageInfo()
+	return s.Forward(page * pageSize)
 }
 
 // Backward updates the scrollbar in a backward direction by the given step count.
@@ -276,14 +280,16 @@ func (s *CScrollbar) ForwardPage() cenums.EventFlag {
 //
 // Locking: write
 func (s *CScrollbar) Backward(step int) cenums.EventFlag {
-	min, max := s.GetRange()
 	value := s.GetValue()
 	want := value - step
 	s.SetValue(want)
 	got := s.GetValue()
-	s.Invalidate()
-	s.LogDebug("Backward: (step: %v, wants: %d, got:%d, range: %d-%d)", step, want, got, min, max)
 	if value != got {
+		min, max := s.GetRange()
+		s.LogDebug("Backward: (step: %v, wants: %d, got:%d, range: %d-%d)", step, want, got, min, max)
+		s.Invalidate()
+		s.GetDisplay().RequestDraw()
+		s.GetDisplay().RequestShow()
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
@@ -305,8 +311,26 @@ func (s *CScrollbar) BackwardStep() cenums.EventFlag {
 //
 // Locking: write
 func (s *CScrollbar) BackwardPage() cenums.EventFlag {
-	_, page := s.GetIncrements()
-	return s.Backward(page)
+	page, pageSize := s.GetPageInfo()
+	return s.Backward(page * pageSize)
+}
+
+func (s *CScrollbar) GetPageInfo() (page, pageSize int) {
+	page = 1
+	pageSize = 1
+	if adjustment := s.GetAdjustment(); adjustment != nil {
+		page = cmath.FloorI(adjustment.GetPageIncrement(), 1)
+		if pageSize = adjustment.GetPageSize(); pageSize <= -1 {
+			alloc := s.GetAllocation()
+			switch s.orientation {
+			case cenums.ORIENTATION_HORIZONTAL:
+				pageSize = alloc.W
+			default:
+				pageSize = alloc.H
+			}
+		}
+	}
+	return
 }
 
 func (s *CScrollbar) GetSizeRequest() (width, height int) {
@@ -327,6 +351,18 @@ func (s *CScrollbar) GetSizeRequest() (width, height int) {
 
 func (s *CScrollbar) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if s.HasPoint(p) && s.IsVisible() {
+		return s
+	}
+	return nil
+}
+
+func (s *CScrollbar) FindWidgetAt(p *ptypes.Point2I) Widget {
+	if s.HasPoint(p) && s.IsVisible() {
+		for _, composite := range s.GetCompositeChildren() {
+			if composite.HasPoint(p) && composite.IsVisible() {
+				return composite
+			}
+		}
 		return s
 	}
 	return nil
@@ -463,10 +499,10 @@ func (s *CScrollbar) GetTroughRegion() (region ptypes.Region) {
 
 func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	trough := s.GetTroughRegion()
-	upper, page, value := 0, 0, 0
+	upper, value := 0, 0
+	page, pageSize := s.GetPageInfo()
 	if adjustment := s.GetAdjustment(); adjustment != nil {
 		upper = adjustment.GetUpper()
-		page = adjustment.GetPageIncrement()
 		value = adjustment.GetValue()
 	} else {
 		s.LogError("missing adjustment")
@@ -483,7 +519,7 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 				size = cmath.ClampI(s.sliderLength, s.minSliderLength, trough.W)
 			} else {
 				if fullSize > 1 {
-					size = int((float64(page) / float64(upper)) * float64(fullSize))
+					size = int((float64(page*pageSize) / float64(upper)) * float64(fullSize))
 				} else if s.minSliderLength > 0 {
 					size = s.minSliderLength
 				}
@@ -509,7 +545,7 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 				size = cmath.ClampI(s.sliderLength, s.minSliderLength, trough.H)
 			} else {
 				if fullSize > 1 {
-					size = int((float64(page) / float64(upper)) * float64(fullSize))
+					size = int((float64(page*pageSize) / float64(upper)) * float64(fullSize))
 				} else if s.minSliderLength > 0 {
 					size = s.minSliderLength
 				}
@@ -533,8 +569,9 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) cenums.EventFlag {
 	// me := NewMouseEvent(e)
 	slider := s.GetSliderRegion()
-	w := s.GetWidgetAt(p)
+	w := s.FindWidgetAt(p)
 	switch e.State() {
+
 	case cdk.BUTTON_PRESS:
 		if w != nil && w.IsVisible() {
 			if w.ObjectID() != s.ObjectID() {
@@ -555,6 +592,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 				return cenums.EVENT_STOP
 			}
 		}
+
 	case cdk.DRAG_START:
 		s.Lock()
 		if !s.sliderMoving {
@@ -563,6 +601,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 		}
 		s.Unlock()
 		fallthrough
+
 	case cdk.DRAG_MOVE:
 		if s.sliderMoving {
 			if s.prevSliderPos != nil {
@@ -572,19 +611,23 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 						// left=forward, right=backward
 						if p.X > s.prevSliderPos.X {
 							// right=backward
-							s.BackwardPage()
+							// s.BackwardPage()
+							s.BackwardStep()
 						} else if p.X < s.prevSliderPos.X {
 							// left=forward
-							s.ForwardPage()
+							// s.ForwardPage()
+							s.ForwardStep()
 						}
 					} else {
 						// left=backward, right=forward
 						if p.X > s.prevSliderPos.X {
 							// right=forward
-							s.ForwardPage()
+							// s.ForwardPage()
+							s.ForwardStep()
 						} else if p.X < s.prevSliderPos.X {
 							// left=backward
-							s.BackwardPage()
+							// s.BackwardPage()
+							s.BackwardStep()
 						}
 					}
 					return cenums.EVENT_STOP
@@ -594,10 +637,12 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 					// down=forward, up=backward
 					if p.Y > s.prevSliderPos.Y {
 						// down=forward
-						s.ForwardPage()
+						// s.ForwardPage()
+						s.ForwardStep()
 					} else if p.Y < s.prevSliderPos.Y {
 						// up=backward
-						s.BackwardPage()
+						// s.BackwardPage()
+						s.BackwardStep()
 					} else {
 						// neither
 					}
@@ -608,6 +653,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 			s.prevSliderPos = p.NewClone()
 			s.Unlock()
 		}
+
 	case cdk.DRAG_STOP:
 		if s.HasEventFocus() {
 			s.ReleaseEventFocus()
@@ -618,6 +664,7 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 		s.prevSliderPos = nil
 		s.Unlock()
 		return cenums.EVENT_STOP
+
 	case cdk.BUTTON_RELEASE:
 		if s.HasEventFocus() {
 			s.ReleaseEventFocus()
@@ -661,6 +708,11 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 				return s.ForwardPage()
 			}
 		}
+
+	default:
+		if s.HasEventFocus() {
+			s.ReleaseEventFocus()
+		}
 	}
 	return cenums.EVENT_PASS
 }
@@ -676,51 +728,34 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) cenums.Event
 				s.CancelEvent()
 				return cenums.EVENT_STOP
 			}
-			adjustment := s.GetAdjustment()
-			s.Lock()
-			step, page := 0, 0
-			if adjustment != nil {
-				step, page = adjustment.GetStepIncrement(), adjustment.GetPageIncrement()
-			} else {
-				s.LogError("missing adjustment")
-			}
 			switch s.orientation {
 			case cenums.ORIENTATION_HORIZONTAL:
 				switch e.Key() {
 				case cdk.KeyLeft:
 					if e.Modifiers().Has(cdk.ModShift) {
-						s.Unlock()
-						return s.Backward(page)
+						return s.BackwardPage()
 					}
-					s.Unlock()
-					return s.Backward(step)
+					return s.BackwardStep()
 				case cdk.KeyRight:
 					if e.Modifiers().Has(cdk.ModShift) {
-						s.Unlock()
-						return s.Forward(page)
+						return s.ForwardPage()
 					}
-					s.Unlock()
-					return s.Forward(step)
+					return s.ForwardStep()
 				}
 			case cenums.ORIENTATION_VERTICAL:
 				fallthrough
 			default:
 				switch e.Key() {
 				case cdk.KeyUp:
-					s.Unlock()
-					return s.Backward(step)
+					return s.BackwardStep()
 				case cdk.KeyDown:
-					s.Unlock()
-					return s.Forward(step)
+					return s.ForwardStep()
 				case cdk.KeyPgUp:
-					s.Unlock()
-					return s.Backward(page)
+					return s.BackwardPage()
 				case cdk.KeyPgDn:
-					s.Unlock()
-					return s.Forward(page)
+					return s.ForwardPage()
 				}
 			}
-			s.Unlock()
 		}
 	}
 	return cenums.EVENT_PASS
@@ -774,6 +809,7 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 	a.SetTheme(DefaultButtonTheme)
 	a.UnsetFlags(enums.CAN_FOCUS)
 	b := NewButtonWithWidget(a)
+	s.PushCompositeChild(b)
 	b.ShowAll()
 	b.SetFocusOnClick(false)
 	b.SetParent(s.GetParent())
@@ -859,9 +895,11 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.
 			local := b.GetOrigin()
 			local.SubPoint(origin)
 			if b.IsMapped() {
+				b.LockDraw()
 				if err := memphis.MakeConfigureSurface(bid, local, sz, style); err != nil {
 					b.LogErr(err)
 				}
+				b.UnlockDraw()
 			}
 			b.Invalidate()
 		}
@@ -875,15 +913,15 @@ func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.
 }
 
 func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	s.LockDraw()
+	defer s.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := s.GetAllocation()
 		if !s.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			s.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
-
-		s.LockDraw()
-		defer s.UnlockDraw()
 
 		theme := s.GetThemeRequest()
 		origin := s.GetOrigin()
