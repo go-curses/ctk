@@ -12,6 +12,7 @@ import (
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -201,7 +202,7 @@ func (b *CButton) Init() (already bool) {
 	}
 	b.CBin.Init()
 	b.flags = enums.NULL_WIDGET_FLAG
-	b.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.RECEIVES_DEFAULT | enums.CAN_FOCUS | enums.APP_PAINTABLE)
+	b.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.RECEIVES_DEFAULT | enums.CAN_FOCUS | enums.APP_PAINTABLE | enums.COMPOSITE_PARENT)
 	b.SetTheme(DefaultButtonTheme)
 	b.pressed = false
 	_ = b.InstallBuildableProperty(PropertyFocusOnClick, cdk.BoolProperty, true, true)
@@ -326,9 +327,12 @@ func (b *CButton) SetLabel(label string) {
 		if strings.HasPrefix(label, "<markup") {
 			if err := v.SetMarkup(label); err != nil {
 				b.LogErr(err)
+			} else {
+				b.Invalidate()
 			}
 		} else {
 			v.SetText(label)
+			b.Invalidate()
 		}
 	}
 }
@@ -737,8 +741,7 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) cenums.EventFla
 
 func (b *CButton) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if child := b.GetChild(); child != nil {
-		theme := b.GetThemeRequest()
-		child.SetTheme(theme)
+		child.SetTheme(b.GetThemeRequest())
 		child.Invalidate()
 	}
 	return cenums.EVENT_STOP
@@ -750,7 +753,18 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
 	origin := b.GetOrigin()
 	child := b.GetChild()
+
 	b.Lock()
+	// b.LockDraw()
+	if err := memphis.MakeConfigureSurface(b.ObjectID(), origin, alloc, theme.Content.Normal); err != nil {
+		b.LogErr(err)
+	}
+
+	var label Label = nil
+	if childLabel, ok := child.(Label); child != nil && ok {
+		label = childLabel
+	}
+
 	if child != nil {
 		if alloc.W <= 0 || alloc.H <= 0 {
 			child.SetAllocation(ptypes.MakeRectangle(0, 0))
@@ -764,8 +778,10 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 			size.Sub(2, 2)
 		}
 		req := ptypes.MakeRectangle(child.GetSizeRequest())
-		req.Clamp(0, 0, size.W, size.H)
-		if label, ok := child.Self().(Label); ok {
+		(&req).Clamp(0, 0, size.W, size.H)
+		if label != nil {
+			req = ptypes.MakeRectangle(label.GetSizeRequest())
+			(&req).Clamp(0, 0, size.W, size.H)
 			w, h := label.GetPlainTextInfoAtWidth(req.W)
 			xAlign := 0.5
 			yAlign := 0.5
@@ -782,17 +798,29 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		}
 		child.SetOrigin(origin.X+local.X, origin.Y+local.Y)
 		child.SetAllocation(*size)
-		child.Resize()
+		if label != nil {
+			label.Resize()
+		} else {
+			child.Resize()
+		}
+		child.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), *local, *size, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
+		child.UnlockDraw()
+
 	}
+
+	// b.UnlockDraw()
 	b.Unlock()
 	b.Invalidate()
 	return cenums.EVENT_PASS
 }
 
 func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	b.LockDraw()
+	defer b.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := b.GetAllocation()
 		if !b.IsVisible() || size.W <= 0 || size.H <= 0 {
@@ -800,9 +828,6 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 			surface.Fill(b.GetTheme())
 			return cenums.EVENT_STOP
 		}
-
-		b.LockDraw()
-		defer b.UnlockDraw()
 
 		var child Widget
 		var label Label
@@ -829,15 +854,19 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 
 		if label != nil {
 			if f := label.Draw(); f == cenums.EVENT_STOP {
+				// label.LockDraw()
 				if err := surface.Composite(label.ObjectID()); err != nil {
 					b.LogError("composite error: %v", err)
 				}
+				// label.UnlockDraw()
 			}
 		} else if child != nil {
 			if f := child.Draw(); f == cenums.EVENT_STOP {
+				// child.LockDraw()
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					b.LogError("composite error: %v", err)
 				}
+				// child.UnlockDraw()
 			}
 		}
 
