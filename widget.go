@@ -8,7 +8,9 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/lib/sync"
+	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -20,9 +22,9 @@ func init() {
 
 var (
 	DefaultTooltipStyle = paint.StyleDefault.Normal().
-				Background(paint.ColorYellow).
-				Foreground(paint.ColorGray).
-				Dim(false)
+		Background(paint.ColorYellow).
+		Foreground(paint.ColorDarkSlateBlue).
+		Dim(false)
 	DefaultTooltipThemeAspect = paint.ThemeAspect{
 		Normal:      DefaultTooltipStyle,
 		Selected:    DefaultTooltipStyle,
@@ -1413,8 +1415,8 @@ func (w *CWidget) HasScreen() (value bool) {
 // 	width	return location for width, or NULL.
 // 	height	return location for height, or NULL.
 func (w *CWidget) GetSizeRequest() (width, height int) {
-	w.RLock()
-	defer w.RUnlock()
+	// w.RLock()
+	// defer w.RUnlock()
 	var err error
 	if width, err = w.GetIntProperty(PropertyWidthRequest); err != nil {
 		w.LogErr(err)
