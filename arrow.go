@@ -166,21 +166,22 @@ func (a *CArrow) GetSizeRequest() (width, height int) {
 }
 
 func (a *CArrow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	a.LockDraw()
+	defer a.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := a.GetAllocation()
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			a.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
+
 		style := a.GetThemeRequest().Content.Normal
 		r, _ := a.GetArrowRune()
 		xAlign, yAlign := a.GetAlignment()
 		xPad, yPad := a.GetPadding()
 		size := ptypes.MakeRectangle(alloc.W-(xPad*2), alloc.H-(yPad*2))
 		point := ptypes.MakePoint2I(xPad, yPad)
-
-		a.Lock()
-		defer a.Unlock()
 
 		if size.W < alloc.W {
 			delta := alloc.W - size.W
@@ -190,9 +191,11 @@ func (a *CArrow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 			delta := alloc.H - size.H
 			point.Y = int(float64(delta) * yAlign)
 		}
+
 		if err := surface.SetRune(point.X, point.Y, r, style); err != nil {
 			a.LogError("set rune error: %v", err)
 		}
+
 		if debug, _ := a.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, a.ObjectInfo())
 		}
