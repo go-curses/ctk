@@ -645,9 +645,11 @@ func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.Eve
 	origin := d.GetOrigin()
 	alloc := d.GetAllocation()
 	if d.IsMapped() {
+		d.LockDraw()
 		if err := memphis.MakeConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
 			d.LogErr(err)
 		}
+		d.UnlockDraw()
 	}
 	return cenums.EVENT_STOP
 }
@@ -662,9 +664,11 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		alloc := region.Size().NewClone()
 		alloc.Sub(2, 2)
 		if child.IsMapped() {
+			child.LockDraw()
 			if err := memphis.MakeConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
 				child.LogErr(err)
 			}
+			child.UnlockDraw()
 		}
 		child.SetOrigin(region.X+local.X, region.Y+local.Y)
 		child.SetAllocation(*alloc)
@@ -676,6 +680,9 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 }
 
 func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	d.LockDraw()
+	defer d.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := d.GetAllocation()
 		if !d.IsVisible() || size.W == 0 || size.H == 0 {
@@ -683,23 +690,24 @@ func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 			return cenums.EVENT_PASS
 		}
 
-		d.LockDraw()
-		defer d.UnlockDraw()
-
-		d.LogTrace("%v", size)
 		title := d.GetTitle()
 		theme := d.GetThemeRequest()
 		vbox := d.GetVBox()
+
 		if d.GetTitle() != "" {
 			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
 		} else {
 			surface.FillBorder(false, true, theme)
 		}
+
 		if r := vbox.Draw(); r == cenums.EVENT_STOP {
+			vbox.LockDraw()
 			if err := surface.Composite(vbox.ObjectID()); err != nil {
 				vbox.LogErr(err)
 			}
+			vbox.UnlockDraw()
 		}
+
 		if debug, _ := d.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorNavy, d.ObjectInfo())
 		}
