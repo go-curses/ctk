@@ -1278,6 +1278,7 @@ const (
 	RECEIVES_DEFAULT
 	DOUBLE_BUFFERED
 	NO_SHOW_ALL
+	COMPOSITE_PARENT
 	INVALID_WIDGET_FLAG
 )
 
@@ -1352,3 +1353,4 @@ type GClosure = func(argv ...interface{}) (handled bool)
 
 //go:generate stringer -output enums_string.go -type AssistantPageType,BuilderError,CellRendererMode,CellRendererAccelMode,CellType,CListDragPos,CTreePos,CTreeLineStyle,CTreeExpanderStyle,CTreeExpansionType,EntryIconPosition,AnchorType,ArrowPlacement,ArrowType,ButtonBoxStyle,DeleteType,DirectionType,ExpanderStyle,SensitivityType,SideType,TextDirection,MatchType,MenuDirectionType,MessageType,MetricType,MovementStep,ScrollStep,CornerType,PackType,LayoutStyle,PathPriorityType,PathType,PolicyType,PositionType,ReliefStyle,ScrollType,SelectionMode,ShadowType,SubmenuDirection,SubmenuPlacement,ToolbarStyle,UpdateType,Visibility,WindowTypeHint,WindowEdge,Gravity,WindowPosition,SortType,IMPreeditStyle,IMStatusStyle,PackDirection,PrintPages,PageSet,NumberUpLayout,Unit,TreeViewGridLines,FileChooserAction,FileChooserConfirmation,FileChooserError,LoadState,ReloadState,LocationMode,OperationMode,StartupMode,FileChooserProp,IconThemeError,ButtonsType,NotebookTab,ArgFlags,ProgressBarStyle,ProgressBarOrientation,RcTokenType,RecentSortType,RecentChooserError,RecentChooserProp,RecentManagerError,SizeGroupMode,SpinButtonUpdatePolicy,SpinType,TextBufferTargetInfo,TextWindowType,ToolbarChildType,ToolbarSpaceStyle,TreeViewMode,TreeViewDropPosition,TreeViewColumnSizing,WidgetHelpType,ErrorType,TokenType,ExtensionMode
 //go:generate bitmasker -output enums_bitmask.go -kebab -type AccelFlags,CalendarDisplayOptions,CellRendererState,ButtonAction,DebugFlag,DialogFlags,AttachOptions,StateType,FileFilterFlags,PrivateFlags,RBNodeColor,RcFlags,RecentFilterFlags,TextSearchFlags,TreeModelFlags,TreeViewFlags,UIManagerItemType,WidgetFlags,ParamFlags
+
