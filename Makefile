@@ -3,6 +3,7 @@
 BUILD_CMD := go-ctk
 DEV_EXAMPLE := demo-app
 CDK_PATH := ../cdk
+CTK_PATH := ../../ctk
 
 .PHONY: all build build-all clean clean-logs dev examples fmt help profile.cpu profile.mem run tidy
 
@@ -185,15 +186,17 @@ depends-on-cdk-path:
 
 local: depends-on-cdk-path
 	@echo "# adding go.mod local CTK package replacements..."
-	@go mod edit -replace=github.com/go-curses/ctk=../ctk
+	@go mod edit -replace=github.com/go-curses/ctk=${CTK_PATH}
 	@echo "# adding go.mod local CDK package replacements..."
 	@go mod edit -replace=github.com/go-curses/cdk=${CDK_PATH}
 	@for tgt in charset encoding env log memphis; do \
+		if [ -f ${CDK_PATH}/$$tgt/go.mod ]; then \
 			echo "#\t$$tgt"; \
 			go mod edit -replace=github.com/go-curses/cdk/$$tgt=${CDK_PATH}/$$tgt ; \
+		fi; \
 	done
 	@for tgt in `ls ${CDK_PATH}/lib`; do \
-		if [ -d ${CDK_PATH}/lib/$$tgt ]; then \
+		if [ -f ${CDK_PATH}/lib/$$tgt/go.mod ]; then \
 			echo "#\tlib/$$tgt"; \
 			go mod edit -replace=github.com/go-curses/cdk/lib/$$tgt=${CDK_PATH}/lib/$$tgt ; \
 		fi; \
@@ -205,11 +208,13 @@ unlocal: depends-on-cdk-path
 	@echo "# removing go.mod local CDK package replacements..."
 	@go mod edit -dropreplace=github.com/go-curses/cdk
 	@for tgt in charset encoding env log memphis; do \
+		if [ -f ${CDK_PATH}/$$tgt/go.mod ]; then \
 			echo "#\t$$tgt"; \
 			go mod edit -dropreplace=github.com/go-curses/cdk/$$tgt ; \
+		fi; \
 	done
 	@for tgt in `ls ${CDK_PATH}/lib`; do \
-		if [ -d ${CDK_PATH}/lib/$$tgt ]; then \
+		if [ -f ${CDK_PATH}/lib/$$tgt/go.mod ]; then \
 			echo "#\tlib/$$tgt"; \
 			go mod edit -dropreplace=github.com/go-curses/cdk/lib/$$tgt ; \
 		fi; \
