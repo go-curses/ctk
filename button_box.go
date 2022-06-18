@@ -9,6 +9,7 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -17,6 +18,11 @@ const TypeButtonBox cdk.CTypeTag = "ctk-button-box"
 func init() {
 	_ = cdk.TypesManager.AddType(TypeButtonBox, func() interface{} { return MakeButtonBox() })
 }
+
+var (
+	_ Box        = (*CButtonBox)(nil)
+	_ Orientable = (*CButtonBox)(nil)
+)
 
 // ButtonBox Hierarchy:
 //	Object
@@ -370,6 +376,9 @@ func (b *CButtonBox) getSecondary() (box Box) {
 }
 
 func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	b.LockDraw()
+	defer b.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := b.GetAllocation()
 		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -377,15 +386,13 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventF
 			return cenums.EVENT_PASS
 		}
 
-		b.LockDraw()
-		defer b.UnlockDraw()
-
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
 		theme := b.GetThemeRequest()
 		surface.Fill(theme)
+
 		for _, child := range children {
 			if child.widget.IsVisible() {
 				if f := child.widget.Draw(); f == cenums.EVENT_STOP {
@@ -404,6 +411,7 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventF
 				}
 			}
 		}
+
 		if debug && orientation == cenums.ORIENTATION_VERTICAL {
 			surface.DebugBox(paint.ColorPink, b.ObjectInfo())
 		} else if debug {
@@ -411,6 +419,7 @@ func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventF
 		}
 		return cenums.EVENT_STOP
 	}
+
 	return cenums.EVENT_PASS
 }
 
