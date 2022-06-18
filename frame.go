@@ -6,6 +6,7 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -184,14 +185,32 @@ func (f *CFrame) GetLabelWidget() (value Widget) {
 // 	labelWidget	the new label widget
 //
 // Locking: write
-func (f *CFrame) SetLabelWidget(labelWidget Widget) {
+func (f *CFrame) SetLabelWidget(widget Widget) {
 	window := f.GetWindow()
-	if err := f.SetStructProperty(PropertyLabelWidget, labelWidget); err != nil {
+	var previousWidget Widget
+	if found, err := f.GetStructProperty(PropertyLabelWidget); err == nil {
+		if fw, ok := found.(Widget); ok {
+			previousWidget = fw
+		}
+	}
+	if err := f.SetStructProperty(PropertyLabelWidget, widget); err != nil {
 		f.LogErr(err)
 	} else {
-		labelWidget.SetParent(f)
-		labelWidget.SetWindow(window)
-		labelWidget.Show()
+		if previousWidget != nil {
+			f.PopCompositeChild(previousWidget)
+			if err := previousWidget.Disconnect(SignalResize, FrameChildResizeHandle); err != nil {
+				f.LogErr(err)
+			}
+		}
+		f.PushCompositeChild(widget)
+		widget.SetParent(f)
+		widget.SetWindow(window)
+		// widget.Connect(SignalResize, FrameChildResizeHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
+		// 	widget.PassSignal(SignalResize)
+		// 	f.resize(nil)
+		// 	widget.ResumeSignal(SignalResize)
+		// 	return cenums.EVENT_PASS
+		// })
 		f.Invalidate()
 	}
 }
@@ -214,14 +233,12 @@ func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
 			return
 		}
 	}
-	f.RLock()
 	if xAlign, err = f.GetFloatProperty(PropertyLabelXAlign); err != nil {
 		f.LogErr(err)
 	}
 	if yAlign, err = f.GetFloatProperty(PropertyLabelYAlign); err != nil {
 		f.LogErr(err)
 	}
-	f.RUnlock()
 	return
 }
 
@@ -374,8 +391,11 @@ func (f *CFrame) GetSizeRequest() (width, height int) {
 
 func (f *CFrame) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if f.HasPoint(p) && f.IsVisible() {
+		if widget := f.GetLabelWidget(); widget != nil && widget.HasPoint(p) {
+			return widget.GetWidgetAt(p)
+		}
 		if child := f.GetChild(); child != nil {
-			return child
+			return child.GetWidgetAt(p)
 		}
 		return f
 	}
@@ -403,43 +423,65 @@ func (f *CFrame) childGainedFocus(_ []interface{}, _ ...interface{}) cenums.Even
 }
 
 func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	wantStop := false
+	rv := cenums.EVENT_PASS
+
 	origin := f.GetOrigin()
 	theme := f.GetThemeRequest()
-	labelWidget := f.GetLabelWidget()
+	widget := f.GetLabelWidget()
 	child := f.GetChild()
 	f.Lock()
 	defer f.Unlock()
-	if labelChild, ok := labelWidget.Self().(Label); ok && labelChild != nil {
-		local := labelChild.GetOrigin()
+	if label, ok := widget.Self().(Label); ok && label != nil {
+		local := label.GetOrigin()
 		local.SubPoint(origin)
-		alloc := labelChild.GetAllocation()
-		if surface, err := memphis.GetSurface(labelChild.ObjectID()); err != nil {
-			labelChild.LogErr(err)
+		alloc := label.GetAllocation()
+		label.LockDraw()
+		if surface, err := memphis.GetSurface(label.ObjectID()); err != nil {
+			label.LogErr(err)
 		} else {
 			surface.SetOrigin(local)
 			surface.Resize(alloc, theme.Content.Normal)
 			theme.Content.FillRune = rune(0)
 			surface.Fill(theme)
 		}
-		labelChild.SetTheme(theme)
-		labelChild.Invalidate()
-		wantStop = true
+		label.UnlockDraw()
+		// label.SetTheme(theme)
+		label.Invalidate()
+		rv = cenums.EVENT_STOP
+
+	} else if widget != nil {
+		local := widget.GetOrigin()
+		local.SubPoint(origin)
+		alloc := widget.GetAllocation()
+		widget.LockDraw()
+		if surface, err := memphis.GetSurface(widget.ObjectID()); err != nil {
+			widget.LogErr(err)
+		} else {
+			surface.SetOrigin(local)
+			surface.Resize(alloc, theme.Content.Normal)
+			theme.Content.FillRune = rune(0)
+			surface.Fill(theme)
+		}
+		widget.UnlockDraw()
+		// widget.SetTheme(theme)
+		widget.Invalidate()
+		rv = cenums.EVENT_STOP
 	}
+
 	if child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(origin)
 		alloc := child.GetAllocation()
+		child.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
-		wantStop = true
+		child.UnlockDraw()
+		rv = cenums.EVENT_STOP
 		child.Invalidate()
 	}
-	if wantStop {
-		return cenums.EVENT_STOP
-	}
-	return cenums.EVENT_PASS
+
+	return rv
 }
 
 func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -462,6 +504,9 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 		if label != nil {
 			label.SetAllocation(ptypes.MakeRectangle(0, 0))
 			label.Resize()
+		} else if widget != nil {
+			widget.SetAllocation(ptypes.MakeRectangle(0, 0))
+			widget.Resize()
 		}
 		f.Unlock()
 		return cenums.EVENT_PASS
@@ -472,6 +517,7 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 	childAlloc := ptypes.MakeRectangle(alloc.W-2, alloc.H-2)
 	labelOrigin := ptypes.MakePoint2I(origin.X+2, origin.Y)
 	labelAlloc := ptypes.MakeRectangle(alloc.W-4, 1)
+
 	if yAlign <= 0.0 {
 		yAlign = 0.0
 		childAlloc.H -= 1
@@ -484,13 +530,19 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 	} else {
 		yAlign = 0.5
 	}
+
 	if label != nil {
 		label.SetAlignment(xAlign, yAlign)
 		label.SetMaxWidthChars(labelAlloc.W)
 		label.SetOrigin(labelOrigin.X, labelOrigin.Y)
 		label.SetAllocation(labelAlloc)
 		label.Resize()
+	} else if widget != nil {
+		widget.SetOrigin(labelOrigin.X, labelOrigin.Y)
+		widget.SetAllocation(labelAlloc)
+		widget.Resize()
 	}
+
 	if child != nil {
 		child.SetOrigin(childOrigin.X, childOrigin.Y)
 		child.SetAllocation(childAlloc)
@@ -504,6 +556,9 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	f.LockDraw()
+	defer f.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := f.GetAllocation()
 		if !f.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -511,17 +566,11 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 			return cenums.EVENT_PASS
 		}
 
-		f.LockDraw()
-		defer f.UnlockDraw()
-
 		// render the box and border, with widget
 		_, yAlign := f.GetLabelAlign()
 		widget := f.GetLabelWidget()
 		child := f.GetChild()
 		theme := f.GetThemeRequest()
-		if child != nil {
-			theme = child.GetThemeRequest()
-		}
 
 		boxOrigin := ptypes.MakePoint2I(0, 0)
 		boxSize := alloc
@@ -536,6 +585,12 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 			if label, ok := widget.Self().(Label); ok {
 				if rv := label.Draw(); rv == cenums.EVENT_STOP {
 					if err := surface.Composite(label.ObjectID()); err != nil {
+						f.LogError("composite error: %v", err)
+					}
+				}
+			} else {
+				if rv := widget.Draw(); rv == cenums.EVENT_STOP {
+					if err := surface.Composite(widget.ObjectID()); err != nil {
 						f.LogError("composite error: %v", err)
 					}
 				}
@@ -588,6 +643,8 @@ const PropertyShadow cdk.Property = "shadow"
 // Flags: Read / Write
 // Default value: GTK_SHADOW_ETCHED_IN
 const PropertyShadowType cdk.Property = "shadow-type"
+
+const FrameChildResizeHandle = "frame-child-resize-handler"
 
 const FrameChildLostFocusHandle = "frame-child-lost-focus-handler"
 
