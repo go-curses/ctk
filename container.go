@@ -85,6 +85,10 @@ type Container interface {
 	InstallChildProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) error
 	ListChildProperties() (properties []*cdk.CProperty)
 	GetWidgetAt(p *ptypes.Point2I) Widget
+	FindWidgetAt(p *ptypes.Point2I) (found Widget)
+	DrawPause()
+	DrawResume()
+	Destroy()
 }
 
 // The CContainer structure implements the Container interface and is exported
@@ -254,6 +258,7 @@ func (c *CContainer) Add(w Widget) {
 				w.SetWindow(window)
 			}
 		}
+		w.Map()
 		w.Connect(SignalLostFocus, ContainerLostFocusHandle, c.childLostFocus)
 		w.Connect(SignalGainedFocus, ContainerGainedFocusHandle, c.childGainedFocus)
 		w.Connect(SignalShow, ContainerChildShowHandle, c.childShow)
@@ -302,6 +307,7 @@ func (c *CContainer) Remove(w Widget) {
 				_ = w.Disconnect(SignalGainedFocus, ContainerGainedFocusHandle)
 				_ = w.Disconnect(SignalShow, ContainerChildShowHandle)
 				_ = w.Disconnect(SignalHide, ContainerChildHideHandle)
+				w.Unmap()
 				w.SetParent(nil)
 				c.Lock()
 				delete(c.property, w.ObjectID())
@@ -586,7 +592,11 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []Widget, explicitlySet b
 	if c.focusChainSet {
 		return c.focusChain, true
 	}
-	for _, child := range c.children {
+	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
+	allChildren = append(allChildren, c.children...)
+	c.Lock()
+	defer c.Unlock()
+	for _, child := range allChildren {
 		if cc, ok := child.Self().(Container); ok {
 			// the container itself may be more than a Container, if so, add it
 			if cc.CanFocus() && cc.IsVisible() && cc.IsSensitive() {
@@ -600,7 +610,7 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []Widget, explicitlySet b
 				}
 			}
 		} else {
-			if child.CanFocus() && child.IsVisible() && cc.IsSensitive() {
+			if child.CanFocus() && child.IsVisible() && child.IsSensitive() {
 				focusableWidgets = append(focusableWidgets, child)
 			}
 		}
@@ -698,14 +708,21 @@ func (c *CContainer) ListChildProperties() (properties []*cdk.CProperty) {
 // Locking: read
 func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if c.HasPoint(p) && c.IsVisible() {
+		allChildren := append([]Widget{}, c.GetCompositeChildren()...)
 		c.RLock()
-		children := c.children
+		allChildren = append(allChildren, c.children...)
 		c.RUnlock()
-		for _, child := range children {
-			switch ct := child.(type) {
-			case Alignment, Button, Frame, ButtonBox, Scrollbar, ScrolledViewport, Viewport, Window, Box, Container:
-				if w := ct.GetWidgetAt(p); w != nil && w.IsVisible() {
-					return w
+		for _, child := range allChildren {
+			switch childType := child.(type) {
+			case Button:
+				if childType.HasPoint(p) && childType.IsVisible() {
+					return childType
+				}
+			case Alignment, Frame, ButtonBox, Scrollbar, ScrolledViewport, Viewport, Window, Box, Container:
+				if childType.HasPoint(p) && childType.IsVisible() {
+					if w := childType.GetWidgetAt(p); w != nil {
+						return w
+					}
 				}
 			default:
 				if child.HasPoint(p) && child.IsVisible() {
@@ -716,6 +733,78 @@ func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 		return c
 	}
 	return nil
+}
+
+func (c *CContainer) FindWidgetAt(p *ptypes.Point2I) (found Widget) {
+	return c.findWidgetAt(c, p)
+}
+
+func (c *CContainer) findWidgetAt(parent Widget, p *ptypes.Point2I) (found Widget) {
+	if parent.HasPoint(p) && parent.IsVisible() {
+		if cParent, ok := parent.Self().(Container); ok {
+			allChildren := append([]Widget{}, cParent.GetCompositeChildren()...)
+			allChildren = append(allChildren, cParent.GetChildren()...)
+			for _, child := range allChildren {
+				switch childType := child.(type) {
+				case Button:
+					if childType.HasPoint(p) && childType.IsVisible() {
+						return childType
+					}
+				case Alignment, Frame, ButtonBox, ScrolledViewport, Viewport, Window, Box, Container:
+					if grandchild := c.findWidgetAt(childType, p); grandchild != nil && grandchild.IsVisible() {
+						return grandchild
+					}
+				default:
+					if child.HasPoint(p) && child.IsVisible() {
+						return child
+					}
+				}
+			}
+		}
+		found = parent
+	}
+	return
+}
+
+func (c *CContainer) DrawPause() {
+	c.CWidget.DrawPause()
+	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
+	allChildren = append(allChildren, c.GetChildren()...)
+	for _, child := range allChildren {
+		switch childType := child.(type) {
+		case Container:
+			childType.DrawPause()
+		default:
+			child.DrawPause()
+		}
+	}
+}
+
+func (c *CContainer) DrawResume() {
+	c.CWidget.DrawResume()
+	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
+	allChildren = append(allChildren, c.GetChildren()...)
+	for _, child := range allChildren {
+		switch childType := child.(type) {
+		case Container:
+			childType.DrawResume()
+		default:
+			child.DrawResume()
+		}
+	}
+}
+
+func (c *CContainer) Destroy() {
+	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
+	allChildren = append(allChildren, c.GetChildren()...)
+	for _, child := range allChildren {
+		switch childType := child.(type) {
+		case Container:
+			childType.Destroy()
+		default:
+			child.Destroy()
+		}
+	}
 }
 
 func (c *CContainer) childShow(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -766,6 +855,10 @@ const SignalRemove cdk.Signal = "remove"
 // Listener function arguments:
 // 	widget Widget
 const SignalSetFocusChild cdk.Signal = "set-focus-child"
+
+const SignalPushCompositeChild cdk.Signal = "push-composite-child"
+
+const SignalPopCompositeChild cdk.Signal = "pop-composite-child"
 
 const ContainerChildShowHandle = "container-child-show-handler"
 
