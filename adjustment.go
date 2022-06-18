@@ -56,7 +56,7 @@ type CAdjustment struct {
 
 // MakeAdjustment is used by the Buildable system to construct a new Adjustment.
 func MakeAdjustment() Adjustment {
-	return NewAdjustment(0, 0, 0, 0, 0, 0)
+	return NewAdjustment(0, 0, 0, 1, 1, -1)
 }
 
 // NewAdjustment is the constructor for new Adjustment instances.
