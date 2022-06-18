@@ -7,6 +7,7 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -261,6 +262,13 @@ func (s *CScrolledViewport) SetShadowType(t enums.ShadowType) {
 func (s *CScrolledViewport) SetHAdjustment(hAdjustment Adjustment) {
 	if err := s.SetStructProperty(PropertyHAdjustment, hAdjustment); err != nil {
 		s.LogErr(err)
+	} else {
+		if vs := s.GetVScrollbar(); vs != nil {
+			vs.SetScrollAdjustments(hAdjustment, s.GetVAdjustment())
+		}
+		if hs := s.GetHScrollbar(); hs != nil {
+			hs.SetScrollAdjustments(hAdjustment, s.GetVAdjustment())
+		}
 	}
 }
 
@@ -270,6 +278,13 @@ func (s *CScrolledViewport) SetHAdjustment(hAdjustment Adjustment) {
 func (s *CScrolledViewport) SetVAdjustment(vAdjustment Adjustment) {
 	if err := s.SetStructProperty(PropertyVAdjustment, vAdjustment); err != nil {
 		s.LogErr(err)
+	} else {
+		if vs := s.GetVScrollbar(); vs != nil {
+			vs.SetScrollAdjustments(s.GetHAdjustment(), vAdjustment)
+		}
+		if hs := s.GetHScrollbar(); hs != nil {
+			hs.SetScrollAdjustments(s.GetHAdjustment(), vAdjustment)
+		}
 	}
 }
 
@@ -381,6 +396,7 @@ func (s *CScrolledViewport) Add(w Widget) {
 		}
 	}
 	s.CContainer.Add(w)
+	// s.resizeViewport()
 	s.Invalidate()
 }
 
@@ -465,12 +481,28 @@ func (s *CScrolledViewport) internalGetWidgetAt(p *ptypes.Point2I) Widget {
 		}
 		if child := s.GetChild(); child != nil {
 			if child.HasPoint(p) {
-				return child
+				if found := child.GetWidgetAt(p); found != nil {
+					return found
+				}
 			}
 		}
 		return s
 	}
 	return nil
+}
+
+func (s *CScrolledViewport) processEventAtPoint(p *ptypes.Point2I, evt *cdk.EventMouse) cenums.EventFlag {
+	if w := s.internalGetWidgetAt(p); w != nil {
+		if w.ObjectID() != s.ObjectID() {
+			if ws, ok := w.Self().(Sensitive); ok {
+				if f := ws.ProcessEvent(evt); f == cenums.EVENT_STOP {
+					s.Invalidate()
+					return cenums.EVENT_STOP
+				}
+			}
+		}
+	}
+	return cenums.EVENT_PASS
 }
 
 func (s *CScrolledViewport) CancelEvent() {
@@ -499,7 +531,7 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) cenum
 				case cdk.WheelUp:
 					if vs != nil {
 						s.Lock()
-						if f := vs.ForwardStep(); f == cenums.EVENT_STOP {
+						if f := vs.ForwardPage(); f == cenums.EVENT_STOP {
 							s.Unlock()
 							s.Invalidate()
 							s.GrabFocus()
@@ -523,7 +555,7 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) cenum
 				case cdk.WheelDown:
 					if vs != nil {
 						s.Lock()
-						if f := vs.BackwardStep(); f == cenums.EVENT_STOP {
+						if f := vs.BackwardPage(); f == cenums.EVENT_STOP {
 							s.Unlock()
 							s.Invalidate()
 							s.GrabFocus()
@@ -552,34 +584,14 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) cenum
 				return cenums.EVENT_STOP
 			}
 		case *cdk.EventKey:
-			vs := s.GetVScrollbar()
-			hs := s.GetHScrollbar()
-			s.Lock()
-			if vs != nil {
+			if vs := s.GetVScrollbar(); vs != nil {
 				if f := vs.ProcessEvent(evt); f == cenums.EVENT_STOP {
-					s.Unlock()
 					s.Invalidate()
 					return cenums.EVENT_STOP
 				}
 			}
-			if hs != nil {
+			if hs := s.GetHScrollbar(); hs != nil {
 				if f := hs.ProcessEvent(evt); f == cenums.EVENT_STOP {
-					s.Unlock()
-					s.Invalidate()
-					return cenums.EVENT_STOP
-				}
-			}
-			s.Unlock()
-		}
-	}
-	return cenums.EVENT_PASS
-}
-
-func (s *CScrolledViewport) processEventAtPoint(p *ptypes.Point2I, evt *cdk.EventMouse) cenums.EventFlag {
-	if w := s.internalGetWidgetAt(p); w != nil {
-		if w.ObjectID() != s.ObjectID() {
-			if ws, ok := w.Self().(Sensitive); ok {
-				if f := ws.ProcessEvent(evt); f == cenums.EVENT_STOP {
 					s.Invalidate()
 					return cenums.EVENT_STOP
 				}
@@ -611,13 +623,16 @@ func (s *CScrolledViewport) GetRegions() (c, h, v ptypes.Region) {
 }
 
 func (s *CScrolledViewport) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	// s.resizeViewport()
-	// s.resizeScrollbars()
+	s.resizeViewport()
+	s.resizeScrollbars()
 	s.Invalidate()
 	return cenums.EVENT_STOP
 }
 
 func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	s.LockDraw()
+	defer s.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := s.GetAllocation()
 		if !s.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -625,26 +640,26 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums
 			return cenums.EVENT_PASS
 		}
 
-		s.LockDraw()
-		defer s.UnlockDraw()
-
 		child := s.GetChild()
-		origin := s.GetOrigin()
 		vs := s.GetVScrollbar()
 		hs := s.GetHScrollbar()
 		verticalShow := s.VerticalShowByPolicy()
 		horizontalShow := s.HorizontalShowByPolicy()
+
 		theme := s.GetThemeRequest()
 
 		if child != nil {
-			surface.BoxWithTheme(
-				origin,
-				alloc,
-				false,
-				true,
-				child.GetThemeRequest(),
-			)
 			if f := child.Draw(); f == cenums.EVENT_STOP {
+				surface.Box(
+					ptypes.MakePoint2I(0, 0),
+					ptypes.MakeRectangle(alloc.W, alloc.H),
+					false, true,
+					theme.Content.Overlay,
+					theme.Content.FillRune,
+					theme.Content.Normal,
+					theme.Border.Normal,
+					paint.EmptyBorderRune,
+				)
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					s.LogError("child composite error: %v", err)
 				}
@@ -690,6 +705,7 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 	verticalShow := s.VerticalShowByPolicy()
 	state := s.GetState()
 	s.Lock()
+
 	if child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(origin)
@@ -697,26 +713,32 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 		child.SetState(enums.StateNone)
 		child.SetState(state)
 		style := child.GetThemeRequest().Content.Normal
+		child.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, size, style); err != nil {
 			child.LogErr(err)
 		}
+		child.UnlockDraw()
 	}
 	if vs != nil {
 		if verticalShow {
 			local := vs.GetOrigin()
 			local.SubPoint(origin)
+			vs.LockDraw()
 			if err := memphis.MakeConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), theme.Content.Normal); err != nil {
 				vs.LogErr(err)
 			}
+			vs.UnlockDraw()
 		}
 	}
 	if hs != nil {
 		if horizontalShow {
 			local := hs.GetOrigin()
 			local.SubPoint(origin)
+			hs.LockDraw()
 			if err := memphis.MakeConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), theme.Content.Normal); err != nil {
 				hs.LogErr(err)
 			}
+			hs.UnlockDraw()
 		}
 	}
 	s.Unlock()
@@ -736,23 +758,25 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 	if alloc.W == 0 || alloc.H == 0 {
 		if horizontal != nil {
 			ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
-			ah := []int{ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize}
-			bh := []int{0, 0, 0, 0, 0, 0}
+			ah := []int{ohValue, ohLower, ohUpper}
+			bh := []int{0, 0, 0}
 			changed = cmath.EqInts(ah, bh)
-			horizontal.Configure(0, 0, 0, 0, 0, 0)
+			horizontal.Configure(0, 0, 0, ohStepIncrement, ohPageIncrement, ohPageSize)
 		}
 		if vertical != nil {
 			ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize := vertical.Settings()
-			av := []int{ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize}
-			bv := []int{0, 0, 0, 0, 0, 0}
+			av := []int{ovValue, ovLower, ovUpper}
+			bv := []int{0, 0, 0}
 			changed = changed || cmath.EqInts(av, bv)
-			vertical.Configure(0, 0, 0, 0, 0, 0)
+			vertical.Configure(0, 0, 0, ovStepIncrement, ovPageIncrement, ovPageSize)
 		}
 		s.Unlock()
 		return
 	}
-	hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
-	vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
+	// hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
+	// vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
+	hValue, hLower, hUpper := 0, 0, 0
+	vValue, vLower, vUpper := 0, 0, 0
 	if child != nil {
 		size := ptypes.NewRectangle(child.GetSizeRequest())
 		if size.W <= -1 { // auto
@@ -762,7 +786,7 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			size.H = alloc.H
 		}
 		if size.W >= alloc.W {
-			hStepIncrement, hPageIncrement, hPageSize = 1, alloc.W/2, alloc.W
+			// hStepIncrement, hPageIncrement, hPageSize = 1, alloc.W/2, alloc.W
 			if size.W >= alloc.W {
 				overflow := size.W - alloc.W
 				hLower, hUpper = 0, overflow
@@ -779,7 +803,7 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 		region.X = origin.X - hValue
 		region.W = size.W
 		if size.H >= alloc.H {
-			vStepIncrement, vPageIncrement, vPageSize = 1, alloc.H/2, alloc.H
+			// vStepIncrement, vPageIncrement, vPageSize = 1, alloc.H/2, alloc.H
 			if size.H >= alloc.H {
 				overflow := size.H - alloc.H
 				vLower, vUpper = 0, overflow
@@ -798,22 +822,36 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 	}
 	// horizontal
 	if horizontal != nil {
+		// ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
+		// ah := []int{ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize}
+		// bh := []int{hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize}
+		// if !cmath.EqInts(ah, bh) {
+		// 	changed = true
+		// 	horizontal.Configure(hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize)
+		// }
 		ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
-		ah := []int{ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize}
-		bh := []int{hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize}
+		ah := []int{ohValue, ohLower, ohUpper}
+		bh := []int{hValue, hLower, hUpper}
 		if !cmath.EqInts(ah, bh) {
 			changed = true
-			horizontal.Configure(hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize)
+			horizontal.Configure(hValue, hLower, hUpper, ohStepIncrement, ohPageIncrement, ohPageSize)
 		}
 	}
 	// vertical
 	if vertical != nil {
+		// ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize := vertical.Settings()
+		// av := []int{ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize}
+		// bv := []int{vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize}
+		// if !cmath.EqInts(av, bv) {
+		// 	changed = true
+		// 	vertical.Configure(vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize)
+		// }
 		ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize := vertical.Settings()
-		av := []int{ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize}
-		bv := []int{vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize}
+		av := []int{ovValue, ovLower, ovUpper}
+		bv := []int{vValue, vLower, vUpper}
 		if !cmath.EqInts(av, bv) {
 			changed = true
-			vertical.Configure(vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize)
+			vertical.Configure(vValue, vLower, vUpper, ovStepIncrement, ovPageIncrement, ovPageSize)
 		}
 	}
 	s.Unlock()
