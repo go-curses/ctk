@@ -212,7 +212,7 @@ type CWidget struct {
 	eventLock     *sync.Mutex
 	tooltipWindow Window
 	tooltipTimer  uuid.UUID
-	tooltipPoint  ptypes.Point2I
+	// tooltipPoint  ptypes.Point2I
 }
 
 // Init initializes a Widget object. This must be called at least once to
@@ -313,11 +313,11 @@ func (w *CWidget) openTooltip() {
 	settings := GetDefaultSettings()
 	if settings.GetEnableTooltips() {
 		if w.GetHasTooltip() {
-			if display := w.GetDisplay(); display != nil {
-				w.Lock()
-				w.tooltipPoint, _ = display.CursorPosition()
-				w.Unlock()
-			}
+			// if display := w.GetDisplay(); display != nil {
+			// 	w.Lock()
+			// 	w.tooltipPoint, _ = display.CursorPosition()
+			// 	w.Unlock()
+			// }
 			timeout := settings.GetTooltipTimeout()
 			w.Lock()
 			w.tooltipTimer = cdk.AddTimeout(
@@ -336,19 +336,6 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 		tooltipWindow := w.GetTooltipWindow()
 		if screen := display.Screen(); screen != nil {
 			position, _ := display.CursorPosition()
-			if !w.tooltipPoint.EqualsTo(position) && w.HasPoint(&position) {
-				// try again if we're not moving
-				w.Lock()
-				w.tooltipPoint = position
-				w.Unlock()
-				settings := GetDefaultSettings()
-				timeout := settings.GetTooltipTimeout()
-				w.tooltipTimer = cdk.AddTimeout(
-					timeout,
-					w.openTooltipHandler,
-				)
-				return cenums.EVENT_STOP
-			}
 			tw, th := w.tooltipTextBufferInfo()
 			if w.HasPoint(&position) {
 				if tw > -1 && th > -1 {
@@ -392,16 +379,10 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 }
 
 func (w *CWidget) closeTooltip() {
-	w.LogDebug("closing tooltip")
-	w.RLock()
 	if w.tooltipTimer != uuid.Nil {
-		w.RUnlock()
+		w.LogDebug("closing tooltip")
 		cdk.StopTimeout(w.tooltipTimer)
-		w.Lock()
 		w.tooltipTimer = uuid.Nil
-		w.Unlock()
-	} else {
-		w.RUnlock()
 	}
 	if w.tooltipWindow != nil {
 		w.tooltipWindow.Hide()
@@ -479,27 +460,29 @@ func (w *CWidget) tooltipResize(data []interface{}, argv ...interface{}) cenums.
 	alloc := ptypes.MakeRectangle(w.tooltipTextBufferInfo())
 	if tooltipWindow := w.GetTooltipWindow(); tooltipWindow != nil {
 		tooltipWindow.SetAllocation(alloc)
+		tooltipWindow.LockDraw()
 		if surface, err := memphis.GetSurface(tooltipWindow.ObjectID()); err != nil {
 			w.LogErr(err)
 		} else {
 			surface.Resize(alloc, tooltipWindow.GetThemeRequest().Content.Normal)
 		}
+		tooltipWindow.UnlockDraw()
 	}
 	return cenums.EVENT_STOP
 }
 
 func (w *CWidget) tooltipDraw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		size := surface.GetSize()
-		if !w.IsVisible() || size.W == 0 || size.H == 0 {
-			w.LogDebug("not visible, zero width or zero height")
-			return cenums.EVENT_STOP
-		}
+	if tooltipWindow := w.GetTooltipWindow(); tooltipWindow != nil {
+		tooltipWindow.LockDraw()
+		defer tooltipWindow.UnlockDraw()
 
-		w.LockDraw()
-		defer w.UnlockDraw()
+		if surface, ok := argv[1].(*memphis.CSurface); ok {
+			size := surface.GetSize()
+			if !w.IsVisible() || size.W == 0 || size.H == 0 {
+				w.LogDebug("not visible, zero width or zero height")
+				return cenums.EVENT_STOP
+			}
 
-		if tooltipWindow := w.GetTooltipWindow(); tooltipWindow != nil {
 			theme := tooltipWindow.GetThemeRequest()
 			style := theme.Content.Normal
 
@@ -545,6 +528,10 @@ func (w *CWidget) tooltipDraw(data []interface{}, argv ...interface{}) cenums.Ev
 func (w *CWidget) Destroy() {
 	w.DisconnectAll()
 	w.Hide()
+	w.closeTooltip()
+	if w.tooltipWindow != nil {
+		w.tooltipWindow.Destroy()
+	}
 	if err := w.DestroyObject(); err != nil {
 		w.LogErr(err)
 	}
@@ -622,6 +609,7 @@ func (w *CWidget) Hide() {
 			w.UnsetFlags(enums.VISIBLE)
 			if r := w.Emit(SignalHide, w); r == cenums.EVENT_PASS {
 				w.Invalidate()
+				w.closeTooltip()
 			}
 		}
 	}
@@ -841,6 +829,7 @@ func (w *CWidget) GrabDefault() {}
 // Emits: SignalSetSensitive, Argv=[Widget instance, given sensitive bool]
 func (w *CWidget) SetSensitive(sensitive bool) {
 	if f := w.Emit(SignalSetSensitive, w, sensitive); f == cenums.EVENT_PASS {
+		w.closeTooltip()
 		if !sensitive {
 			w.SetState(enums.StateInsensitive)
 		} else {
@@ -901,6 +890,7 @@ func (w *CWidget) CssState() (state enums.StateType) {
 // 	parent	parent container
 func (w *CWidget) SetParent(parent Container) {
 	if f := w.Emit(SignalSetParent, w, w.parent, parent); f == cenums.EVENT_PASS {
+		w.closeTooltip()
 		if w.HasFlags(enums.PARENT_SENSITIVE) && w.parent != nil {
 			_ = parent.Disconnect(SignalLostFocus, WidgetLostFocusHandle)
 			_ = parent.Disconnect(SignalGainedFocus, WidgetGainedFocusHandle)
@@ -1663,6 +1653,7 @@ func (w *CWidget) SetTooltipText(text string) {
 	if err := w.SetStringProperty(PropertyTooltipText, text); err != nil {
 		w.LogErr(err)
 	}
+	w.SetHasTooltip(len(text) > 0)
 }
 
 // Returns the Window of the current tooltip. This can be the Window
@@ -2372,7 +2363,7 @@ func (w *CWidget) GetTopParent() (parent Container) {
 // instance types or nil otherwise
 func (w *CWidget) GetWidgetAt(p *ptypes.Point2I) Widget {
 	if o := w.CObject.GetObjectAt(p); o != nil {
-		if ow, ok := o.(Widget); ok && ow.IsVisible() {
+		if ow, ok := o.Self().(Widget); ok && ow.IsVisible() {
 			return ow
 		}
 	}
@@ -2408,7 +2399,9 @@ func (w *CWidget) enter(_ []interface{}, argv ...interface{}) cenums.EventFlag {
 		if !w.HasState(enums.StatePrelight) {
 			w.LogDebug("mouse enter")
 			w.SetState(enums.StatePrelight)
-			w.openTooltip()
+			if w.GetHasTooltip() {
+				w.openTooltip()
+			}
 			return cenums.EVENT_STOP
 		}
 	}
