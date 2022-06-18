@@ -48,6 +48,7 @@ type ButtonBox interface {
 	GetChildSecondary(w Widget) (isSecondary bool)
 	SetChildSecondary(child Widget, isSecondary bool)
 	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType)
+	SetSpacing(spacing int)
 }
 
 // The CButtonBox structure implements the ButtonBox interface and is exported
@@ -332,6 +333,12 @@ func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, paddi
 	} else {
 		b.LogError("%v is not a child of %v", child, b)
 	}
+}
+
+func (b *CButtonBox) SetSpacing(spacing int) {
+	b.CBox.SetSpacing(spacing)
+	b.getPrimary().SetSpacing(spacing)
+	b.getSecondary().SetSpacing(spacing)
 }
 
 func (b *CButtonBox) getPrimary() (box Box) {
