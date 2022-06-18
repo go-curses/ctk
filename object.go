@@ -22,6 +22,7 @@ import (
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -130,11 +131,7 @@ func (o *CObject) Build(builder Builder, element *CBuilderElement) error {
 // instance with its type, unique identifier, name if set (see SetName()), the
 // origin point and current size allocation.
 func (o *CObject) ObjectInfo() string {
-	o.RLock()
-	origin := o.origin
-	o.RUnlock()
-	info := fmt.Sprintf("%v(%v,%v)", o.ObjectName(), origin, o.GetAllocation())
-	return info
+	return fmt.Sprintf("%v(%v,%v)", o.ObjectName(), o.origin, o.allocation)
 }
 
 // SetOrigin updates the origin of this instance in display space. This method
@@ -152,9 +149,9 @@ func (o *CObject) SetOrigin(x, y int) {
 
 // GetOrigin returns the current origin point of the Object instance
 func (o *CObject) GetOrigin() (origin ptypes.Point2I) {
-	o.RLock()
+	// o.RLock()
 	origin = o.origin.Clone()
-	o.RUnlock()
+	// o.RUnlock()
 	return
 }
 
@@ -174,8 +171,8 @@ func (o *CObject) SetAllocation(size ptypes.Rectangle) {
 
 // GetRegion returns the current origin and allocation in a Region type.
 func (o *CObject) GetRegion() (region ptypes.Region) {
-	origin := o.GetOrigin()
-	alloc := o.GetAllocation()
+	origin := o.origin.Clone()
+	alloc := o.allocation.Clone()
 	region = ptypes.MakeRegion(origin.X, origin.Y, alloc.W, alloc.H)
 	return
 }
@@ -191,9 +188,9 @@ func (o *CObject) SetRegion(region ptypes.Region) {
 
 // GetAllocation returns the current allocation size of the Object instance.
 func (o *CObject) GetAllocation() (alloc ptypes.Rectangle) {
-	o.RLock()
+	// o.RLock()
 	alloc = o.allocation.Clone()
-	o.RUnlock()
+	// o.RUnlock()
 	return
 }
 
