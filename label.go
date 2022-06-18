@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
@@ -11,7 +13,6 @@ import (
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
 	"github.com/go-curses/ctk/lib/enums"
-	"github.com/gofrs/uuid"
 )
 
 const TypeLabel cdk.CTypeTag = "ctk-label"
@@ -870,15 +871,7 @@ func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
 	}
 	_, lineWrapMode, ellipsize, justify, _ := l.Settings()
 	l.RLock()
-	content := l.tbuffer.PlainText(lineWrapMode, ellipsize, justify, width)
-	lines := strings.Split(content, "\n")
-	lineCount = len(lines)
-	for _, line := range lines {
-		size := len(line)
-		if size > maxWidth {
-			maxWidth = size
-		}
-	}
+	maxWidth, lineCount = l.tbuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, width)
 	l.RUnlock()
 	return
 }
@@ -910,10 +903,10 @@ func (l *CLabel) GetSizeRequest() (width, height int) {
 	}
 	// add padding
 	xPadding, yPadding := l.GetPadding()
-	l.RLock()
+	// l.RLock()
 	size.W += xPadding * 2
 	size.H += yPadding * 2
-	l.RUnlock()
+	// l.RUnlock()
 	return size.W, size.H
 }
 
@@ -1055,15 +1048,15 @@ func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 }
 
 func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	l.LockDraw()
+	defer l.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := l.GetAllocation()
 		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			l.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
-
-		l.LockDraw()
-		defer l.UnlockDraw()
 
 		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
 
