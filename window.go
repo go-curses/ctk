@@ -349,6 +349,7 @@ func (w *CWindow) ShowAll() {
 func (w *CWindow) Hide() {
 	w.CBin.Hide()
 	if display := w.GetDisplay(); display != nil {
+		// w.Unmap()
 		display.UnmapWindow(w)
 	}
 }
@@ -1653,20 +1654,21 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		case *cdk.EventMouse:
 			// need to track enter/leave widget states
 			if f := w.Emit(SignalEventMouse, w, e); f == cenums.EVENT_PASS {
-				if mw := w.GetWidgetAt(ptypes.NewPoint2I(e.Position())); mw != nil {
+				mousePosition := ptypes.NewPoint2I(e.Position())
+				if fw := w.FindWidgetAt(mousePosition); fw != nil {
 					if w.hoverFocus != nil {
-						if w.hoverFocus.ObjectID() != mw.ObjectID() {
+						if w.hoverFocus.ObjectID() != fw.ObjectID() {
 							var wantRefresh bool
 							if f := w.hoverFocus.Emit(SignalLeave, e); f == cenums.EVENT_STOP {
 								wantRefresh = true
 								w.hoverFocus.Invalidate()
 							}
-							if f := mw.Emit(SignalEnter, e); f == cenums.EVENT_STOP {
+							if f := fw.Emit(SignalEnter, e); f == cenums.EVENT_STOP {
 								wantRefresh = true
-								mw.Invalidate()
+								fw.Invalidate()
 							}
 							w.Lock()
-							w.hoverFocus = mw
+							w.hoverFocus = fw
 							w.Unlock()
 							if wantRefresh {
 								if d := w.GetDisplay(); d != nil {
@@ -1677,9 +1679,11 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 						}
 					} else {
 						w.Lock()
-						w.hoverFocus = mw
+						w.hoverFocus = fw
 						w.Unlock()
 					}
+				}
+				if mw := w.GetWidgetAt(mousePosition); mw != nil {
 					if ms, ok := mw.Self().(Sensitive); ok {
 						if ms.IsSensitive() && ms.IsVisible() {
 							return ms.ProcessEvent(e)
@@ -1690,13 +1694,6 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		case *cdk.EventResize:
 			alloc := ptypes.MakeRectangle(e.Size())
 			origin := ptypes.MakePoint2I(0, 0)
-			if w.GetWindowType() != cenums.WINDOW_POPUP {
-				w.SetAllocation(alloc)
-				w.SetOrigin(origin.X, origin.Y)
-				if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
-					w.LogErr(err)
-				}
-			}
 			if f := w.Emit(SignalResize, w, e, origin, alloc); f == cenums.EVENT_PASS {
 				w.LogDebug("ProcessEvent(EventResize): (%v) %v", alloc, e)
 				return w.Resize()
@@ -1711,51 +1708,82 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	origin := w.GetOrigin()
 	alloc := w.GetAllocation()
+	w.LockDraw()
 	if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
 		w.LogErr(err)
 	}
+	w.UnlockDraw()
 	if child := w.GetChild(); child != nil {
 		childOrigin := child.GetOrigin()
-		childOrigin.SubPoint(w.GetOrigin())
+		// childOrigin.SubPoint(w.GetOrigin())
 		childAlloc := child.GetAllocation()
+		child.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, childAlloc, child.GetThemeRequest().Content.Normal); err != nil {
 			child.LogErr(err)
 		}
+		child.UnlockDraw()
 	}
 	return cenums.EVENT_PASS
 }
 
 func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	size := w.GetAllocation()
-	if child := w.GetChild(); child != nil {
-		if size.W < 1 && size.H < 1 {
-			size.Set(0, 0)
-		} else if size.W >= 3 && size.H >= 3 {
-			child.SetOrigin(1, 1)
-			size.Sub(2, 2) // borders
+	if len(argv) >= 4 {
+		if e, ok := argv[1].(*cdk.EventResize); ok {
+			origin := w.GetOrigin()
+			if eOrigin, ok := argv[2].(ptypes.Point2I); ok {
+				origin = eOrigin
+			}
+			alloc := w.GetAllocation()
+			if eAlloc, ok := argv[3].(ptypes.Rectangle); ok {
+				alloc = eAlloc
+			}
+
+			if w.GetWindowType() != cenums.WINDOW_POPUP {
+				w.SetAllocation(alloc)
+				w.SetOrigin(origin.X, origin.Y)
+				// w.LockDraw()
+				// if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
+				// 	w.LogErr(err)
+				// }
+				// w.UnlockDraw()
+				w.LogDebug("resized window: origin=%v, alloc=%v", origin, alloc)
+			}
+
+			size := ptypes.MakeRectangle(e.Size())
+			if child := w.GetChild(); child != nil {
+				if size.W < 1 && size.H < 1 {
+					size.Set(0, 0)
+				} else if size.W >= 3 && size.H >= 3 {
+					size.Sub(2, 2) // borders
+				}
+				child.SetOrigin(1, 1)
+				child.SetAllocation(size)
+				// childOrigin := child.GetOrigin()
+				// childOrigin.SubPoint(origin)
+				// child.LockDraw()
+				// if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
+				// 	child.LogErr(err)
+				// }
+				// child.UnlockDraw()
+				child.Resize()
+			}
+			w.Invalidate()
+			return cenums.EVENT_STOP
 		}
-		child.SetAllocation(size)
-		childOrigin := child.GetOrigin()
-		childOrigin.SubPoint(w.GetOrigin())
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
-			child.LogErr(err)
-		}
-		child.Resize()
 	}
-	w.Invalidate()
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	w.LockDraw()
+	defer w.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := surface.GetSize()
 		if !w.IsVisible() || size.W == 0 || size.H == 0 {
 			w.LogDebug("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
-
-		w.LockDraw()
-		defer w.UnlockDraw()
 
 		title := w.GetTitle()
 		theme := w.GetThemeRequest()
@@ -1769,9 +1797,11 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 
 		if child != nil && child.IsVisible() {
 			if f := child.Draw(); f == cenums.EVENT_STOP {
+				child.LockDraw()
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					w.LogError("composite error: %v", err)
 				}
+				child.UnlockDraw()
 			}
 		}
 
@@ -1780,6 +1810,7 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		}
 		return cenums.EVENT_STOP
 	}
+
 	return cenums.EVENT_PASS
 }
 
