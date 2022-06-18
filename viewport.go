@@ -186,9 +186,11 @@ func (v *CViewport) invalidate(data []interface{}, argv ...interface{}) cenums.E
 	if child := v.GetChild(); child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(v.GetOrigin())
+		v.LockDraw()
 		if err := memphis.MakeConfigureSurface(v.ObjectID(), local, child.GetAllocation(), child.GetThemeRequest().Content.Normal); err != nil {
 			v.LogErr(err)
 		}
+		v.UnlockDraw()
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
@@ -276,15 +278,15 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.Event
 }
 
 func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	v.LockDraw()
+	defer v.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := v.GetAllocation()
 		if !v.IsVisible() || size.W <= 0 || size.H <= 0 {
 			v.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
-
-		v.LockDraw()
-		defer v.UnlockDraw()
 
 		if child := v.GetChild(); child != nil {
 			if f := child.Draw(); f == cenums.EVENT_STOP {
