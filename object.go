@@ -201,6 +201,11 @@ func (o *CObject) GetAllocation() (alloc ptypes.Rectangle) {
 // it returns `nil`.
 func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 	if o.HasPoint(p) {
+		if oc, ok := o.Self().(Container); ok /*&& !oc.HasFlags(enums.COMPOSITE_PARENT)*/ {
+			if found := oc.GetWidgetAt(p); found != nil {
+				return found
+			}
+		}
 		return o
 	}
 	return nil
@@ -209,17 +214,14 @@ func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 // HasPoint determines whether the given point is within the Object's display
 // space bounds.
 func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
-	origin := o.GetOrigin()
-	size := o.GetAllocation()
 	o.RLock()
-	if p.X >= origin.X && p.X < (origin.X+size.W) {
-		if p.Y >= origin.Y && p.Y < (origin.Y+size.H) {
-			o.RUnlock()
-			return true
-		}
-	}
+	origin := o.origin.Clone()
+	size := o.allocation.Clone()
 	o.RUnlock()
-	return false
+	if p.X >= origin.X && p.X < (origin.X+size.W) {
+		contains = p.Y >= origin.Y && p.Y < (origin.Y+size.H)
+	}
+	return
 }
 
 // Invalidate emits an invalidate signal, primarily used in other CTK types
