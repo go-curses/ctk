@@ -5,10 +5,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/go-curses/cdk"
 	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/log"
-	"github.com/gofrs/uuid"
 )
 
 const TypeAccelMap cdk.CTypeTag = "ctk-accel-map"
@@ -173,7 +174,7 @@ func (a *CAccelMap) Load(fileName string) {
 
 }
 
-var rxAccelMapLineParser = regexp.MustCompile(`^\s*<([^>]+?)>/((?:[A-Z][- a-zA-Z0-9]+?[a-zA-Z-0-9]|/)+)\s*=\s*(.+?)\s*$`)
+var rxAccelMapLineParser = regexp.MustCompile(`^\s*<([^>]+?)>/((?:[A-Z][- a-zA-Z\d]+?[a-zA-Z-\d]|/)+)\s*=\s*(.+?)\s*$`)
 
 func (a *CAccelMap) LoadFromString(accelMap string) {
 	parsed := make(map[string]string)
