@@ -4,8 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-curses/cdk/lib/sync"
 	"github.com/gofrs/uuid"
+
+	"github.com/go-curses/cdk/lib/sync"
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
@@ -17,11 +18,11 @@ import (
 	"github.com/go-curses/ctk/lib/enums"
 )
 
-const TypeTextField cdk.CTypeTag = "ctk-text-field"
+const TypeEntry cdk.CTypeTag = "ctk-entry"
 
 func init() {
-	_ = cdk.TypesManager.AddType(TypeTextField, func() interface{} { return MakeLabel() })
-	ctkBuilderTranslators[TypeTextField] = func(builder Builder, widget Widget, name, value string) error {
+	_ = cdk.TypesManager.AddType(TypeEntry, func() interface{} { return MakeEntry() })
+	ctkBuilderTranslators[TypeEntry] = func(builder Builder, widget Widget, name, value string) error {
 		switch strings.ToLower(name) {
 		case "wrap":
 			isTrue := cstrings.IsTrue(value)
@@ -46,18 +47,18 @@ func init() {
 }
 
 var (
-	_ Editable  = (*CTextField)(nil)
-	_ TextField = (*CTextField)(nil)
+	_ Editable  = (*CEntry)(nil)
+	_ TextField = (*CEntry)(nil)
 )
 
 var (
 	DefaultTextFieldTheme = paint.Theme{
 		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(false),
+			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(true).Bold(false),
 			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true),
 			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true).Reverse(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false),
+			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(false),
+			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(false),
 			FillRune:    paint.DefaultFillRune,
 			BorderRunes: paint.DefaultBorderRune,
 			ArrowRunes:  paint.DefaultArrowRune,
@@ -128,10 +129,8 @@ type cTextFieldChange struct {
 // to facilitate type embedding with custom implementations. No member variables
 // are exported as the interface methods are the only intended means of
 // interacting with TextField objects.
-type CTextField struct {
+type CEntry struct {
 	CMisc
-
-	text string
 
 	tid     uuid.UUID
 	tRegion ptypes.Region
@@ -144,18 +143,19 @@ type CTextField struct {
 	qLock     *sync.RWMutex
 	qTimer    uuid.UUID
 
-	tbuffer memphis.TextBuffer
-	tbStyle paint.Style
+	tProfile *memphis.TextProfile
+	tBuffer  memphis.TextBuffer
+	tbStyle  paint.Style
 }
 
-// MakeTextField is used by the Buildable system to construct a new TextField.
-func MakeTextField() TextField {
+// MakeEntry is used by the Buildable system to construct a new TextField.
+func MakeEntry() TextField {
 	return NewTextField("")
 }
 
 // NewTextField is the constructor for new TextField instances.
 func NewTextField(plain string) TextField {
-	l := new(CTextField)
+	l := new(CEntry)
 	l.Init()
 	l.SetText(plain)
 	return l
@@ -167,8 +167,8 @@ func NewTextField(plain string) TextField {
 // result in any effect upon the TextField instance. Init is used in the
 // NewTextField constructor and only necessary when implementing a derivative
 // TextField type.
-func (l *CTextField) Init() (already bool) {
-	if l.InitTypeItem(TypeTextField, l) {
+func (l *CEntry) Init() (already bool) {
+	if l.InitTypeItem(TypeEntry, l) {
 		return true
 	}
 	l.CMisc.Init()
@@ -176,14 +176,14 @@ func (l *CTextField) Init() (already bool) {
 	l.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.APP_PAINTABLE | enums.CAN_FOCUS)
 	l.SetTheme(DefaultTextFieldTheme)
 	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
-	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_LEFT)
+	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_NONE)
 	_ = l.InstallProperty(PropertyText, cdk.StringProperty, true, "")
 	_ = l.InstallProperty(PropertyMaxWidthChars, cdk.IntProperty, true, -1)
 	_ = l.InstallProperty(PropertySelectable, cdk.BoolProperty, true, false)
 	_ = l.InstallProperty(PropertySingleLineMode, cdk.BoolProperty, true, false)
 	_ = l.InstallProperty(PropertyWidthChars, cdk.IntProperty, true, -1)
 	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
-	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_WORD)
+	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_NONE)
 	_ = l.InstallProperty(PropertyEditable, cdk.BoolProperty, true, true)
 	l.selection = nil
 	l.position = 0
@@ -192,8 +192,8 @@ func (l *CTextField) Init() (already bool) {
 	l.qTimer = uuid.Nil
 	l.offset = ptypes.NewRegion(0, 0, 0, 0)
 	l.cursor = ptypes.NewPoint2I(0, 0)
-	l.text = ""
-	l.tbuffer = nil
+	l.tProfile = memphis.NewTextProfile("")
+	l.tBuffer = nil
 	l.tid, _ = uuid.NewV4()
 	l.tRegion = ptypes.MakeRegion(0, 0, 0, 0)
 	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
@@ -211,7 +211,7 @@ func (l *CTextField) Init() (already bool) {
 }
 
 // Build provides customizations to the Buildable system for TextField Widgets.
-func (l *CTextField) Build(builder Builder, element *CBuilderElement) error {
+func (l *CEntry) Build(builder Builder, element *CBuilderElement) error {
 	l.Freeze()
 	defer l.Thaw()
 	if name, ok := element.Attributes["id"]; ok {
@@ -237,16 +237,17 @@ func (l *CTextField) Build(builder Builder, element *CBuilderElement) error {
 // 	text	the text you want to set
 //
 // Locking: write
-func (l *CTextField) SetText(text string) {
+func (l *CEntry) SetText(text string) {
 	l.setText(text)
 	l.Invalidate()
+	l.updateCursor()
 }
 
-func (l *CTextField) setText(text string) {
+func (l *CEntry) setText(text string) {
 	l.Lock()
-	l.text = text
+	l.tProfile.Set(text)
 	l.Unlock()
-	if err := l.SetStringProperty(PropertyText, text); err != nil {
+	if err := l.SetStringProperty(PropertyText, l.tProfile.Get()); err != nil {
 		l.LogErr(err)
 	}
 }
@@ -257,7 +258,7 @@ func (l *CTextField) setText(text string) {
 // 	attrs	a paint.Style
 //
 // Locking: write
-func (l *CTextField) SetAttributes(attrs paint.Style) {
+func (l *CEntry) SetAttributes(attrs paint.Style) {
 	if err := l.SetStructProperty(PropertyAttributes, attrs); err != nil {
 		l.LogErr(err)
 	}
@@ -274,7 +275,7 @@ func (l *CTextField) SetAttributes(attrs paint.Style) {
 // 	jtype	a Justification
 //
 // Locking: write
-func (l *CTextField) SetJustify(justify cenums.Justification) {
+func (l *CEntry) SetJustify(justify cenums.Justification) {
 	if err := l.SetStructProperty(PropertyJustify, justify); err != nil {
 		l.LogErr(err)
 	}
@@ -286,7 +287,7 @@ func (l *CTextField) SetJustify(justify cenums.Justification) {
 // 	nChars	the new desired width, in characters.
 //
 // Locking: write
-func (l *CTextField) SetWidthChars(nChars int) {
+func (l *CEntry) SetWidthChars(nChars int) {
 	if err := l.SetIntProperty(PropertyWidthChars, nChars); err != nil {
 		l.LogErr(err)
 	}
@@ -299,7 +300,7 @@ func (l *CTextField) SetWidthChars(nChars int) {
 // 	nChars	the new desired maximum width, in characters.
 //
 // Locking: write
-func (l *CTextField) SetMaxWidthChars(nChars int) {
+func (l *CEntry) SetMaxWidthChars(nChars int) {
 	if err := l.SetIntProperty(PropertyMaxWidthChars, nChars); err != nil {
 		l.LogErr(err)
 	}
@@ -317,7 +318,7 @@ func (l *CTextField) SetMaxWidthChars(nChars int) {
 // 	wrap	the setting
 //
 // Locking: write
-func (l *CTextField) SetLineWrap(wrap bool) {
+func (l *CEntry) SetLineWrap(wrap bool) {
 	if err := l.SetBoolProperty(PropertyWrap, wrap); err != nil {
 		l.LogErr(err)
 	}
@@ -331,7 +332,7 @@ func (l *CTextField) SetLineWrap(wrap bool) {
 // 	wrapMode	the line wrapping mode
 //
 // Locking: write
-func (l *CTextField) SetLineWrapMode(wrapMode cenums.WrapMode) {
+func (l *CEntry) SetLineWrapMode(wrapMode cenums.WrapMode) {
 	if err := l.SetStructProperty(PropertyWrapMode, wrapMode); err != nil {
 		l.LogErr(err)
 	}
@@ -340,7 +341,7 @@ func (l *CTextField) SetLineWrapMode(wrapMode cenums.WrapMode) {
 // GetSelectable returns the value set by SetSelectable.
 //
 // Locking: read
-func (l *CTextField) GetSelectable() (value bool) {
+func (l *CEntry) GetSelectable() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertySelectable); err != nil {
 		l.LogErr(err)
@@ -354,8 +355,8 @@ func (l *CTextField) GetSelectable() (value bool) {
 // See: GetLabel
 //
 // Locking: read
-func (l *CTextField) GetText() (value string) {
-	return l.text
+func (l *CEntry) GetText() (value string) {
+	return l.tProfile.Get()
 }
 
 // SelectRegion selects a range of characters in the label, if the label is
@@ -368,7 +369,7 @@ func (l *CTextField) GetText() (value string) {
 // 	startOffset	start offset (in characters not bytes)
 // 	endOffset	end offset (in characters not bytes)
 //
-func (l *CTextField) SelectRegion(startOffset int, endOffset int) {
+func (l *CEntry) SelectRegion(startOffset int, endOffset int) {
 	if l.GetSelectable() {
 		l.selection = ptypes.NewPoint2I(startOffset, endOffset)
 	}
@@ -383,7 +384,7 @@ func (l *CTextField) SelectRegion(startOffset int, endOffset int) {
 // Note that usage of this within CTK is unimplemented at this time
 //
 // Locking: write
-func (l *CTextField) SetSelectable(setting bool) {
+func (l *CEntry) SetSelectable(setting bool) {
 	if err := l.SetBoolProperty(PropertySelectable, setting); err != nil {
 		l.LogErr(err)
 	}
@@ -394,7 +395,7 @@ func (l *CTextField) SetSelectable(setting bool) {
 // from the TextField markup (see SetMarkup).
 //
 // Locking: read
-func (l *CTextField) GetAttributes() (value paint.Style) {
+func (l *CEntry) GetAttributes() (value paint.Style) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyAttributes); err != nil {
 		l.LogErr(err)
@@ -408,7 +409,7 @@ func (l *CTextField) GetAttributes() (value paint.Style) {
 // See: SetJustify()
 //
 // Locking: read
-func (l *CTextField) GetJustify() (value cenums.Justification) {
+func (l *CEntry) GetJustify() (value cenums.Justification) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyJustify); err != nil {
 		l.LogErr(err)
@@ -422,7 +423,7 @@ func (l *CTextField) GetJustify() (value cenums.Justification) {
 // See: SetWidthChars()
 //
 // Locking: read
-func (l *CTextField) GetWidthChars() (value int) {
+func (l *CEntry) GetWidthChars() (value int) {
 	var err error
 	if value, err = l.GetIntProperty(PropertyWidthChars); err != nil {
 		l.LogErr(err)
@@ -434,7 +435,7 @@ func (l *CTextField) GetWidthChars() (value int) {
 // See: SetWidthChars()
 //
 // Locking: read
-func (l *CTextField) GetMaxWidthChars() (value int) {
+func (l *CEntry) GetMaxWidthChars() (value int) {
 	var err error
 	if value, err = l.GetIntProperty(PropertyMaxWidthChars); err != nil {
 		l.LogErr(err)
@@ -446,7 +447,7 @@ func (l *CTextField) GetMaxWidthChars() (value int) {
 // See: SetLineWrap()
 //
 // Locking: read
-func (l *CTextField) GetLineWrap() (value bool) {
+func (l *CEntry) GetLineWrap() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyWrap); err != nil {
 		l.LogErr(err)
@@ -458,7 +459,7 @@ func (l *CTextField) GetLineWrap() (value bool) {
 // See: SetLineWrapMode()
 //
 // Locking: read
-func (l *CTextField) GetLineWrapMode() (value cenums.WrapMode) {
+func (l *CEntry) GetLineWrapMode() (value cenums.WrapMode) {
 	var ok bool
 	if v, err := l.GetStructProperty(PropertyWrapMode); err != nil {
 		l.LogErr(err)
@@ -471,7 +472,7 @@ func (l *CTextField) GetLineWrapMode() (value cenums.WrapMode) {
 // GetSingleLineMode returns whether the label is in single line mode.
 //
 // Locking: read
-func (l *CTextField) GetSingleLineMode() (value bool) {
+func (l *CEntry) GetSingleLineMode() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertySingleLineMode); err != nil {
 		l.LogErr(err)
@@ -485,7 +486,7 @@ func (l *CTextField) GetSingleLineMode() (value bool) {
 // 	singleLineMode	TRUE if the label should be in single line mode
 //
 // Locking: write
-func (l *CTextField) SetSingleLineMode(singleLineMode bool) {
+func (l *CEntry) SetSingleLineMode(singleLineMode bool) {
 	if err := l.SetBoolProperty(PropertySingleLineMode, singleLineMode); err != nil {
 		l.LogErr(err)
 	} else {
@@ -497,7 +498,7 @@ func (l *CTextField) SetSingleLineMode(singleLineMode bool) {
 // configured on the TextField instance.
 //
 // Locking: read
-func (l *CTextField) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, justify cenums.Justification, maxWidthChars int) {
+func (l *CEntry) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, justify cenums.Justification, maxWidthChars int) {
 	singleLineMode = l.GetSingleLineMode()
 	lineWrapMode = l.GetLineWrapMode()
 	justify = l.GetJustify()
@@ -505,7 +506,7 @@ func (l *CTextField) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMo
 	return
 }
 
-func (l *CTextField) GetSelectionBounds() (startPos, endPos int, ok bool) {
+func (l *CEntry) GetSelectionBounds() (startPos, endPos int, ok bool) {
 	if l.selection != nil {
 		startPos = l.selection.X
 		endPos = l.selection.Y
@@ -514,46 +515,35 @@ func (l *CTextField) GetSelectionBounds() (startPos, endPos int, ok bool) {
 	return
 }
 
-func (l *CTextField) InsertText(newText string, position int) {
+func (l *CEntry) InsertText(newText string, position int) {
 	l.insertText(newText, position)
 	l.Invalidate()
 	l.updateCursor()
 }
 
-func (l *CTextField) insertText(newText string, position int) {
-	content := l.GetText()
-	contentLength := len(content)
-	var modified string
-	if position >= contentLength {
-		modified = content + newText
-	} else {
-		modified = content[:position] + newText + content[position:]
+func (l *CEntry) insertText(newText string, position int) {
+	if modified, ok := l.tProfile.Insert(newText, position); ok {
+		if err := l.SetStringProperty(PropertyText, modified); err != nil {
+			l.LogErr(err)
+		}
 	}
-	l.setText(modified)
 }
 
-func (l *CTextField) DeleteText(startPos int, endPos int) {
+func (l *CEntry) DeleteText(startPos int, endPos int) {
 	l.deleteText(startPos, endPos)
 	l.Invalidate()
 	l.updateCursor()
 }
 
-func (l *CTextField) deleteText(startPos int, endPos int) {
-	content := l.GetText()
-	contentLength := len(content)
-	if startPos >= contentLength {
-		return
+func (l *CEntry) deleteText(startPos int, endPos int) {
+	if modified, ok := l.tProfile.Delete(startPos, endPos); ok {
+		if err := l.SetStringProperty(PropertyText, modified); err != nil {
+			l.LogErr(err)
+		}
 	}
-	var modified string
-	if endPos >= contentLength {
-		modified = content[:startPos]
-	} else {
-		modified = content[:startPos] + content[endPos+1:]
-	}
-	l.setText(modified)
 }
 
-func (l *CTextField) GetChars(startPos int, endPos int) (value string) {
+func (l *CEntry) GetChars(startPos int, endPos int) (value string) {
 	content := l.GetText()
 	contentLength := len(content)
 	if startPos >= contentLength {
@@ -566,56 +556,55 @@ func (l *CTextField) GetChars(startPos int, endPos int) (value string) {
 	return
 }
 
-func (l *CTextField) CutClipboard() {
+func (l *CEntry) CutClipboard() {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (l *CTextField) CopyClipboard() {
+func (l *CEntry) CopyClipboard() {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (l *CTextField) PasteClipboard() {
+func (l *CEntry) PasteClipboard() {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (l *CTextField) DeleteSelection() {
+func (l *CEntry) DeleteSelection() {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (l *CTextField) setPosition(position int) {
-	l.Lock()
-	max := len(l.text)
-	if position < max {
-		l.position = position
-	} else {
-		l.position = max
-	}
-	l.Unlock()
-}
-
-func (l *CTextField) SetPosition(position int) {
+func (l *CEntry) SetPosition(position int) {
 	l.setPosition(position)
 	l.Invalidate()
 	l.updateCursor()
 }
 
-func (l *CTextField) GetPosition() (value int) {
+func (l *CEntry) setPosition(position int) {
+	l.Lock()
+	max := l.tProfile.Len()
+	if position > max {
+		position = max
+	}
+	l.position = position
+	l.Unlock()
+}
+
+func (l *CEntry) GetPosition() (value int) {
 	l.RLock()
 	defer l.RUnlock()
 	return l.position
 }
 
-func (l *CTextField) SetEditable(isEditable bool) {
+func (l *CEntry) SetEditable(isEditable bool) {
 	if err := l.SetBoolProperty(PropertyEditable, isEditable); err != nil {
 		l.LogErr(err)
 	}
 }
 
-func (l *CTextField) GetEditable() (value bool) {
+func (l *CEntry) GetEditable() (value bool) {
 	var err error
 	if value, err = l.GetBoolProperty(PropertyEditable); err != nil {
 		l.LogErr(err)
@@ -627,9 +616,9 @@ func (l *CTextField) GetEditable() (value bool) {
 // the label's content and any padding set.
 //
 // Locking: read
-func (l *CTextField) GetSizeRequest() (width, height int) {
+func (l *CEntry) GetSizeRequest() (width, height int) {
 	alloc := l.GetAllocation()
-	size := ptypes.MakeRectangle(l.CWidget.GetSizeRequest())
+	size := l.CWidget.SizeRequest()
 	if alloc.W > 0 && size.W > alloc.W {
 		size.W = alloc.W
 	}
@@ -642,16 +631,16 @@ func (l *CTextField) GetSizeRequest() (width, height int) {
 // CancelEvent emits a cancel-event signal and if the signal handlers all return
 // cenums.EVENT_PASS, then set the button as not pressed and release any event
 // focus.
-func (l *CTextField) CancelEvent() {
+func (l *CEntry) CancelEvent() {
 	l.LogDebug("hit cancel event")
 }
 
 // Activate emits a SignalActivate, returning TRUE if the event was handled
-func (l *CTextField) Activate() (value bool) {
+func (l *CEntry) Activate() (value bool) {
 	return l.Emit(SignalActivate, l) == cenums.EVENT_STOP
 }
 
-func (l *CTextField) getMaxCharsRequest() (maxWidth int) {
+func (l *CEntry) getMaxCharsRequest() (maxWidth int) {
 	alloc := l.GetAllocation()
 	maxWidth = l.GetMaxWidthChars()
 	if maxWidth <= -1 {
@@ -665,84 +654,19 @@ func (l *CTextField) getMaxCharsRequest() (maxWidth int) {
 	return
 }
 
-func getTextInfo(text string) (longest, total int) {
-	lines := strings.Split(text, "\n")
-	total = len(lines)
-	for _, line := range lines {
-		lineLength := len(line)
-		if longest < lineLength {
-			longest = lineLength
-		}
-	}
-	return
-}
-
-func getTextPosInfo(text string, position int) (p ptypes.Point2I) {
-	p = ptypes.MakePoint2I(0, 0)
-	lines := strings.Split(text, "\n")
-	count := 0
-	for _, line := range lines {
-		lineLength := len(line)
-		if position <= count+lineLength {
-			p.X = position - count
-			break
-		}
-		count += lineLength
-		p.Y += 1
-	}
-	return
-}
-
-func getTextInfoPos(text string, p ptypes.Point2I) (position int) {
-	lines := strings.Split(text, "\n")
-	count := len(lines)
-	for y, line := range lines {
-		lineLength := len(line)
-		if p.Y > y {
-			position += lineLength
-			if y < count-1 {
-				position += 1 // add newline
-			}
-			continue
-		}
-		if p.X >= 0 {
-			position += p.X
-		} else {
-			position += lineLength
-		}
-	}
-	return
-}
-
-func cropText(text string, region ptypes.Region) (cropped string) {
-	lines := strings.Split(text, "\n")
-	last := len(lines) - 1
-	for y, line := range lines {
-		for x, v := range line {
-			if x >= region.X && x <= region.X+region.W {
-				cropped += string(v)
-			}
-		}
-		if y < last {
-			cropped += "\n"
-		}
-	}
-	return
-}
-
-func (l *CTextField) refreshTextBuffer() (err error) {
+func (l *CEntry) refreshTextBuffer() (err error) {
 	style := l.GetThemeRequest().Content.Normal
 	alloc := l.GetAllocation()
 	pos := l.GetPosition()
 
 	l.Lock()
 
-	posPoint := getTextPosInfo(l.text, pos)
+	posPoint := l.tProfile.GetPointFromPosition(pos)
 
 	// keep pos within alloc
 	if posPoint.X > alloc.W {
 		l.offset.X = posPoint.X - alloc.W
-		l.cursor.X = posPoint.X - l.offset.X + 1
+		l.cursor.X = posPoint.X - l.offset.X
 	} else {
 		l.offset.X = 0
 		l.cursor.X = posPoint.X
@@ -766,15 +690,15 @@ func (l *CTextField) refreshTextBuffer() (err error) {
 		l.cursor.Y = alloc.H - 1
 	}
 	// crop text to alloc using offset
-	text := cropText(l.text, *l.offset)
-	// l.LogDebug("posPoint:%v, offset:%v, cursor:%v", posPoint, l.offset, l.cursor)
+	text := l.tProfile.Crop(*l.offset)
+	// l.LogDebug("pos:%v, posPoint:%v, offset:%v, cursor:%v", pos, posPoint, l.offset, l.cursor)
 
-	l.tbuffer = memphis.NewTextBuffer(text, style, false)
+	l.tBuffer = memphis.NewTextBuffer(text, style, false)
 	l.Unlock()
 	return
 }
 
-func (l *CTextField) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+func (l *CEntry) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 		l.LogTrace("not visible, zero width or zero height")
@@ -792,12 +716,6 @@ func (l *CTextField) resize(data []interface{}, argv ...interface{}) cenums.Even
 	size.W = alloc.W - (xPad * 2)
 	size.H = alloc.H - (xPad * 2)
 
-	l.Lock()
-
-	if err := memphis.ConfigureSurface(id, origin, alloc, theme.Content.Normal); err != nil {
-		l.LogErr(err)
-	}
-
 	if size.H < alloc.H {
 		delta := alloc.H - size.H
 		local.Y += int(float64(delta) * yAlign)
@@ -805,16 +723,20 @@ func (l *CTextField) resize(data []interface{}, argv ...interface{}) cenums.Even
 
 	l.tRegion = ptypes.MakeRegion(local.X, local.Y, size.W, size.H)
 
+	l.LockDraw()
+	if err := memphis.ConfigureSurface(id, origin, alloc, theme.Content.Normal); err != nil {
+		l.LogErr(err)
+	}
 	if err := memphis.ConfigureSurface(l.tid, local, *size, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
+	l.UnlockDraw()
 
-	l.Unlock()
 	l.Invalidate()
 	return cenums.EVENT_STOP
 }
 
-func (l *CTextField) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
+func (l *CEntry) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	theme := l.GetThemeRequest()
 	if err := l.refreshTextBuffer(); err != nil {
 		l.LogErr(err)
@@ -845,7 +767,7 @@ func (l *CTextField) invalidate(data []interface{}, argv ...interface{}) cenums.
 	return cenums.EVENT_PASS
 }
 
-func (l *CTextField) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := l.GetAllocation()
 		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -857,20 +779,10 @@ func (l *CTextField) draw(data []interface{}, argv ...interface{}) cenums.EventF
 		defer l.UnlockDraw()
 
 		theme := l.GetThemeRequest()
-		surface.Box(
-			ptypes.MakePoint2I(0, 0),
-			ptypes.MakeRectangle(alloc.W, alloc.H),
-			false, true,
-			theme.Content.Overlay,
-			theme.Content.FillRune,
-			theme.Content.Normal,
-			theme.Border.Normal,
-			theme.Border.BorderRunes,
-		)
 
 		singleLineMode, lineWrapMode, justify, _ := l.Settings()
 
-		if l.tbuffer != nil {
+		if l.tBuffer != nil {
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
 			} else {
@@ -884,7 +796,7 @@ func (l *CTextField) draw(data []interface{}, argv ...interface{}) cenums.EventF
 					theme.Border.Normal,
 					theme.Border.BorderRunes,
 				)
-				if f := l.tbuffer.Draw(tSurface, singleLineMode, lineWrapMode, false, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
+				if f := l.tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, false, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
 					if err := surface.CompositeSurface(tSurface); err != nil {
 						l.LogErr(err)
 					}
@@ -900,7 +812,7 @@ func (l *CTextField) draw(data []interface{}, argv ...interface{}) cenums.EventF
 	return cenums.EVENT_PASS
 }
 
-func (l *CTextField) appendChange(name string, argv ...interface{}) {
+func (l *CEntry) appendChange(name string, argv ...interface{}) {
 	l.qLock.Lock()
 	l.queue = append(l.queue, &cTextFieldChange{
 		name: name,
@@ -909,36 +821,112 @@ func (l *CTextField) appendChange(name string, argv ...interface{}) {
 	l.qLock.Unlock()
 }
 
-func (l *CTextField) moveHome() {
+func (l *CEntry) moveDown(lines int) {
 	pos := l.GetPosition()
-	text := l.GetText()
 	l.Lock()
-	posPoint := getTextPosInfo(text, pos)
+	posPoint := l.tProfile.GetPointFromPosition(pos)
+	posPoint.Y += lines
+	newPos := l.tProfile.GetPositionFromPoint(posPoint)
+	l.appendChange("SetPosition", newPos)
+	l.LogDebug("moved down (%v line) position: %v (%v)", lines, newPos, posPoint)
+	l.Unlock()
+}
+
+func (l *CEntry) moveUp(lines int) {
+	pos := l.GetPosition()
+	l.Lock()
+	posPoint := l.tProfile.GetPointFromPosition(pos)
+	posPoint.Y -= lines
+	if posPoint.Y < 0 {
+		posPoint.Y = 0
+	}
+	newPos := l.tProfile.GetPositionFromPoint(posPoint)
+	l.appendChange("SetPosition", newPos)
+	l.LogDebug("moved up (%v line) position: %v (%v)", lines, newPos, posPoint)
+	l.Unlock()
+}
+
+func (l *CEntry) moveHome() {
+	pos := l.GetPosition()
+	l.Lock()
+	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.X = 0
-	newPos := getTextInfoPos(text, posPoint)
+	newPos := l.tProfile.GetPositionFromPoint(posPoint)
 	l.appendChange("SetPosition", newPos)
+	l.LogDebug("moved to home position: %v (%v)", newPos, posPoint)
 	l.Unlock()
 }
 
-func (l *CTextField) moveEnd() {
+func (l *CEntry) moveEnd() {
 	pos := l.GetPosition()
-	text := l.GetText()
 	l.Lock()
-	posPoint := getTextPosInfo(text, pos)
+	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.X = -1
-	newPos := getTextInfoPos(text, posPoint)
+	newPos := l.tProfile.GetPositionFromPoint(posPoint)
 	l.appendChange("SetPosition", newPos)
+	l.LogDebug("moved to end position: %v (%v)", newPos, posPoint)
 	l.Unlock()
 }
 
-func (l *CTextField) processQueue() {
+func (l *CEntry) moveLeft(characters int) {
+	if pos := l.GetPosition(); pos > 0 {
+		l.LogDebug("move left %d character(s): %v", characters, pos-characters)
+		l.appendChange("SetPosition", pos-characters)
+	} else {
+		l.LogDebug("at the start")
+	}
+}
+
+func (l *CEntry) moveRight(characters int) {
+	if pos := l.GetPosition(); pos < l.tProfile.Len() {
+		l.LogDebug("move right %d character(s): %v", characters, pos+characters)
+		l.appendChange("SetPosition", pos+characters)
+	} else {
+		l.LogDebug("all the way right: %v", pos)
+	}
+}
+
+func (l *CEntry) deleteForwards() {
+	pos := l.GetPosition()
+	if tLen := l.tProfile.Len(); tLen > 0 {
+		if pos < tLen {
+			l.LogDebug("deleting forwards")
+			l.appendChange("DeleteText", pos, pos)
+			l.appendChange("SetPosition", pos)
+		} else {
+			l.LogDebug("deleting forwards (EOL)")
+			l.appendChange("DeleteText", tLen-1, tLen-1)
+			l.appendChange("SetPosition", tLen-1)
+		}
+	} else {
+		l.LogDebug("nothing to delete forwards")
+	}
+}
+
+func (l *CEntry) deleteBackwards() {
+	pos := l.GetPosition()
+	if pos > 0 {
+		l.LogDebug("deleting backwards")
+		l.appendChange("DeleteText", pos-1, pos-1)
+		l.appendChange("SetPosition", pos-1)
+	} else {
+		l.LogDebug("nothing to delete backwards")
+	}
+}
+
+func (l *CEntry) processQueue() (changesApplied bool) {
 	l.qLock.Lock()
+	if l.queue == nil || len(l.queue) == 0 {
+		l.qLock.Unlock()
+		return false
+	}
 	for _, change := range l.queue {
 		switch change.name {
 		case "SetPosition":
 			if len(change.argv) == 1 {
 				if v, ok := change.argv[0].(int); ok {
 					l.setPosition(v)
+					changesApplied = true
 				} else {
 					l.LogError("argument is not an 'int' for SetPosition change: %T (%v)", change.argv[0], change.argv)
 				}
@@ -950,6 +938,7 @@ func (l *CTextField) processQueue() {
 				if newText, ok := change.argv[0].(string); ok {
 					if pos, ok := change.argv[1].(int); ok {
 						l.insertText(newText, pos)
+						changesApplied = true
 					} else {
 						l.LogError("second argument is not an 'int' for InsertText change: %T (%v)", change.argv[1], change.argv)
 					}
@@ -964,6 +953,7 @@ func (l *CTextField) processQueue() {
 				if start, ok := change.argv[0].(int); ok {
 					if end, ok := change.argv[1].(int); ok {
 						l.deleteText(start, end)
+						changesApplied = true
 					} else {
 						l.LogError("second argument is not an 'int' for DeleteText change: %T (%v)", change.argv[1], change.argv)
 					}
@@ -977,27 +967,68 @@ func (l *CTextField) processQueue() {
 	}
 	l.queue = nil
 	l.qLock.Unlock()
+	return
 }
 
-func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if !l.HasFocus() {
-		return cenums.EVENT_PASS
-	}
+func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
+		case *cdk.EventMouse:
+			pos := ptypes.NewPoint2I(e.Position())
+			switch e.State() {
+			// case cdk.BUTTON_PRESS, cdk.DRAG_START:
+			// 	if l.HasPoint(pos) && !l.HasEventFocus() {
+			// 		l.GrabEventFocus()
+			// 		return cenums.EVENT_STOP
+			// 	}
+			// case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
+			// 	if l.HasEventFocus() {
+			// 		if !l.HasPoint(pos) {
+			// 			l.LogDebug("moved out of bounds")
+			// 			l.CancelEvent()
+			// 			return cenums.EVENT_STOP
+			// 		}
+			// 	}
+			// 	return cenums.EVENT_PASS
+			// case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
+			// 	if l.HasEventFocus() {
+			// 		if !l.HasPoint(pos) {
+			// 			l.LogDebug("released out of bounds")
+			// 			l.CancelEvent()
+			// 			return cenums.EVENT_STOP
+			// 		}
+			// 		l.ReleaseEventFocus()
+			// 		l.GrabFocus()
+			// 		l.LogDebug("released")
+			// 		return cenums.EVENT_STOP
+			// 	}
+			// }
+			case cdk.BUTTON_RELEASE:
+				if l.HasPoint(pos) {
+					local := pos.NewClone()
+					local.SubPoint(l.GetOrigin())
+					local.AddPoint(l.offset.Origin())
+					l.SetPosition(l.tProfile.GetPositionFromPoint(*local))
+					if !l.HasFocus() {
+						l.GrabFocus()
+					}
+					l.GetDisplay().RequestDraw()
+					l.GetDisplay().RequestShow()
+				}
+			}
 		case *cdk.EventKey:
+			if !l.HasFocus() {
+				return cenums.EVENT_PASS
+			}
 			r := e.Rune()
 			v := e.Name()
 			m := e.Modifiers()
 
 			pos := l.GetPosition()
-			l.RLock()
-			text := l.text
-			tLen := len(text)
-			l.RUnlock()
 
 			switch r {
-			case 13:
+
+			case 10, 13:
 				if l.GetSingleLineMode() {
 					l.LogDebug("activate default")
 				} else {
@@ -1006,27 +1037,66 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 					l.LogDebug(`printable key: \n, at pos: %v`, pos)
 				}
 				return cenums.EVENT_STOP
+
 			case 127:
-				if pos > 0 {
-					l.LogDebug("deleting backwards")
-					l.appendChange("DeleteText", pos-1, pos-1)
-					l.appendChange("SetPosition", pos-1)
-				} else {
-					l.LogDebug("nothing to delete backwards")
-				}
+				l.deleteBackwards()
 				return cenums.EVENT_STOP
-			case 1: // a
+
+			case 1: // 'a':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + a
 					l.LogDebug("move home (ctrl+a)")
 					l.moveHome()
 					return cenums.EVENT_STOP
 				}
-			case 5: // e
+
+			case 2: // 'b':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + b
+					l.moveLeft(1)
+					return cenums.EVENT_STOP
+				}
+
+			case 4: // 'd':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + d
+					l.deleteForwards()
+					return cenums.EVENT_STOP
+				}
+
+			case 5: // 'e':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + e
 					l.LogDebug("move end (ctrl+e)")
 					l.moveEnd()
+					return cenums.EVENT_STOP
+				}
+
+			case 6: // 'f':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + f
+					l.moveRight(1)
+					return cenums.EVENT_STOP
+				}
+
+			case 8: // 'h':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + h
+					l.deleteBackwards()
+					return cenums.EVENT_STOP
+				}
+
+			case 14: // 'n':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + n
+					l.moveDown(1)
+					return cenums.EVENT_STOP
+				}
+
+			case 16: // 'p':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + p
+					l.moveUp(1)
 					return cenums.EVENT_STOP
 				}
 			}
@@ -1039,47 +1109,53 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 				return cenums.EVENT_STOP
 			}
 
+			alloc := l.GetAllocation()
+
 			switch v {
 			case "Home":
 				l.moveHome()
 				l.LogDebug("move home (Home)")
+				return cenums.EVENT_STOP
+
 			case "End":
 				l.moveEnd()
 				l.LogDebug("move end (End)")
+				return cenums.EVENT_STOP
+
+			case "PgUp":
+				l.LogDebug("move up %d lines (PgUp)", alloc.H)
+				l.moveUp(alloc.H)
+				return cenums.EVENT_STOP
+
+			case "PgDn":
+				l.LogDebug("move down %d lines (PgDn)", alloc.H)
+				l.moveDown(alloc.H)
+				return cenums.EVENT_STOP
+
 			case "Delete":
-				if tLen > 0 {
-					if pos < tLen {
-						l.LogDebug("deleting forwards")
-						l.appendChange("DeleteText", pos, pos)
-						l.appendChange("SetPosition", pos)
-					} else {
-						l.LogDebug("deleting forwards (EOL)")
-						l.appendChange("DeleteText", tLen-1, tLen-1)
-						l.appendChange("SetPosition", tLen-1)
-					}
-				} else {
-					l.LogDebug("nothing to delete forewards")
-				}
+				l.deleteForwards()
 				return cenums.EVENT_STOP
+
 			case "Left":
-				if pos > 0 {
-					l.LogDebug("move left one character: %v", pos-1)
-					l.appendChange("SetPosition", pos-1)
-				} else {
-					l.LogDebug("all the way left?")
-				}
+				l.moveLeft(1)
 				return cenums.EVENT_STOP
+
 			case "Right":
-				l.LogDebug("move right one character: %v", pos+1)
-				l.appendChange("SetPosition", pos+1)
+				l.moveRight(1)
 				return cenums.EVENT_STOP
+
 			case "Up", "Down":
 				if l.GetSingleLineMode() {
-					l.LogDebug("cannot move %v, single line mode", v)
+					l.LogDebug("cannot move %v with single line mode", v)
+				} else if v == "Down" {
+					l.LogDebug("move down one line")
+					l.moveDown(1)
 				} else {
-					l.LogDebug("move %v one line", v)
+					l.LogDebug("move up one line")
+					l.moveUp(1)
 				}
 				return cenums.EVENT_STOP
+
 			default:
 				l.LogDebug("other key: r:%v, n:%v", r, e.Name())
 				return cenums.EVENT_STOP
@@ -1089,7 +1165,7 @@ func (l *CTextField) event(data []interface{}, argv ...interface{}) cenums.Event
 	return cenums.EVENT_PASS
 }
 
-func (l *CTextField) updateCursor() {
+func (l *CEntry) updateCursor() {
 	if l.HasFocus() {
 		if w := l.GetWindow(); w != nil {
 			if d := w.GetDisplay(); d != nil {
@@ -1098,8 +1174,15 @@ func (l *CTextField) updateCursor() {
 					l.RLock()
 					x, y := o.X+l.cursor.X, o.Y+l.cursor.Y
 					l.RUnlock()
-					// l.LogDebug("x,y = %v,%v", x, y)
-					s.ShowCursor(x, y)
+					if found := w.FindWidgetAt(ptypes.NewPoint2I(x, y)); found != nil {
+						if l.ObjectID() == found.ObjectID() {
+							s.ShowCursor(x, y)
+							// l.LogDebug("cursor x,y = %v,%v (%v) [%v] - %v", x, y, l.cursor, l.offset, found.ObjectInfo())
+						} else {
+							s.HideCursor()
+							// l.LogDebug("hide cursor x,y = %v,%v (%v) [%v] - %v", x, y, l.cursor, l.offset, found.ObjectInfo())
+						}
+					}
 				}
 			}
 		}
@@ -1114,7 +1197,7 @@ func (l *CTextField) updateCursor() {
 	}
 }
 
-func (l *CTextField) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
+func (l *CEntry) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	if l.qTimer != uuid.Nil {
 		cdk.StopTimeout(l.qTimer)
 		l.qTimer = uuid.Nil
@@ -1125,7 +1208,7 @@ func (l *CTextField) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	return cenums.EVENT_STOP
 }
 
-func (l *CTextField) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
+func (l *CEntry) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	l.SetState(enums.StateSelected)
 	l.Invalidate()
 	l.updateCursor()
@@ -1134,9 +1217,10 @@ func (l *CTextField) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag
 		l.qTimer = uuid.Nil
 	}
 	l.qTimer = cdk.AddTimeout(time.Millisecond*100, func() cenums.EventFlag {
-		l.processQueue()
-		l.Invalidate()
-		l.updateCursor()
+		if l.processQueue() {
+			l.Invalidate()
+			l.updateCursor()
+		}
 		return cenums.EVENT_PASS
 	})
 	return cenums.EVENT_STOP
