@@ -289,6 +289,7 @@ func (b *CBox) Remove(w Widget) {
 func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == cenums.EVENT_PASS {
+		child.Map()
 		child.SetParent(b)
 		child.SetWindow(b.GetWindow())
 		b.CContainer.AddWithProperties(child,
@@ -326,6 +327,7 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == cenums.EVENT_PASS {
+		child.Map()
 		child.SetParent(b)
 		child.SetWindow(b.GetWindow())
 		b.CContainer.AddWithProperties(child,
@@ -506,13 +508,10 @@ func (b *CBox) GetFocusChain() (focusableWidgets []Widget, explicitlySet bool) {
 func (b *CBox) GetSizeRequest() (width, height int) {
 	children := b.getBoxChildren()
 
-	b.RLock()
-	nChildren := len(children)
-	if nChildren <= 0 {
-		b.RUnlock()
+	totalChildren := len(children)
+	if totalChildren <= 0 {
 		return
 	}
-	b.RUnlock()
 
 	orientation := b.GetOrientation()
 	spacing := b.GetSpacing()
@@ -522,85 +521,108 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 	defer b.Unlock()
 
 	isVertical := orientation == cenums.ORIENTATION_VERTICAL
-	var w, h int
 
 	if isHomogeneous {
-		// get the size of the largest child and request that for all children
-		for _, child := range children {
-			req := ptypes.MakeRectangle(child.widget.GetSizeRequest())
-			if w < req.W {
-				w = req.W
-				if !isVertical && child.padding > 0 {
-					w += child.padding * 2
-				}
-			}
-			if h < req.H {
-				h = req.H
-				if isVertical && child.padding > 0 {
-					h += child.padding * 2
-				}
-			}
-		}
-		if isVertical {
-			width = w
-			height = (nChildren * h) + cmath.FloorI((nChildren-1)*spacing, 0)
-		} else {
-			width = (nChildren * w) + cmath.FloorI((nChildren-1)*spacing, 0)
-			height = h
-		}
-		return
+		return b.getSizeRequestHomogeneous(children, isVertical, spacing)
 	}
-	// add up the sizes of all children, including spacing and child padding
-	sizes := make([]*ptypes.Rectangle, nChildren)
-	tally := ptypes.NewRectangle(0, 0)
-	for idx, child := range children {
-		sizes[idx] = ptypes.NewRectangle(child.widget.GetSizeRequest())
-		sizes[idx].Floor(0, 0)
-		if w < sizes[idx].W {
-			w = sizes[idx].W
+
+	return b.getSizeRequestDynamic(children, isVertical, spacing)
+}
+
+func (b *CBox) getSizeRequestHomogeneous(children []*cBoxChild, isVertical bool, spacing int) (width, height int) {
+	var w, h int
+	totalChildren := len(children)
+	// get the size of the largest child and request that for all children
+	for _, child := range children {
+		req := ptypes.MakeRectangle(child.widget.GetSizeRequest())
+		if w < req.W {
+			w = req.W
 			if !isVertical && child.padding > 0 {
 				w += child.padding * 2
 			}
 		}
-		tally.W += sizes[idx].W
-		if !isVertical && child.padding > 0 {
-			tally.W += child.padding * 2
-		}
-		if h < sizes[idx].H {
-			h = sizes[idx].H
+		if h < req.H {
+			h = req.H
 			if isVertical && child.padding > 0 {
 				h += child.padding * 2
 			}
 		}
-		tally.H += sizes[idx].H
+	}
+	if isVertical {
+		width = w
+		height = (totalChildren * h) + cmath.FloorI((totalChildren-1)*spacing, 0)
+	} else {
+		width = (totalChildren * w) + cmath.FloorI((totalChildren-1)*spacing, 0)
+		height = h
+	}
+	return
+}
+
+func (b *CBox) getSizeRequestDynamic(children []*cBoxChild, isVertical bool, spacing int) (width, height int) {
+	var w, h int
+	totalChildren := len(children)
+	// add up the sizes of all children, including spacing and child padding
+	tally := ptypes.NewRectangle(0, 0)
+	for _, child := range children {
+		childSizeRequest := ptypes.NewRectangle(child.widget.GetSizeRequest())
+		childSizeRequest.Floor(0, 0)
+		// vertical total width
+		if w < childSizeRequest.W {
+			w = childSizeRequest.W
+			if !isVertical && child.padding > 0 {
+				w += child.padding * 2
+			}
+		}
+		// horizontal total width
+		tally.W += childSizeRequest.W
+		if !isVertical && child.padding > 0 {
+			tally.W += child.padding * 2
+		}
+		// horizontal child height
+		if h < childSizeRequest.H {
+			h = childSizeRequest.H
+			if isVertical && child.padding > 0 {
+				h += child.padding * 2
+			}
+		}
+		// vertical total height
+		tally.H += childSizeRequest.H
 		if !isVertical && child.padding > 0 {
 			tally.H += child.padding * 2
 		}
 	}
 	if isVertical {
 		width = w
-		height = tally.H
+		height = tally.H + cmath.FloorI((totalChildren-1)*spacing, 0)
 	} else {
-		width = tally.W
+		width = tally.W + cmath.FloorI((totalChildren-1)*spacing, 0)
 		height = h
 	}
 	return
 }
 
 func (b *CBox) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	origin := b.GetOrigin()
-	style := b.GetThemeRequest().Content.Normal
-	for _, child := range b.getBoxChildren() {
-		b.Lock()
-		local := child.widget.GetOrigin()
-		local.SubPoint(origin)
-		alloc := child.widget.GetAllocation()
-		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), local, alloc, style); err != nil {
-			child.widget.LogErr(err)
-		}
-		b.Unlock()
-	}
-	return cenums.EVENT_STOP
+	// origin := b.GetOrigin()
+	// style := b.GetThemeRequest().Content.Normal
+	// // boxChildren := b.getBoxChildren()
+	// b.Lock()
+	// b.LockDraw()
+	// if err := memphis.MakeConfigureSurface(b.ObjectID(), origin, b.GetAllocation(), style); err != nil {
+	// 	b.LogErr(err)
+	// }
+	// b.UnlockDraw()
+	// // for _, child := range boxChildren {
+	// // 	local := child.widget.GetOrigin()
+	// // 	local.SubPoint(origin)
+	// // 	alloc := child.widget.GetAllocation()
+	// // 	child.widget.LockDraw()
+	// // 	if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), local, alloc, style); err != nil {
+	// // 		child.widget.LogErr(err)
+	// // 	}
+	// // 	child.widget.UnlockDraw()
+	// // }
+	// b.Unlock()
+	return cenums.EVENT_PASS
 }
 
 func (b *CBox) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -615,7 +637,10 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) cenums.EventFlag 
 	orientation := b.GetOrientation()
 	isVertical := orientation == cenums.ORIENTATION_VERTICAL
 	homogeneous := b.GetHomogeneous()
+	style := b.GetThemeRequest().Content.Normal
+
 	b.Lock()
+
 	// intermediaries
 	var increment int
 	var gaps []int
@@ -625,15 +650,21 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		increment, gaps = cmath.SolveSpaceAlloc(numChildren, alloc.W, spacing)
 	}
 	nextPoint := origin.NewClone()
-	b.Unlock()
+
+	rv := cenums.EVENT_PASS
 	if homogeneous {
-		return b.resizeHomogeneous(isVertical, gaps, increment, numChildren, origin, nextPoint, alloc, children)
+		rv = b.resizeHomogeneous(isVertical, gaps, increment, numChildren, origin, nextPoint, alloc, children, style)
+	} else {
+		rv = b.resizeDynamicAlloc(isVertical, gaps, increment, spacing, numChildren, origin, nextPoint, alloc, children, style)
 	}
-	return b.resizeDynamicAlloc(isVertical, gaps, increment, spacing, numChildren, origin, nextPoint, alloc, children)
+
+	b.Unlock()
+	b.Invalidate()
+	return rv
 }
 
-func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) cenums.EventFlag {
-	style := b.GetThemeRequest().Content.Normal
+func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild, style paint.Style) cenums.EventFlag {
+	// style := b.GetThemeRequest().Content.Normal
 	// b.Lock()
 	// defer b.Unlock()
 
@@ -735,12 +766,14 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		nextPoint.Add(local.X, local.Y)
 		x := nextPoint.X - origin.X
 		y := nextPoint.Y - origin.Y
-		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), style); err != nil {
-			child.widget.LogErr(err)
-		}
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(*childSize)
 		child.widget.Resize()
+		child.widget.LockDraw()
+		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), style); err != nil {
+			child.widget.LogErr(err)
+		}
+		child.widget.UnlockDraw()
 		if isVertical {
 			nextPoint.Y += tracking[idx].h + tracking[idx].overflow
 		} else {
@@ -758,8 +791,8 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 	return cenums.EVENT_STOP
 }
 
-func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild) cenums.EventFlag {
-	style := b.GetThemeRequest().Content.Normal
+func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild, style paint.Style) cenums.EventFlag {
+	// style := b.GetThemeRequest().Content.Normal
 	// b.Lock()
 	// defer b.Unlock()
 	var (
@@ -791,7 +824,7 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 				}
 				tracking[idx].aw = tracking[idx].w
 				tracking[idx].ah = tracking[idx].h
-			} else { // expand && !fill
+			} else {            // expand && !fill
 				if isVertical { // expand && !fill && vertical
 					if req.H <= -1 || req.H > increment {
 						req.H = increment
@@ -810,7 +843,7 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 					tracking[idx].ah = alloc.H
 				}
 			} // else expand, !fill
-		} else { // if !expand (assume !fill)
+		} else {            // if !expand (assume !fill)
 			if isVertical { // !expand, !fill, vertical
 				req.W = alloc.W // force width
 				if req.H <= -1 || req.H > increment {
@@ -918,9 +951,11 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(ptypes.MakeRectangle(track.w, track.h))
 		child.widget.Resize()
+		child.widget.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(nextPoint.X-origin.X, nextPoint.Y-origin.Y), ptypes.MakeRectangle(track.w, track.h), style); err != nil {
 			child.widget.LogErr(err)
 		}
+		child.widget.UnlockDraw()
 		if isVertical {
 			nextPoint.Y += track.h + track.overflow
 		} else {
@@ -939,6 +974,9 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 }
 
 func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	b.LockDraw()
+	defer b.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := b.GetAllocation()
 		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -946,18 +984,18 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			return cenums.EVENT_PASS
 		}
 
-		b.LockDraw()
-		defer b.UnlockDraw()
-
 		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
 		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
 		theme := b.GetThemeRequest()
+		theme.Content.FillRune = rune(0)
 		surface.Fill(theme)
+
 		for _, child := range children {
 			if child.widget.IsVisible() {
 				if f := child.widget.Draw(); f == cenums.EVENT_STOP {
+					child.widget.LockDraw()
 					if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
 						child.widget.LogErr(err)
 					} else {
@@ -970,9 +1008,11 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 							b.LogError("composite error: %v", err)
 						}
 					}
+					child.widget.UnlockDraw()
 				}
 			}
 		}
+
 		if debug && orientation == cenums.ORIENTATION_VERTICAL {
 			surface.DebugBox(paint.ColorPink, b.ObjectInfo())
 		} else if debug {
@@ -985,11 +1025,11 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 func (b *CBox) getBoxChildren() (children []*cBoxChild) {
 	bChildren := b.GetChildren()
 	b.RLock()
-	nChildren := len(bChildren)
-	expand := make([]bool, nChildren)
-	fill := make([]bool, nChildren)
-	padding := make([]int, nChildren)
-	packType := make([]enums.PackType, nChildren)
+	totalChildren := len(bChildren)
+	expand := make([]bool, totalChildren)
+	fill := make([]bool, totalChildren)
+	padding := make([]int, totalChildren)
+	packType := make([]enums.PackType, totalChildren)
 	for idx, child := range bChildren {
 		b.RUnlock()
 		expand[idx], fill[idx], padding[idx], packType[idx] = b.QueryChildPacking(child)
