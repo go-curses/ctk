@@ -36,6 +36,7 @@ type Range interface {
 	GetInverted() (value bool)
 	SetInverted(setting bool)
 	SetIncrements(step int, page int)
+	SetPageSize(pageSize int)
 	SetRange(min, max int)
 	GetValue() (value int)
 	SetValue(value int)
@@ -54,6 +55,7 @@ type Range interface {
 	SetMinSliderSize(minSize bool)
 	SetSliderSizeFixed(sizeFixed bool)
 	GetIncrements() (step int, page int)
+	GetPageSize() (pageSize int)
 	GetRange() (min, max int)
 	GetMinSliderLength() (length int)
 	SetMinSliderLength(length int)
@@ -233,15 +235,24 @@ func (r *CRange) SetInverted(setting bool) {
 // 	step	step size
 // 	page	page size
 func (r *CRange) SetIncrements(step int, page int) {
-	adjustment := r.GetAdjustment()
-	r.Lock()
-	if adjustment != nil {
+	if adjustment := r.GetAdjustment(); adjustment != nil {
+		r.Lock()
 		adjustment.SetStepIncrement(step)
 		adjustment.SetPageIncrement(page)
+		r.Unlock()
 	} else {
 		r.LogError("missing adjustment")
 	}
-	r.Unlock()
+}
+
+func (r *CRange) SetPageSize(pageSize int) {
+	if adjustment := r.GetAdjustment(); adjustment != nil {
+		r.Lock()
+		adjustment.SetPageSize(pageSize)
+		r.Unlock()
+	} else {
+		r.LogError("missing adjustment")
+	}
 }
 
 // SetRange updates the allowable values in the Range, and clamps the range
@@ -464,15 +475,24 @@ func (r *CRange) SetSliderSizeFixed(sizeFixed bool) {
 // used when the user clicks the Scrollbar arrows or moves Scale via arrow keys.
 // The page size is used for example when moving via Page Up or Page Down keys.
 func (r *CRange) GetIncrements() (step int, page int) {
-	adjustment := r.GetAdjustment()
-	r.RLock()
-	step, page = -1, -1
-	if adjustment != nil {
-		step, page = adjustment.GetStepIncrement(), adjustment.GetPageIncrement()
+	step, page = 1, 1
+	if adjustment := r.GetAdjustment(); adjustment != nil {
+		r.RLock()
+		step = cmath.FloorI(adjustment.GetStepIncrement(), 1)
+		page = cmath.FloorI(adjustment.GetPageIncrement(), 1)
+		r.RUnlock()
 	} else {
 		r.LogError("missing adjustment")
 	}
-	r.RUnlock()
+	return
+}
+
+func (r *CRange) GetPageSize() (pageSize int) {
+	if adjustment := r.GetAdjustment(); adjustment != nil {
+		pageSize = adjustment.GetPageSize()
+	} else {
+		r.LogError("missing adjustment")
+	}
 	return
 }
 
