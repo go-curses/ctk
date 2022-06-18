@@ -2397,7 +2397,7 @@ func (w *CWidget) gainedFocus(_ []interface{}, _ ...interface{}) cenums.EventFla
 func (w *CWidget) enter(_ []interface{}, argv ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
 		if !w.HasState(enums.StatePrelight) {
-			w.LogDebug("mouse enter")
+			w.LogTrace("mouse enter")
 			w.SetState(enums.StatePrelight)
 			if w.GetHasTooltip() {
 				w.openTooltip()
@@ -2412,7 +2412,7 @@ func (w *CWidget) leave(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
 		if w.HasState(enums.StatePrelight) {
 			w.UnsetState(enums.StatePrelight)
-			w.LogDebug("mouse leave")
+			w.LogTrace("mouse leave")
 			w.closeTooltip()
 			return cenums.EVENT_STOP
 		}
