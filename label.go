@@ -12,6 +12,7 @@ import (
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -120,7 +121,7 @@ type CLabel struct {
 	text string
 
 	tid     uuid.UUID
-	tRegion ptypes.Region
+	tRegion *ptypes.Region
 
 	tbuffer memphis.TextBuffer
 	tbStyle paint.Style
@@ -204,7 +205,7 @@ func (l *CLabel) Init() (already bool) {
 	l.text = ""
 	l.tbuffer = nil
 	l.tid, _ = uuid.NewV4()
-	l.tRegion = ptypes.MakeRegion(0, 0, 0, 0)
+	l.tRegion = ptypes.NewRegion(0, 0, 0, 0)
 	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
 		l.LogErr(err)
 	}
@@ -977,25 +978,26 @@ func (l *CLabel) refreshTextBuffer() (err error) {
 }
 
 func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 		l.LogTrace("not visible, zero width or zero height")
 		return cenums.EVENT_PASS
 	}
 
-	theme := l.GetThemeRequest()
-	origin := l.GetOrigin()
-	id := l.ObjectID()
 	xPad, _ := l.GetPadding()
 	_, yAlign := l.GetAlignment()
 
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
 	local := ptypes.MakePoint2I(xPad, 0)
 	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
+	theme := l.GetThemeRequest()
+	region := l.GetRegion()
+	id := l.ObjectID()
 
 	l.Lock()
 
-	if err := memphis.ConfigureSurface(id, origin, alloc, theme.Content.Normal); err != nil {
+	if err := memphis.ConfigureSurface(id, region.Origin(), region.Size(), theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
 
@@ -1004,9 +1006,9 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 		local.Y += int(float64(delta) * yAlign)
 	}
 
-	l.tRegion = ptypes.MakeRegion(local.X, local.Y, size.W, size.H)
+	l.tRegion.Set(local.X, local.Y, size.W, size.H)
 
-	if err := memphis.ConfigureSurface(l.tid, local, *size, theme.Content.Normal); err != nil {
+	if err := memphis.ConfigureSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
 
@@ -1059,12 +1061,14 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		}
 
 		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
+		theme := l.GetThemeRequest()
 
 		if l.tbuffer != nil {
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
 			} else {
 				if f := l.tbuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
+					surface.Fill(theme)
 					if err := surface.CompositeSurface(tSurface); err != nil {
 						l.LogErr(err)
 					}
