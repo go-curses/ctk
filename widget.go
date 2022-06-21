@@ -191,9 +191,9 @@ type Widget interface {
 	PushCompositeChild(child Widget)
 	PopCompositeChild(child Widget)
 	GetCompositeChildren() []Widget
-	IsDrawPaused() bool
-	DrawPause()
-	DrawResume()
+	RenderFrozen() bool
+	RenderFreeze()
+	RenderThaw()
 }
 
 // The CWidget structure implements the Widget interface and is exported
@@ -203,6 +203,7 @@ type Widget interface {
 type CWidget struct {
 	CObject
 
+	renderFrozen  int
 	composites    []Widget
 	parent        Widget
 	state         enums.StateType
@@ -294,6 +295,7 @@ func (w *CWidget) Init() (already bool) {
 		_ = w.InstallCssProperty(CssPropertyItalic, state, cdk.BoolProperty, true, false)
 		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
 	}
+	w.renderFrozen = 0
 	w.composites = make([]Widget, 0)
 	w.flagsLock = &sync.RWMutex{}
 	w.drawLock = &sync.Mutex{}
@@ -643,6 +645,37 @@ func (w *CWidget) LockEvent() {
 
 func (w *CWidget) UnlockEvent() {
 	w.eventLock.Unlock()
+}
+
+func (w *CWidget) RenderFrozen() bool {
+	w.RLock()
+	defer w.RUnlock()
+	return w.renderFrozen > 0
+}
+
+func (w *CWidget) RenderFreeze() {
+	if !w.RenderFrozen() {
+		w.PassSignal(SignalInvalidate, SignalDraw)
+		// w.StopSignal(SignalInvalidate, SignalDraw)
+		// w.LockDraw()
+	}
+	w.Lock()
+	w.renderFrozen += 1
+	w.Unlock()
+}
+
+func (w *CWidget) RenderThaw() {
+	if w.RenderFrozen() {
+		w.Lock()
+		w.renderFrozen -= 1
+		w.Unlock()
+	}
+	if !w.RenderFrozen() {
+		w.ResumeSignal(SignalInvalidate)
+		w.Resize()
+		w.ResumeSignal(SignalDraw)
+		// w.UnlockDraw()
+	}
 }
 
 // Installs an accelerator for this widget in accel_group that causes
@@ -1185,20 +1218,6 @@ func (w *CWidget) GetCompositeChildren() (composites []Widget) {
 	defer w.RUnlock()
 	composites = append([]Widget{}, w.composites...)
 	return
-}
-
-func (w *CWidget) IsDrawPaused() bool {
-	return w.IsSignalPassed(SignalInvalidate) && w.IsSignalPassed(SignalDraw)
-}
-
-func (w *CWidget) DrawPause() {
-	w.PassSignal(SignalInvalidate, SignalDraw)
-}
-
-func (w *CWidget) DrawResume() {
-	w.ResumeSignal(SignalInvalidate)
-	w.Resize()
-	w.ResumeSignal(SignalDraw)
 }
 
 // Sets whether the application intends to draw on the widget in an
