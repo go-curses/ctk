@@ -989,7 +989,6 @@ func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		orientation := b.GetOrientation()
 		children := b.getBoxChildren()
 		theme := b.GetThemeRequest()
-		theme.Content.FillRune = rune(0)
 		surface.Fill(theme)
 
 		for _, child := range children {
