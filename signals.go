@@ -16,6 +16,7 @@ const (
 	SignalError             cdk.Signal = "error"
 	SignalEventKey          cdk.Signal = "key-event"
 	SignalEventMouse        cdk.Signal = "mouse-event"
+	SignalEventPaste        cdk.Signal = "paste-event"
 	SignalGainedEventFocus  cdk.Signal = "gained-event-focus"
 	SignalGainedFocus       cdk.Signal = "gained-focus"
 	SignalGrabEventFocus    cdk.Signal = "grab-event-focus"
