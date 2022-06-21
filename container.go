@@ -86,8 +86,8 @@ type Container interface {
 	ListChildProperties() (properties []*cdk.CProperty)
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	FindWidgetAt(p *ptypes.Point2I) (found Widget)
-	DrawPause()
-	DrawResume()
+	RenderFreeze()
+	RenderThaw()
 	Destroy()
 }
 
@@ -766,30 +766,37 @@ func (c *CContainer) findWidgetAt(parent Widget, p *ptypes.Point2I) (found Widge
 	return
 }
 
-func (c *CContainer) DrawPause() {
-	c.CWidget.DrawPause()
+func (c *CContainer) RenderFreeze() {
+	c.CWidget.RenderFreeze()
 	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
 	allChildren = append(allChildren, c.GetChildren()...)
 	for _, child := range allChildren {
 		switch childType := child.(type) {
 		case Container:
-			childType.DrawPause()
+			childType.RenderFreeze()
 		default:
-			child.DrawPause()
+			child.RenderFreeze()
 		}
 	}
 }
 
-func (c *CContainer) DrawResume() {
-	c.CWidget.DrawResume()
-	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
-	allChildren = append(allChildren, c.GetChildren()...)
+func (c *CContainer) RenderThaw() {
+	c.CWidget.ResumeSignal(SignalInvalidate)
+	c.renderThaw(c)
+	c.Resize()
+	c.CWidget.ResumeSignal(SignalDraw)
+}
+
+func (c *CContainer) renderThaw(parent Container) {
+	allChildren := append([]Widget{}, parent.GetCompositeChildren()...)
+	allChildren = append(allChildren, parent.GetChildren()...)
 	for _, child := range allChildren {
 		switch childType := child.(type) {
 		case Container:
-			childType.DrawResume()
+			childType.ResumeSignal(SignalInvalidate, SignalDraw)
+			c.renderThaw(childType)
 		default:
-			child.DrawResume()
+			child.ResumeSignal(SignalInvalidate, SignalDraw)
 		}
 	}
 }
