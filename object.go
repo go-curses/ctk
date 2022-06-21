@@ -248,8 +248,7 @@ func (o *CObject) ProcessEvent(evt cdk.Event) cenums.EventFlag {
 //
 // Locking: read
 func (o *CObject) Resize() cenums.EventFlag {
-	size := o.GetAllocation()
-	return o.Emit(SignalResize, o, size)
+	return o.Emit(SignalResize, o, o.GetOrigin(), o.GetAllocation())
 }
 
 // GetTextDirection returns the current text direction for this Object instance.
