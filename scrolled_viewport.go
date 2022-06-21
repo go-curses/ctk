@@ -713,32 +713,32 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 		child.SetState(enums.StateNone)
 		child.SetState(state)
 		style := child.GetThemeRequest().Content.Normal
-		child.LockDraw()
+		// child.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, size, style); err != nil {
 			child.LogErr(err)
 		}
-		child.UnlockDraw()
+		// child.UnlockDraw()
 	}
 	if vs != nil {
 		if verticalShow {
 			local := vs.GetOrigin()
 			local.SubPoint(origin)
-			vs.LockDraw()
+			// vs.LockDraw()
 			if err := memphis.MakeConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), theme.Content.Normal); err != nil {
 				vs.LogErr(err)
 			}
-			vs.UnlockDraw()
+			// vs.UnlockDraw()
 		}
 	}
 	if hs != nil {
 		if horizontalShow {
 			local := hs.GetOrigin()
 			local.SubPoint(origin)
-			hs.LockDraw()
+			// hs.LockDraw()
 			if err := memphis.MakeConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), theme.Content.Normal); err != nil {
 				hs.LogErr(err)
 			}
-			hs.UnlockDraw()
+			// hs.UnlockDraw()
 		}
 	}
 	s.Unlock()

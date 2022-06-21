@@ -723,14 +723,14 @@ func (l *CEntry) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 
 	l.tRegion = ptypes.MakeRegion(local.X, local.Y, size.W, size.H)
 
-	l.LockDraw()
+	// l.LockDraw()
 	if err := memphis.ConfigureSurface(id, origin, alloc, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
 	if err := memphis.ConfigureSurface(l.tid, local, *size, theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}
-	l.UnlockDraw()
+	// l.UnlockDraw()
 
 	l.Invalidate()
 	return cenums.EVENT_STOP

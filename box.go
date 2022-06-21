@@ -769,11 +769,11 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(*childSize)
 		child.widget.Resize()
-		child.widget.LockDraw()
+		// child.widget.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(x, y), ptypes.MakeRectangle(childAlloc.W, childAlloc.H), style); err != nil {
 			child.widget.LogErr(err)
 		}
-		child.widget.UnlockDraw()
+		// child.widget.UnlockDraw()
 		if isVertical {
 			nextPoint.Y += tracking[idx].h + tracking[idx].overflow
 		} else {
@@ -951,11 +951,11 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(ptypes.MakeRectangle(track.w, track.h))
 		child.widget.Resize()
-		child.widget.LockDraw()
+		// child.widget.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.widget.ObjectID(), ptypes.MakePoint2I(nextPoint.X-origin.X, nextPoint.Y-origin.Y), ptypes.MakeRectangle(track.w, track.h), style); err != nil {
 			child.widget.LogErr(err)
 		}
-		child.widget.UnlockDraw()
+		// child.widget.UnlockDraw()
 		if isVertical {
 			nextPoint.Y += track.h + track.overflow
 		} else {

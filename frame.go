@@ -429,13 +429,15 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 	theme := f.GetThemeRequest()
 	widget := f.GetLabelWidget()
 	child := f.GetChild()
+
 	f.Lock()
 	defer f.Unlock()
+
 	if label, ok := widget.Self().(Label); ok && label != nil {
 		local := label.GetOrigin()
 		local.SubPoint(origin)
 		alloc := label.GetAllocation()
-		label.LockDraw()
+		// label.LockDraw()
 		if surface, err := memphis.GetSurface(label.ObjectID()); err != nil {
 			label.LogErr(err)
 		} else {
@@ -444,7 +446,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 			theme.Content.FillRune = rune(0)
 			surface.Fill(theme)
 		}
-		label.UnlockDraw()
+		// label.UnlockDraw()
 		// label.SetTheme(theme)
 		label.Invalidate()
 		rv = cenums.EVENT_STOP
@@ -453,7 +455,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 		local := widget.GetOrigin()
 		local.SubPoint(origin)
 		alloc := widget.GetAllocation()
-		widget.LockDraw()
+		// widget.LockDraw()
 		if surface, err := memphis.GetSurface(widget.ObjectID()); err != nil {
 			widget.LogErr(err)
 		} else {
@@ -462,7 +464,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 			theme.Content.FillRune = rune(0)
 			surface.Fill(theme)
 		}
-		widget.UnlockDraw()
+		// widget.UnlockDraw()
 		// widget.SetTheme(theme)
 		widget.Invalidate()
 		rv = cenums.EVENT_STOP
@@ -476,7 +478,7 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
-		child.UnlockDraw()
+		// child.UnlockDraw()
 		rv = cenums.EVENT_STOP
 		child.Invalidate()
 	}

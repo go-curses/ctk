@@ -803,11 +803,11 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		} else {
 			child.Resize()
 		}
-		child.LockDraw()
+		// child.LockDraw()
 		if err := memphis.MakeConfigureSurface(child.ObjectID(), *local, *size, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
-		child.UnlockDraw()
+		// child.UnlockDraw()
 
 	}
 

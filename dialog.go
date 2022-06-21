@@ -664,11 +664,11 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		alloc := region.Size().NewClone()
 		alloc.Sub(2, 2)
 		if child.IsMapped() {
-			child.LockDraw()
+			// child.LockDraw()
 			if err := memphis.MakeConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
 				child.LogErr(err)
 			}
-			child.UnlockDraw()
+			// child.UnlockDraw()
 		}
 		child.SetOrigin(region.X+local.X, region.Y+local.Y)
 		child.SetAllocation(*alloc)

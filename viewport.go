@@ -186,11 +186,11 @@ func (v *CViewport) invalidate(data []interface{}, argv ...interface{}) cenums.E
 	if child := v.GetChild(); child != nil {
 		local := child.GetOrigin()
 		local.SubPoint(v.GetOrigin())
-		v.LockDraw()
+		// v.LockDraw()
 		if err := memphis.MakeConfigureSurface(v.ObjectID(), local, child.GetAllocation(), child.GetThemeRequest().Content.Normal); err != nil {
 			v.LogErr(err)
 		}
-		v.UnlockDraw()
+		// v.UnlockDraw()
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
