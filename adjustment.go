@@ -78,12 +78,12 @@ func (a *CAdjustment) Init() bool {
 		return true
 	}
 	a.CObject.Init()
-	_ = a.InstallBuildableProperty(PropertyLower, cdk.IntProperty, true, 0)
-	_ = a.InstallBuildableProperty(PropertyPageIncrement, cdk.IntProperty, true, 0)
-	_ = a.InstallBuildableProperty(PropertyPageSize, cdk.IntProperty, true, 0)
-	_ = a.InstallBuildableProperty(PropertyStepIncrement, cdk.IntProperty, true, 0)
 	_ = a.InstallBuildableProperty(PropertyUpper, cdk.IntProperty, true, 0)
+	_ = a.InstallBuildableProperty(PropertyLower, cdk.IntProperty, true, 0)
 	_ = a.InstallBuildableProperty(PropertyValue, cdk.IntProperty, true, 0)
+	_ = a.InstallBuildableProperty(PropertyStepIncrement, cdk.IntProperty, true, 1)
+	_ = a.InstallBuildableProperty(PropertyPageIncrement, cdk.IntProperty, true, 1)
+	_ = a.InstallBuildableProperty(PropertyPageSize, cdk.IntProperty, true, -1)
 	return false
 }
 
