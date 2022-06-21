@@ -259,13 +259,13 @@ func (w *CWindow) Init() (already bool) {
 	w.Connect(SignalInvalidate, WindowInvalidateHandle, w.invalidate)
 	w.Connect(SignalResize, WindowResizeHandle, w.resize)
 	w.Connect(SignalDraw, WindowDrawHandle, w.draw)
-	w.Invalidate()
 	w.SetParent(w)
 	w.SetWindow(w)
 	if err := w.SetProperty(PropertyWindow, w); err != nil {
 		w.LogErr(err)
 	}
 	_ = w.GetVBox()
+	w.Invalidate()
 	return false
 }
 
@@ -1609,6 +1609,14 @@ func (w *CWindow) SetEventFocus(o cdk.Object) {
 func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
+		case *cdk.EventPaste:
+			if fi := w.GetFocus(); fi != nil {
+				if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
+					if f := sw.ProcessEvent(evt); f == cenums.EVENT_STOP {
+						return cenums.EVENT_STOP
+					}
+				}
+			}
 		case *cdk.EventError:
 			if f := w.Emit(SignalError, w, e); f == cenums.EVENT_PASS {
 				w.LogError(e.Error())
@@ -1644,7 +1652,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				}
 				// check focused
 				if fi := w.GetFocus(); fi != nil {
-					if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() && sw.IsSensitive() {
+					if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
 						if f := sw.ProcessEvent(evt); f == cenums.EVENT_STOP {
 							return cenums.EVENT_STOP
 						}
@@ -1694,9 +1702,12 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		case *cdk.EventResize:
 			alloc := ptypes.MakeRectangle(e.Size())
 			origin := ptypes.MakePoint2I(0, 0)
-			if f := w.Emit(SignalResize, w, e, origin, alloc); f == cenums.EVENT_PASS {
+			if rv := w.Emit(SignalResize, w, origin, alloc); rv == cenums.EVENT_STOP {
 				w.LogDebug("ProcessEvent(EventResize): (%v) %v", alloc, e)
-				return w.Resize()
+				if d := w.GetDisplay(); d != nil {
+					d.RequestDraw()
+					d.RequestSync()
+				}
 			}
 		}
 		w.LogTrace("ProcessEvent(cdk.Event): %v", evt)
@@ -1727,51 +1738,71 @@ func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.Eve
 }
 
 func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if len(argv) >= 4 {
-		if e, ok := argv[1].(*cdk.EventResize); ok {
-			origin := w.GetOrigin()
-			if eOrigin, ok := argv[2].(ptypes.Point2I); ok {
-				origin = eOrigin
-			}
-			alloc := w.GetAllocation()
-			if eAlloc, ok := argv[3].(ptypes.Rectangle); ok {
-				alloc = eAlloc
-			}
-
-			if w.GetWindowType() != cenums.WINDOW_POPUP {
-				w.SetAllocation(alloc)
-				w.SetOrigin(origin.X, origin.Y)
-				// w.LockDraw()
-				// if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
-				// 	w.LogErr(err)
-				// }
-				// w.UnlockDraw()
-				w.LogDebug("resized window: origin=%v, alloc=%v", origin, alloc)
-			}
-
-			size := ptypes.MakeRectangle(e.Size())
-			if child := w.GetChild(); child != nil {
-				if size.W < 1 && size.H < 1 {
-					size.Set(0, 0)
-				} else if size.W >= 3 && size.H >= 3 {
-					size.Sub(2, 2) // borders
-				}
-				child.SetOrigin(1, 1)
-				child.SetAllocation(size)
-				// childOrigin := child.GetOrigin()
-				// childOrigin.SubPoint(origin)
-				// child.LockDraw()
-				// if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, size, w.GetTheme().Content.Normal); err != nil {
-				// 	child.LogErr(err)
-				// }
-				// child.UnlockDraw()
-				child.Resize()
-			}
-			w.Invalidate()
-			return cenums.EVENT_STOP
+	argc := len(argv)
+	origin := w.GetOrigin()
+	if argc >= 2 {
+		if eOrigin, ok := argv[1].(ptypes.Point2I); ok {
+			origin = eOrigin
 		}
 	}
-	return cenums.EVENT_PASS
+	alloc := w.GetAllocation()
+	if argc >= 3 {
+		if eAlloc, ok := argv[2].(ptypes.Rectangle); ok {
+			alloc = eAlloc
+		}
+	}
+
+	// w.LockDraw()
+
+	if w.GetWindowType() != cenums.WINDOW_POPUP {
+		w.SetAllocation(alloc)
+		w.SetOrigin(origin.X, origin.Y)
+		theme := w.GetThemeRequest()
+		style := theme.Content.Normal
+		if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, style); err != nil {
+			w.LogErr(err)
+		}
+		if err := memphis.FillSurface(w.ObjectID(), theme); err != nil {
+			w.LogErr(err)
+		}
+		w.LogDebug("resized window: origin=%v, alloc=%v", origin, alloc)
+	}
+
+	if child := w.GetChild(); child != nil {
+		local := ptypes.NewPoint2I(origin.X+1, origin.Y+1)
+		size := ptypes.MakeRectangle(alloc.W, alloc.H)
+		if size.W < 1 && size.H < 1 {
+			size.Set(0, 0)
+		} else if size.W >= 3 && size.H >= 3 {
+			size.Sub(2, 2) // borders
+		}
+		// child.LockDraw()
+		child.SetOrigin(local.X, local.Y)
+		child.SetAllocation(size)
+		theme := child.GetThemeRequest()
+		style := theme.Content.Normal
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), *local, size, style); err != nil {
+			child.LogErr(err)
+		}
+		if err := memphis.FillSurface(w.ObjectID(), theme); err != nil {
+			w.LogErr(err)
+		}
+		// child.UnlockDraw()
+		child.Resize()
+		w.LogDebug("resized child: origin=%v, alloc=%v, local=%v", child.GetOrigin(), child.GetAllocation(), local)
+	}
+
+	// w.UnlockDraw()
+
+	w.Invalidate()
+
+	// if rv := w.Invalidate(); rv == cenums.EVENT_STOP {
+	// 	if d := w.GetDisplay(); d != nil {
+	// 		d.RequestDraw()
+	// 		d.RequestSync()
+	// 	}
+	// }
+	return cenums.EVENT_STOP
 }
 
 func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -1789,19 +1820,24 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		theme := w.GetThemeRequest()
 		child := w.GetChild()
 
-		if title != "" {
-			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
-		} else {
-			surface.FillBorder(false, true, theme)
-		}
-
 		if child != nil && child.IsVisible() {
 			if f := child.Draw(); f == cenums.EVENT_STOP {
-				child.LockDraw()
+				if title != "" {
+					surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
+				} else {
+					surface.FillBorder(false, true, theme)
+				}
+				// child.LockDraw()
 				if err := surface.Composite(child.ObjectID()); err != nil {
 					w.LogError("composite error: %v", err)
 				}
-				child.UnlockDraw()
+				// child.UnlockDraw()
+			}
+		} else {
+			if title != "" {
+				surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
+			} else {
+				surface.FillBorder(false, true, theme)
 			}
 		}
 
