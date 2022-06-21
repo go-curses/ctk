@@ -315,6 +315,22 @@ func (s *CScrollbar) BackwardPage() cenums.EventFlag {
 	return s.Backward(page * pageSize)
 }
 
+func (s *CScrollbar) ScrollHome() cenums.EventFlag {
+	if adjustment := s.GetAdjustment(); adjustment != nil {
+		adjustment.SetValue(0)
+		return cenums.EVENT_STOP
+	}
+	return cenums.EVENT_PASS
+}
+
+func (s *CScrollbar) ScrollEnd() cenums.EventFlag {
+	if adjustment := s.GetAdjustment(); adjustment != nil {
+		adjustment.SetValue(adjustment.GetUpper())
+		return cenums.EVENT_STOP
+	}
+	return cenums.EVENT_PASS
+}
+
 func (s *CScrollbar) GetPageInfo() (page, pageSize int) {
 	page = 1
 	pageSize = 1
@@ -728,6 +744,12 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) cenums.Event
 				s.CancelEvent()
 				return cenums.EVENT_STOP
 			}
+			switch e.Key() {
+			case cdk.KeyHome:
+				return s.ScrollHome()
+			case cdk.KeyEnd:
+				return s.ScrollEnd()
+			}
 			switch s.orientation {
 			case cenums.ORIENTATION_HORIZONTAL:
 				switch e.Key() {
@@ -819,10 +841,11 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 		fmt.Sprintf("%v.activate", s.ObjectName()),
 		func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			if adjustment := s.GetAdjustment(); adjustment != nil {
+				step := adjustment.GetStepIncrement()
 				if forward {
-					s.Forward(adjustment.GetStepIncrement())
+					s.Forward(step)
 				} else {
-					s.Backward(adjustment.GetStepIncrement())
+					s.Backward(step)
 				}
 			} else {
 				s.LogError("missing adjustment")
