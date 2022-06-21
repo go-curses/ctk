@@ -99,7 +99,7 @@ func (r *CRange) Init() (already bool) {
 	r.CWidget.Init()
 	r.flags = enums.NULL_WIDGET_FLAG
 	r.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
-	_ = r.InstallProperty(PropertyAdjustment, cdk.StructProperty, true, NewAdjustment(0, 0, 0, 0, 0, 0))
+	_ = r.InstallProperty(PropertyAdjustment, cdk.StructProperty, true, MakeAdjustment())
 	_ = r.InstallProperty(PropertyFillLevel, cdk.FloatProperty, true, 1.0)
 	_ = r.InstallProperty(PropertyInverted, cdk.BoolProperty, true, false)
 	_ = r.InstallProperty(PropertyLowerStepperSensitivity, cdk.StructProperty, true, enums.SensitivityAuto)
