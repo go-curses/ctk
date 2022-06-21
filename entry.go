@@ -6,13 +6,12 @@ import (
 
 	"github.com/gofrs/uuid"
 
-	"github.com/go-curses/cdk/lib/sync"
-
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
+	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/memphis"
 
 	"github.com/go-curses/ctk/lib/enums"
@@ -120,7 +119,7 @@ type Entry interface {
 	CancelEvent()
 }
 
-type cTextFieldChange struct {
+type cEntryChange struct {
 	name string
 	argv []interface{}
 }
@@ -139,13 +138,18 @@ type CEntry struct {
 	cursor    *ptypes.Point2I
 	selection *ptypes.Point2I
 	position  int
-	queue     []*cTextFieldChange
-	qLock     *sync.RWMutex
-	qTimer    uuid.UUID
+
+	qEnabled bool
+	queue    []*cEntryChange
+	qLock    *sync.RWMutex
+	qTimer   uuid.UUID
 
 	tProfile *memphis.TextProfile
 	tBuffer  memphis.TextBuffer
 	tbStyle  paint.Style
+
+	pasting bool
+	pasted  string
 }
 
 // MakeEntry is used by the Buildable system to construct a new Entry.
@@ -187,7 +191,8 @@ func (l *CEntry) Init() (already bool) {
 	_ = l.InstallProperty(PropertyEditable, cdk.BoolProperty, true, true)
 	l.selection = nil
 	l.position = 0
-	l.queue = make([]*cTextFieldChange, 0)
+	l.qEnabled = false
+	l.queue = make([]*cEntryChange, 0)
 	l.qLock = &sync.RWMutex{}
 	l.qTimer = uuid.Nil
 	l.offset = ptypes.NewRegion(0, 0, 0, 0)
@@ -515,24 +520,52 @@ func (l *CEntry) GetSelectionBounds() (startPos, endPos int, ok bool) {
 	return
 }
 
+func (l *CEntry) InsertTextAndSetPosition(newText string, index, position int) {
+	l.insertTextAndSetPosition(newText, index, position)
+	l.Invalidate()
+	l.updateCursor()
+	_ = l.Emit(SignalChangedText, l)
+}
+
+func (l *CEntry) insertTextAndSetPosition(newText string, index, position int) {
+	l.insertText(newText, index)
+	l.setPosition(position)
+}
+
 func (l *CEntry) InsertText(newText string, position int) {
 	l.insertText(newText, position)
 	l.Invalidate()
 	l.updateCursor()
+	_ = l.Emit(SignalChangedText, l)
 }
 
 func (l *CEntry) insertText(newText string, position int) {
+	l.Lock()
 	if modified, ok := l.tProfile.Insert(newText, position); ok {
 		if err := l.SetStringProperty(PropertyText, modified); err != nil {
 			l.LogErr(err)
 		}
 	}
+	l.Unlock()
+}
+
+func (l *CEntry) DeleteTextAndSetPosition(start, end, position int) {
+	l.deleteTextAndSetPosition(start, end, position)
+	l.Invalidate()
+	l.updateCursor()
+	_ = l.Emit(SignalChangedText, l)
+}
+
+func (l *CEntry) deleteTextAndSetPosition(start, end, position int) {
+	l.deleteText(start, end)
+	l.setPosition(position)
 }
 
 func (l *CEntry) DeleteText(startPos int, endPos int) {
 	l.deleteText(startPos, endPos)
 	l.Invalidate()
 	l.updateCursor()
+	_ = l.Emit(SignalChangedText, l)
 }
 
 func (l *CEntry) deleteText(startPos int, endPos int) {
@@ -812,66 +845,57 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 	return cenums.EVENT_PASS
 }
 
-func (l *CEntry) appendChange(name string, argv ...interface{}) {
-	l.qLock.Lock()
-	l.queue = append(l.queue, &cTextFieldChange{
-		name: name,
-		argv: argv,
-	})
-	l.qLock.Unlock()
-}
-
 func (l *CEntry) moveDown(lines int) {
 	pos := l.GetPosition()
-	l.Lock()
+	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.Y += lines
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
-	l.appendChange("SetPosition", newPos)
+	l.RUnlock()
+	l.queueChange("SetPosition", newPos)
 	l.LogDebug("moved down (%v line) position: %v (%v)", lines, newPos, posPoint)
-	l.Unlock()
 }
 
 func (l *CEntry) moveUp(lines int) {
 	pos := l.GetPosition()
-	l.Lock()
+	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.Y -= lines
 	if posPoint.Y < 0 {
 		posPoint.Y = 0
 	}
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
-	l.appendChange("SetPosition", newPos)
+	l.RUnlock()
+	l.queueChange("SetPosition", newPos)
 	l.LogDebug("moved up (%v line) position: %v (%v)", lines, newPos, posPoint)
-	l.Unlock()
 }
 
 func (l *CEntry) moveHome() {
 	pos := l.GetPosition()
-	l.Lock()
+	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.X = 0
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
-	l.appendChange("SetPosition", newPos)
+	l.RUnlock()
+	l.queueChange("SetPosition", newPos)
 	l.LogDebug("moved to home position: %v (%v)", newPos, posPoint)
-	l.Unlock()
 }
 
 func (l *CEntry) moveEnd() {
 	pos := l.GetPosition()
-	l.Lock()
+	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.X = -1
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
-	l.appendChange("SetPosition", newPos)
+	l.RUnlock()
+	l.queueChange("SetPosition", newPos)
 	l.LogDebug("moved to end position: %v (%v)", newPos, posPoint)
-	l.Unlock()
 }
 
 func (l *CEntry) moveLeft(characters int) {
 	if pos := l.GetPosition(); pos > 0 {
 		l.LogDebug("move left %d character(s): %v", characters, pos-characters)
-		l.appendChange("SetPosition", pos-characters)
+		l.queueChange("SetPosition", pos-characters)
 	} else {
 		l.LogDebug("at the start")
 	}
@@ -880,7 +904,7 @@ func (l *CEntry) moveLeft(characters int) {
 func (l *CEntry) moveRight(characters int) {
 	if pos := l.GetPosition(); pos < l.tProfile.Len() {
 		l.LogDebug("move right %d character(s): %v", characters, pos+characters)
-		l.appendChange("SetPosition", pos+characters)
+		l.queueChange("SetPosition", pos+characters)
 	} else {
 		l.LogDebug("all the way right: %v", pos)
 	}
@@ -891,12 +915,10 @@ func (l *CEntry) deleteForwards() {
 	if tLen := l.tProfile.Len(); tLen > 0 {
 		if pos < tLen {
 			l.LogDebug("deleting forwards")
-			l.appendChange("DeleteText", pos, pos)
-			l.appendChange("SetPosition", pos)
+			l.queueChange("DeleteTextAndSetPosition", pos, pos, pos)
 		} else {
 			l.LogDebug("deleting forwards (EOL)")
-			l.appendChange("DeleteText", tLen-1, tLen-1)
-			l.appendChange("SetPosition", tLen-1)
+			l.queueChange("DeleteTextAndSetPosition", tLen-1, tLen-1, tLen-1)
 		}
 	} else {
 		l.LogDebug("nothing to delete forwards")
@@ -907,10 +929,22 @@ func (l *CEntry) deleteBackwards() {
 	pos := l.GetPosition()
 	if pos > 0 {
 		l.LogDebug("deleting backwards")
-		l.appendChange("DeleteText", pos-1, pos-1)
-		l.appendChange("SetPosition", pos-1)
+		l.queueChange("DeleteTextAndSetPosition", pos-1, pos-1, pos-1)
 	} else {
 		l.LogDebug("nothing to delete backwards")
+	}
+}
+
+func (l *CEntry) queueChange(name string, argv ...interface{}) {
+	if l.qEnabled {
+		l.qLock.Lock()
+		l.queue = append(l.queue, &cEntryChange{
+			name: name,
+			argv: argv,
+		})
+		l.qLock.Unlock()
+	} else {
+		l.applyChange(name, argv...)
 	}
 }
 
@@ -921,48 +955,8 @@ func (l *CEntry) processQueue() (changesApplied bool) {
 		return false
 	}
 	for _, change := range l.queue {
-		switch change.name {
-		case "SetPosition":
-			if len(change.argv) == 1 {
-				if v, ok := change.argv[0].(int); ok {
-					l.setPosition(v)
-					changesApplied = true
-				} else {
-					l.LogError("argument is not an 'int' for SetPosition change: %T (%v)", change.argv[0], change.argv)
-				}
-			} else {
-				l.LogError("too many arguments for SetPosition change: %v", change.argv)
-			}
-		case "InsertText":
-			if len(change.argv) == 2 {
-				if newText, ok := change.argv[0].(string); ok {
-					if pos, ok := change.argv[1].(int); ok {
-						l.insertText(newText, pos)
-						changesApplied = true
-					} else {
-						l.LogError("second argument is not an 'int' for InsertText change: %T (%v)", change.argv[1], change.argv)
-					}
-				} else {
-					l.LogError("first argument is not a 'string' for InsertText change: %T (%v)", change.argv[0], change.argv)
-				}
-			} else {
-				l.LogError("too many arguments for InsertText change: %v", change.argv)
-			}
-		case "DeleteText":
-			if len(change.argv) == 2 {
-				if start, ok := change.argv[0].(int); ok {
-					if end, ok := change.argv[1].(int); ok {
-						l.deleteText(start, end)
-						changesApplied = true
-					} else {
-						l.LogError("second argument is not an 'int' for DeleteText change: %T (%v)", change.argv[1], change.argv)
-					}
-				} else {
-					l.LogError("first argument is not an 'int' for DeleteText change: %T (%v)", change.argv[0], change.argv)
-				}
-			} else {
-				l.LogError("too many arguments for DeleteText change: %v", change.argv)
-			}
+		if l.processChange(change) {
+			changesApplied = true
 		}
 	}
 	l.queue = nil
@@ -970,56 +964,163 @@ func (l *CEntry) processQueue() (changesApplied bool) {
 	return
 }
 
+func (l *CEntry) applyChange(name string, argv ...interface{}) {
+	switch name {
+	case "SetPosition":
+		if pos, ok := argv[0].(int); ok {
+			l.SetPosition(pos)
+		}
+	case "InsertTextAndSetPosition":
+		if text, ok := argv[0].(string); ok {
+			if index, ok := argv[1].(int); ok {
+				if pos, ok := argv[2].(int); ok {
+					l.InsertTextAndSetPosition(text, index, pos)
+				}
+			}
+		}
+	case "InsertText":
+		if text, ok := argv[0].(string); ok {
+			if index, ok := argv[1].(int); ok {
+				l.InsertText(text, index)
+			}
+		}
+	case "DeleteTextAndSetPosition":
+		if start, ok := argv[0].(int); ok {
+			if end, ok := argv[1].(int); ok {
+				if pos, ok := argv[2].(int); ok {
+					l.DeleteTextAndSetPosition(start, end, pos)
+				}
+			}
+		}
+	case "DeleteText":
+		if start, ok := argv[0].(int); ok {
+			if end, ok := argv[1].(int); ok {
+				l.DeleteText(start, end)
+			}
+		}
+	}
+}
+
+func (l *CEntry) processChange(change *cEntryChange) (changesApplied bool) {
+	switch change.name {
+
+	case "SetPosition":
+		if len(change.argv) == 1 {
+			if v, ok := change.argv[0].(int); ok {
+				l.setPosition(v)
+				changesApplied = true
+			} else {
+				l.LogError("argument is not an 'int' for SetPosition change: %T (%v)", change.argv[0], change.argv)
+			}
+		} else {
+			l.LogError("too many arguments for SetPosition change: %v", change.argv)
+		}
+
+	case "InsertTextAndSetPosition":
+		if len(change.argv) == 3 {
+			if text, ok := change.argv[0].(string); ok {
+				if index, ok := change.argv[1].(int); ok {
+					if pos, ok := change.argv[2].(int); ok {
+						l.insertTextAndSetPosition(text, index, pos)
+						changesApplied = true
+					} else {
+						l.LogError("third argument is not an 'int' for InsertTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
+					}
+				} else {
+					l.LogError("second argument is not an 'int' for InsertTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
+				}
+			} else {
+				l.LogError("first argument is not a 'string' for InsertTextAndSetPosition change: %T (%v)", change.argv[0], change.argv)
+			}
+		} else {
+			l.LogError("too many arguments for InsertTextAndSetPosition change: %v", change.argv)
+		}
+
+	case "InsertText":
+		if len(change.argv) >= 2 {
+			if newText, ok := change.argv[0].(string); ok {
+				if pos, ok := change.argv[1].(int); ok {
+					l.insertText(newText, pos)
+					changesApplied = true
+				} else {
+					l.LogError("second argument is not an 'int' for InsertText change: %T (%v)", change.argv[1], change.argv)
+				}
+			} else {
+				l.LogError("first argument is not a 'string' for InsertText change: %T (%v)", change.argv[0], change.argv)
+			}
+		} else {
+			l.LogError("too many arguments for InsertText change: %v", change.argv)
+		}
+
+	case "DeleteTextAndSetPosition":
+		if len(change.argv) == 3 {
+			if start, ok := change.argv[0].(int); ok {
+				if end, ok := change.argv[1].(int); ok {
+					if pos, ok := change.argv[2].(int); ok {
+						l.deleteTextAndSetPosition(start, end, pos)
+						changesApplied = true
+					} else {
+						l.LogError("third argument is not an 'int' for DeleteTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
+					}
+				} else {
+					l.LogError("second argument is not an 'int' for DeleteTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
+				}
+			} else {
+				l.LogError("first argument is not an 'int' for DeleteTextAndSetPosition change: %T (%v)", change.argv[0], change.argv)
+			}
+		} else {
+			l.LogError("too many arguments for DeleteTextAndSetPosition change: %v", change.argv)
+		}
+
+	case "DeleteText":
+		if len(change.argv) == 2 {
+			if start, ok := change.argv[0].(int); ok {
+				if end, ok := change.argv[1].(int); ok {
+					l.deleteText(start, end)
+					changesApplied = true
+				} else {
+					l.LogError("second argument is not an 'int' for DeleteText change: %T (%v)", change.argv[1], change.argv)
+				}
+			} else {
+				l.LogError("first argument is not an 'int' for DeleteText change: %T (%v)", change.argv[0], change.argv)
+			}
+		} else {
+			l.LogError("too many arguments for DeleteText change: %v", change.argv)
+		}
+	}
+
+	return
+}
+
 func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
-		case *cdk.EventMouse:
-			pos := ptypes.NewPoint2I(e.Position())
-			switch e.State() {
-			// case cdk.BUTTON_PRESS, cdk.DRAG_START:
-			// 	if l.HasPoint(pos) && !l.HasEventFocus() {
-			// 		l.GrabEventFocus()
-			// 		return cenums.EVENT_STOP
-			// 	}
-			// case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
-			// 	if l.HasEventFocus() {
-			// 		if !l.HasPoint(pos) {
-			// 			l.LogDebug("moved out of bounds")
-			// 			l.CancelEvent()
-			// 			return cenums.EVENT_STOP
-			// 		}
-			// 	}
-			// 	return cenums.EVENT_PASS
-			// case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
-			// 	if l.HasEventFocus() {
-			// 		if !l.HasPoint(pos) {
-			// 			l.LogDebug("released out of bounds")
-			// 			l.CancelEvent()
-			// 			return cenums.EVENT_STOP
-			// 		}
-			// 		l.ReleaseEventFocus()
-			// 		l.GrabFocus()
-			// 		l.LogDebug("released")
-			// 		return cenums.EVENT_STOP
-			// 	}
-			// }
-			case cdk.BUTTON_RELEASE:
-				if l.HasPoint(pos) {
-					local := pos.NewClone()
-					local.SubPoint(l.GetOrigin())
-					local.AddPoint(l.offset.Origin())
-					l.SetPosition(l.tProfile.GetPositionFromPoint(*local))
-					if !l.HasFocus() {
-						l.GrabFocus()
-					}
-					l.GetDisplay().RequestDraw()
-					l.GetDisplay().RequestShow()
-				}
+		case *cdk.EventPaste:
+			l.Lock()
+			l.pasting = e.Start()
+			l.Unlock()
+			if e.End() {
+				l.InsertText(l.pasted, l.GetPosition())
+				l.Lock()
+				l.pasted = ""
+				l.Unlock()
 			}
+
 		case *cdk.EventKey:
 			if !l.HasFocus() {
 				return cenums.EVENT_PASS
 			}
+
+			l.RLock()
+			if l.pasting {
+				l.RUnlock()
+				l.Lock()
+				l.pasted += string(e.Rune())
+				l.Unlock()
+				return cenums.EVENT_STOP
+			}
+			l.RUnlock()
+
 			r := e.Rune()
 			v := e.Name()
 			m := e.Modifiers()
@@ -1032,8 +1133,7 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				if l.GetSingleLineMode() {
 					l.LogDebug("activate default")
 				} else {
-					l.appendChange("InsertText", "\n", pos)
-					l.appendChange("SetPosition", pos+1)
+					l.queueChange("InsertTextAndSetPosition", "\n", pos, pos+1)
 					l.LogDebug(`printable key: \n, at pos: %v`, pos)
 				}
 				return cenums.EVENT_STOP
@@ -1103,8 +1203,7 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 
 			if k := e.Key(); k == cdk.KeyRune {
 				pk := string(r)
-				l.appendChange("InsertText", pk, pos)
-				l.appendChange("SetPosition", pos+1)
+				l.queueChange("InsertTextAndSetPosition", pk, pos, pos+1)
 				l.LogDebug("printable key: %v, at pos: %v", pk, pos)
 				return cenums.EVENT_STOP
 			}
@@ -1159,6 +1258,50 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			default:
 				l.LogDebug("other key: r:%v, n:%v", r, e.Name())
 				return cenums.EVENT_STOP
+			}
+
+		case *cdk.EventMouse:
+			pos := ptypes.NewPoint2I(e.Position())
+			switch e.State() {
+			// case cdk.BUTTON_PRESS, cdk.DRAG_START:
+			// 	if l.HasPoint(pos) && !l.HasEventFocus() {
+			// 		l.GrabEventFocus()
+			// 		return cenums.EVENT_STOP
+			// 	}
+			// case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
+			// 	if l.HasEventFocus() {
+			// 		if !l.HasPoint(pos) {
+			// 			l.LogDebug("moved out of bounds")
+			// 			l.CancelEvent()
+			// 			return cenums.EVENT_STOP
+			// 		}
+			// 	}
+			// 	return cenums.EVENT_PASS
+			// case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
+			// 	if l.HasEventFocus() {
+			// 		if !l.HasPoint(pos) {
+			// 			l.LogDebug("released out of bounds")
+			// 			l.CancelEvent()
+			// 			return cenums.EVENT_STOP
+			// 		}
+			// 		l.ReleaseEventFocus()
+			// 		l.GrabFocus()
+			// 		l.LogDebug("released")
+			// 		return cenums.EVENT_STOP
+			// 	}
+			// }
+			case cdk.BUTTON_RELEASE:
+				if l.HasPoint(pos) {
+					local := pos.NewClone()
+					local.SubPoint(l.GetOrigin())
+					local.AddPoint(l.offset.Origin())
+					l.SetPosition(l.tProfile.GetPositionFromPoint(*local))
+					if !l.HasFocus() {
+						l.GrabFocus()
+					}
+					l.GetDisplay().RequestDraw()
+					l.GetDisplay().RequestShow()
+				}
 			}
 		}
 	}
@@ -1216,13 +1359,19 @@ func (l *CEntry) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 		cdk.StopTimeout(l.qTimer)
 		l.qTimer = uuid.Nil
 	}
-	l.qTimer = cdk.AddTimeout(time.Millisecond*100, func() cenums.EventFlag {
-		if l.processQueue() {
-			l.Invalidate()
-			l.updateCursor()
-		}
-		return cenums.EVENT_PASS
-	})
+	l.qLock.Lock()
+	if l.qEnabled {
+		l.queue = nil
+		l.qTimer = cdk.AddTimeout(time.Millisecond*50, func() cenums.EventFlag {
+			if l.processQueue() {
+				_ = l.Emit(SignalChangedText, l)
+				l.Invalidate()
+				l.updateCursor()
+			}
+			return cenums.EVENT_PASS
+		})
+	}
+	l.qLock.Unlock()
 	return cenums.EVENT_STOP
 }
 
