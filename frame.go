@@ -471,11 +471,13 @@ func (f *CFrame) invalidate(data []interface{}, argv ...interface{}) cenums.Even
 	}
 
 	if child != nil {
-		local := child.GetOrigin()
-		local.SubPoint(origin)
-		alloc := child.GetAllocation()
-		child.LockDraw()
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, alloc, theme.Content.Normal); err != nil {
+		// local := child.GetOrigin()
+		// local.SubPoint(origin)
+		// alloc := child.GetAllocation()
+		alloc := f.GetAllocation()
+		alloc.Sub(2, 2)
+		// child.LockDraw()
+		if err := memphis.MakeConfigureSurface(child.ObjectID(), ptypes.MakePoint2I(1, 1), alloc, theme.Content.Normal); err != nil {
 			child.LogErr(err)
 		}
 		// child.UnlockDraw()
