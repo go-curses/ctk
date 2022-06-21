@@ -251,13 +251,19 @@ func (b *CButton) Build(builder Builder, element *CBuilderElement) error {
 
 // Activate emits a SignalActivate, returning TRUE if the event was handled
 func (b *CButton) Activate() (value bool) {
-	return b.Emit(SignalActivate, b) == cenums.EVENT_STOP
+	if b.IsSensitive() {
+		return b.Emit(SignalActivate, b) == cenums.EVENT_STOP
+	}
+	return false
 }
 
 // Clicked emits a SignalClicked
 func (b *CButton) Clicked() cenums.EventFlag {
 	// TODO: button Clicked() is not defined well
-	return b.Emit(SignalClicked, b)
+	if b.IsSensitive() {
+		return b.Emit(SignalClicked, b)
+	}
+	return cenums.EVENT_PASS
 }
 
 // GetRelief is a convenience method for returning the relief property value
@@ -674,6 +680,9 @@ func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) cenums.Ev
 }
 
 func (b *CButton) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	if !b.IsSensitive() {
+		return cenums.EVENT_PASS
+	}
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
 		case *cdk.EventMouse:
