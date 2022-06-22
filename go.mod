@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/go-curses/cdk v0.5.6
+	github.com/go-curses/cdk v0.5.8
 	github.com/gobuffalo/helpers v0.6.4 // indirect
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gobuffalo/tags v2.1.7+incompatible // indirect
@@ -14,8 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/smartystreets/goconvey v1.7.2
 	github.com/tdewolff/parse/v2 v2.6.0
-	github.com/urfave/cli/v2 v2.10.0
+	github.com/urfave/cli/v2 v2.10.2
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
 	golang.org/x/text v0.3.7
 )
