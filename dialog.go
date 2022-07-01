@@ -71,7 +71,6 @@ type Dialog interface {
 	Show()
 	ShowAll()
 	Destroy()
-	SetFocus(focus Widget)
 }
 
 // The CDialog structure implements the Dialog interface and is exported
@@ -534,27 +533,6 @@ func (d *CDialog) Destroy() {
 	d.Emit(SignalDestroyEvent, d)
 }
 
-func (d *CDialog) SetFocus(focus Widget) {
-	if focus == nil {
-		d.Lock()
-		d.focused = nil
-		d.Unlock()
-	} else if fw, ok := focus.Self().(Sensitive); ok {
-		if fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
-			if err := d.SetStructProperty(PropertyFocusedWidget, focus); err != nil {
-				d.LogErr(err)
-			}
-			d.Lock()
-			d.focused = focus
-			d.Unlock()
-		} else {
-			d.LogError("cannot focus, not visible or not sensitive")
-		}
-	} else {
-		d.LogError("does not implement Sensitive interface: %v", focus)
-	}
-}
-
 func (d *CDialog) getDialogRegion() (region ptypes.Region) {
 	if display := cdk.GetDefaultDisplay(); display != nil && display.IsRunning() {
 		alloc := ptypes.MakeRectangle(display.Screen().Size())
@@ -588,7 +566,6 @@ func (d *CDialog) getDialogRegionForAllocation(alloc ptypes.Rectangle) (region p
 }
 
 // TODO: set-size-request makes dialog window size, truncated by actual size
-// TODO: local canvas / child alloc and origin issues
 
 func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
@@ -601,12 +578,14 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				}
 				return cenums.EVENT_STOP
 			}
+
 		case *cdk.EventResize:
 			alloc := ptypes.MakeRectangle(e.Size())
 			region := d.getDialogRegionForAllocation(alloc)
 			d.SetOrigin(region.X, region.Y)
 			d.SetAllocation(region.Size())
 			return d.Resize()
+
 		case *cdk.EventMouse:
 			if f := d.Emit(SignalEventMouse, d, evt); f == cenums.EVENT_PASS {
 				if child := d.GetChild(); child != nil {
@@ -642,19 +621,16 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	origin := d.GetOrigin()
-	alloc := d.GetAllocation()
-	if d.IsMapped() {
-		d.LockDraw()
-		if err := memphis.MakeConfigureSurface(d.ObjectID(), origin, alloc, d.GetThemeRequest().Content.Normal); err != nil {
-			d.LogErr(err)
-		}
-		d.UnlockDraw()
+	if child := d.GetChild(); child != nil {
+		WidgetRecurseInvalidate(child)
 	}
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	d.LockDraw()
+	defer d.UnlockDraw()
+
 	region := d.getDialogRegion().NewClone()
 	d.SetOrigin(region.X, region.Y)
 	d.SetAllocation(region.Size())
@@ -663,13 +639,6 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		local := ptypes.MakePoint2I(1, 1)
 		alloc := region.Size().NewClone()
 		alloc.Sub(2, 2)
-		if child.IsMapped() {
-			// child.LockDraw()
-			if err := memphis.MakeConfigureSurface(child.ObjectID(), local, *alloc, child.GetThemeRequest().Content.Normal); err != nil {
-				child.LogErr(err)
-			}
-			// child.UnlockDraw()
-		}
 		child.SetOrigin(region.X+local.X, region.Y+local.Y)
 		child.SetAllocation(*alloc)
 		child.Resize()
@@ -700,17 +669,17 @@ func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 			surface.FillBorder(false, true, theme)
 		}
 
-		if r := vbox.Draw(); r == cenums.EVENT_STOP {
-			vbox.LockDraw()
-			if err := surface.Composite(vbox.ObjectID()); err != nil {
-				vbox.LogErr(err)
-			}
-			vbox.UnlockDraw()
+		vbox.Draw()
+		vbox.LockDraw()
+		if err := surface.Composite(vbox.ObjectID()); err != nil {
+			vbox.LogErr(err)
 		}
+		vbox.UnlockDraw()
 
 		if debug, _ := d.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorNavy, d.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
