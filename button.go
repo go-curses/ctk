@@ -100,6 +100,8 @@ type Button interface {
 	CancelEvent()
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	GetSizeRequest() (width, height int)
+	SetTheme(theme paint.Theme)
+	Add(w Widget)
 }
 
 // The CButton structure implements the Button interface and is exported to
@@ -137,7 +139,7 @@ func NewButtonWithLabel(text string) (b Button) {
 	label := NewLabel(text)
 	label.Show()
 	b.Add(label)
-	label.SetTheme(DefaultButtonTheme)
+	label.SetTheme(b.GetTheme())
 	label.UnsetFlags(enums.CAN_FOCUS)
 	label.UnsetFlags(enums.CAN_DEFAULT)
 	label.UnsetFlags(enums.RECEIVES_DEFAULT)
@@ -205,6 +207,7 @@ func (b *CButton) Init() (already bool) {
 	b.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.RECEIVES_DEFAULT | enums.CAN_FOCUS | enums.APP_PAINTABLE | enums.COMPOSITE_PARENT)
 	b.SetTheme(DefaultButtonTheme)
 	b.pressed = false
+
 	_ = b.InstallBuildableProperty(PropertyFocusOnClick, cdk.BoolProperty, true, true)
 	_ = b.InstallBuildableProperty(PropertyButtonLabel, cdk.StringProperty, true, nil)
 	_ = b.InstallBuildableProperty(PropertyRelief, cdk.StructProperty, true, nil)
@@ -212,6 +215,7 @@ func (b *CButton) Init() (already bool) {
 	_ = b.InstallBuildableProperty(PropertyUseUnderline, cdk.BoolProperty, true, false)
 	_ = b.InstallBuildableProperty(PropertyXAlign, cdk.FloatProperty, true, 0.5)
 	_ = b.InstallBuildableProperty(PropertyYAlign, cdk.FloatProperty, true, 0.5)
+
 	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)
 	b.Connect(SignalCdkEvent, ButtonCdkEventHandle, b.event)
 	b.Connect(SignalLostFocus, ButtonLostFocusHandle, b.lostFocus)
@@ -219,7 +223,6 @@ func (b *CButton) Init() (already bool) {
 	b.Connect(SignalInvalidate, ButtonInvalidateHandle, b.invalidate)
 	b.Connect(SignalResize, ButtonResizeHandle, b.resize)
 	b.Connect(SignalDraw, ButtonDrawHandle, b.draw)
-	b.Invalidate()
 	return false
 }
 
@@ -247,6 +250,18 @@ func (b *CButton) Build(builder Builder, element *CBuilderElement) error {
 	}
 	element.ApplySignals()
 	return nil
+}
+
+func (b *CButton) Add(w Widget) {
+	b.CBin.Add(w)
+	w.SetTheme(b.GetTheme())
+}
+
+func (b *CButton) SetTheme(theme paint.Theme) {
+	b.CBin.SetTheme(theme)
+	if child := b.GetChild(); child != nil {
+		child.SetTheme(theme)
+	}
 }
 
 // Activate emits a SignalActivate, returning TRUE if the event was handled
@@ -340,6 +355,8 @@ func (b *CButton) SetLabel(label string) {
 			v.SetText(label)
 			b.Invalidate()
 		}
+	} else if err := b.SetStringProperty(PropertyButtonLabel, label); err != nil {
+		b.LogErr(err)
 	}
 }
 
@@ -620,17 +637,31 @@ func (b *CButton) GetWidgetAt(p *ptypes.Point2I) Widget {
 // is used by Container Widgets to resolve the surface space allocated for their
 // child Widget instances.
 func (b *CButton) GetSizeRequest() (width, height int) {
-	size := ptypes.NewRectangle(b.CWidget.GetSizeRequest())
+	req := ptypes.NewRectangle(b.CWidget.GetSizeRequest())
 	if child := b.GetChild(); child != nil {
-		labelSizeReq := ptypes.NewRectangle(child.GetSizeRequest())
-		if size.W <= -1 && labelSizeReq.W > -1 {
-			size.W = labelSizeReq.W + 2 // bookends
+		childReq := ptypes.NewRectangle(child.GetSizeRequest())
+		lw, lh := -1, -1
+		if label, ok := child.Self().(Label); ok {
+			lw, lh = label.GetPlainTextInfo()
 		}
-		if size.H <= -1 && labelSizeReq.H > -1 {
-			size.H = labelSizeReq.H
+		if req.W <= -1 {
+			if childReq.W > 0 {
+				req.W = 1 + childReq.W + 1 // borders, bookends
+			} else if lw > 0 {
+				req.W = 1 + lw + 1 // borders, bookends
+			}
+		}
+		if req.H <= -1 {
+			if childReq.H > 0 {
+				req.H = childReq.H
+			} else if lh > 0 {
+				req.H = 1 + lw + 1 // borders
+			} else {
+				req.H = 3
+			}
 		}
 	}
-	return size.W, size.H
+	return req.W, req.H
 }
 
 func (b *CButton) getBorderRequest() (border bool) {
@@ -749,25 +780,24 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (b *CButton) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if child := b.GetChild(); child != nil {
-		child.SetTheme(b.GetThemeRequest())
-		child.Invalidate()
+	if !b.GetInvalidated() {
+		b.SetInvalidated(true)
+		if child := b.GetChild(); child != nil {
+			child.SetTheme(b.GetThemeRequest())
+			child.Invalidate()
+		}
 	}
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	theme := b.GetThemeRequest()
+	b.LockDraw()
+	defer b.UnlockDraw()
+
 	alloc := b.GetAllocation()
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
 	origin := b.GetOrigin()
 	child := b.GetChild()
-
-	b.Lock()
-	// b.LockDraw()
-	if err := memphis.MakeConfigureSurface(b.ObjectID(), origin, alloc, theme.Content.Normal); err != nil {
-		b.LogErr(err)
-	}
 
 	var label Label = nil
 	if childLabel, ok := child.(Label); child != nil && ok {
@@ -775,22 +805,25 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 	}
 
 	if child != nil {
+
 		if alloc.W <= 0 || alloc.H <= 0 {
 			child.SetAllocation(ptypes.MakeRectangle(0, 0))
 			rv := child.Resize()
-			b.Unlock()
 			return rv
 		}
+
 		local := ptypes.NewPoint2I(0, 0)
 		if alloc.W >= 3 && alloc.H >= 3 {
 			local.Add(1, 1)
 			size.Sub(2, 2)
 		}
+
 		req := ptypes.MakeRectangle(child.GetSizeRequest())
-		(&req).Clamp(0, 0, size.W, size.H)
+		req.Clamp(0, 0, size.W, size.H)
+
 		if label != nil {
 			req = ptypes.MakeRectangle(label.GetSizeRequest())
-			(&req).Clamp(0, 0, size.W, size.H)
+			req.Clamp(0, 0, size.W, size.H)
 			w, h := label.GetPlainTextInfoAtWidth(req.W)
 			xAlign := 0.5
 			yAlign := 0.5
@@ -805,25 +838,17 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 			}
 			label.SetAlignment(xAlign, yAlign)
 		}
+
 		child.SetOrigin(origin.X+local.X, origin.Y+local.Y)
 		child.SetAllocation(*size)
-		if label != nil {
-			label.Resize()
-		} else {
-			child.Resize()
-		}
-		// child.LockDraw()
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), *local, *size, theme.Content.Normal); err != nil {
-			child.LogErr(err)
-		}
-		// child.UnlockDraw()
-
+		child.Resize()
+		// if rv := child.Resize(); rv == cenums.EVENT_STOP {
+		// 	b.LogDebug("button child resized: origin=%v, alloc=%v", child.GetOrigin(), child.GetAllocation())
+		// }
 	}
 
-	// b.UnlockDraw()
-	b.Unlock()
 	b.Invalidate()
-	return cenums.EVENT_PASS
+	return cenums.EVENT_STOP
 }
 
 func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -842,7 +867,6 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		var label Label
 		if child = b.GetChild(); child == nil {
 			b.LogError("button child (label) not found")
-			// return cenums.EVENT_PASS
 		} else if v, ok := child.Self().(Label); ok {
 			label = v
 		}
@@ -862,26 +886,27 @@ func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		)
 
 		if label != nil {
-			if f := label.Draw(); f == cenums.EVENT_STOP {
-				// label.LockDraw()
-				if err := surface.Composite(label.ObjectID()); err != nil {
-					b.LogError("composite error: %v", err)
-				}
-				// label.UnlockDraw()
+			label.SetTheme(theme)
+			label.Draw()
+			label.LockDraw()
+			if err := surface.Composite(label.ObjectID()); err != nil {
+				b.LogError("composite error: %v", err)
 			}
+			label.UnlockDraw()
 		} else if child != nil {
-			if f := child.Draw(); f == cenums.EVENT_STOP {
-				// child.LockDraw()
-				if err := surface.Composite(child.ObjectID()); err != nil {
-					b.LogError("composite error: %v", err)
-				}
-				// child.UnlockDraw()
+			child.SetTheme(theme)
+			child.Draw()
+			child.LockDraw()
+			if err := surface.Composite(child.ObjectID()); err != nil {
+				b.LogError("composite error: %v", err)
 			}
+			child.UnlockDraw()
 		}
 
 		if debug, _ := b.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorRed, b.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
