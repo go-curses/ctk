@@ -22,6 +22,7 @@ const (
 	SignalGrabEventFocus    cdk.Signal = "grab-event-focus"
 	SignalHomogeneous       cdk.Signal = "homogeneous"
 	SignalInvalidate        cdk.Signal = "invalidate"
+	SignalInvalidateChanged cdk.Signal = "invalidate-changed"
 	SignalLostEventFocus    cdk.Signal = "lost-event-focus"
 	SignalLostFocus         cdk.Signal = "lost-focus"
 	SignalName              cdk.Signal = "name"
