@@ -8,7 +8,6 @@ import (
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/ptypes"
-	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -55,7 +54,6 @@ type Container interface {
 
 	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
-	SetOrigin(x, y int)
 	SetWindow(w Window)
 	ShowAll()
 	Map()
@@ -66,6 +64,7 @@ type Container interface {
 	ResizeChildren()
 	ChildType() (value cdk.CTypeTag)
 	GetChildren() (children []Widget)
+	HasChild(widget Widget) (present bool)
 	GetFocusChild() (value Widget)
 	SetFocusChild(child Widget)
 	GetFocusVAdjustment() (value Adjustment)
@@ -157,25 +156,6 @@ func (c *CContainer) Build(builder Builder, element *CBuilderElement) error {
 	return nil
 }
 
-// SetOrigin emits an origin signal and if all signal handlers return
-// cenums.EVENT_PASS, updates the Container origin field.
-//
-// Note that this method's behaviour may change.
-//
-// Locking: write
-func (c *CContainer) SetOrigin(x, y int) {
-	if f := c.Emit(SignalOrigin, c, ptypes.MakePoint2I(x, y)); f == cenums.EVENT_PASS {
-		children := c.GetChildren()
-		c.Lock()
-		c.origin.Set(x, y)
-		c.Unlock()
-		for _, child := range children {
-			child.SetOrigin(x, y)
-		}
-		c.Invalidate()
-	}
-}
-
 // SetWindow sets the Container window field to the given Window and then does
 // the same for each of the Widget children.
 //
@@ -249,7 +229,6 @@ func (c *CContainer) Unmap() {
 func (c *CContainer) Add(w Widget) {
 	// TODO: if can default and no default yet, set
 	if f := c.Emit(SignalAdd, c, w); f == cenums.EVENT_PASS {
-		log.DebugDF(1, "add child: %v", w.ObjectName())
 		w.SetParent(c)
 		if window := c.GetWindow(); window != nil {
 			if wc, ok := w.Self().(Container); ok {
@@ -271,7 +250,7 @@ func (c *CContainer) Add(w Widget) {
 		}
 		c.property[w.ObjectID()] = childProps
 		c.Unlock()
-		c.Resize()
+		// log.DebugDF(1, "child added to container: %v", w.ObjectName())
 	}
 }
 
@@ -299,7 +278,6 @@ func (c *CContainer) AddWithProperties(widget Widget, argv ...interface{}) {
 // Locking: write
 func (c *CContainer) Remove(w Widget) {
 	var children []Widget
-	resize := false
 	for _, child := range c.GetChildren() {
 		if child.ObjectID() == w.ObjectID() {
 			if f := c.Emit(SignalRemove, c, child); f == cenums.EVENT_PASS {
@@ -311,7 +289,6 @@ func (c *CContainer) Remove(w Widget) {
 				w.SetParent(nil)
 				c.Lock()
 				delete(c.property, w.ObjectID())
-				resize = true
 				c.Unlock()
 				continue
 			}
@@ -319,15 +296,8 @@ func (c *CContainer) Remove(w Widget) {
 		children = append(children, child)
 	}
 	c.Lock()
-	if len(children) == 0 {
-		c.children = make([]Widget, 0)
-	} else {
-		c.children = children
-	}
+	c.children = children
 	c.Unlock()
-	if resize {
-		c.Resize()
-	}
 }
 
 // ResizeChildren will call Resize on each child Widget.
@@ -371,6 +341,22 @@ func (c *CContainer) GetChildren() (children []Widget) {
 	defer c.RUnlock()
 	for _, child := range c.children {
 		children = append(children, child)
+	}
+	return
+}
+
+func (c *CContainer) HasChild(widget Widget) (present bool) {
+	c.RLock()
+	defer c.RUnlock()
+	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
+	allChildren = append(allChildren, c.children...)
+	wid := widget.ObjectID()
+	for _, child := range allChildren {
+		if child.ObjectID() == wid {
+			return true
+		} else if container, ok := child.Self().(Container); ok && container.HasChild(widget) {
+			return true
+		}
 	}
 	return
 }
@@ -825,12 +811,12 @@ func (c *CContainer) childHide(data []interface{}, argv ...interface{}) cenums.E
 }
 
 func (c *CContainer) childLostFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	c.Invalidate()
+	// c.Invalidate()
 	return cenums.EVENT_PASS
 }
 
 func (c *CContainer) childGainedFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	c.Invalidate()
+	// c.Invalidate()
 	return cenums.EVENT_PASS
 }
 
