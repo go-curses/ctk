@@ -1655,17 +1655,19 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				if w.accelGroups.Activate(w, e.Key(), e.Modifiers()) {
 					return cenums.EVENT_STOP
 				}
+
 				// check focus change
-				switch cdk.Key(e.Rune()) {
-				case cdk.KeyBacktab:
-					w.LogDebug("shift+tab key caught")
+				switch {
+				case e.RuneAsKey() == cdk.KeyBacktab || e.Key() == cdk.KeyBacktab:
 					if e.Modifiers().Has(cdk.ModShift) {
+						w.LogDebug("shift+back-tab key caught")
 						w.FocusNext()
 					} else {
+						w.LogDebug("back-tab key caught")
 						w.FocusPrevious()
 					}
 					return cenums.EVENT_STOP
-				case cdk.KeyTab:
+				case e.RuneAsKey() == cdk.KeyTAB || e.Key() == cdk.KeyTAB:
 					w.LogDebug("tab key caught")
 					if e.Modifiers().Has(cdk.ModShift) {
 						w.FocusPrevious()
@@ -1674,6 +1676,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					}
 					return cenums.EVENT_STOP
 				}
+
 				// check focused
 				if fi := w.GetFocus(); fi != nil {
 					if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
