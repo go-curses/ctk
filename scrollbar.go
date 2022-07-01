@@ -128,6 +128,7 @@ func (s *CScrollbar) Init() (already bool) {
 		s.orientation = cenums.ORIENTATION_VERTICAL
 	}
 	s.SetTheme(DefaultScrollbarTheme)
+
 	s.focusedButton = nil
 	s.hasBackwardStepper = true
 	s.hasForwardStepper = true
@@ -143,8 +144,8 @@ func (s *CScrollbar) Init() (already bool) {
 	l.SetMaxWidthChars(1)
 	s.slider = NewButtonWithWidget(l)
 	// s.PushCompositeChild(s.slider)
+
 	s.Connect(SignalCdkEvent, ScrollbarEventHandle, s.event)
-	s.Connect(SignalInvalidate, ScrollbarInvalidateHandle, s.invalidate)
 	s.Connect(SignalResize, ScrollbarResizeHandle, s.resize)
 	s.Connect(SignalDraw, ScrollbarDrawHandle, s.draw)
 	return false
@@ -244,14 +245,13 @@ func (s *CScrollbar) Forward(step int) cenums.EventFlag {
 	want := value + step
 	s.SetValue(want)
 	got := s.GetValue()
+	min, max := s.GetRange()
 	if value != got {
-		min, max := s.GetRange()
 		s.LogDebug("Forward: (value: %v, step: %v, wants: %d, got:%d, range: %d-%d)", value, step, want, got, min, max)
 		s.Invalidate()
-		s.GetDisplay().RequestDraw()
-		s.GetDisplay().RequestShow()
 		return cenums.EVENT_STOP
 	}
+	s.LogDebug("Forward (nop): (value: %v, step: %v, wants: %d, got:%d, range: %d-%d)", value, step, want, got, min, max)
 	return cenums.EVENT_PASS
 }
 
@@ -284,14 +284,13 @@ func (s *CScrollbar) Backward(step int) cenums.EventFlag {
 	want := value - step
 	s.SetValue(want)
 	got := s.GetValue()
+	min, max := s.GetRange()
 	if value != got {
-		min, max := s.GetRange()
-		s.LogDebug("Backward: (step: %v, wants: %d, got:%d, range: %d-%d)", step, want, got, min, max)
+		s.LogDebug("Backward: (value: %v, step: %v, wants: %d, got:%d, range: %d-%d)", value, step, want, got, min, max)
 		s.Invalidate()
-		s.GetDisplay().RequestDraw()
-		s.GetDisplay().RequestShow()
 		return cenums.EVENT_STOP
 	}
+	s.LogDebug("Backward (nop): (value: %v, step: %v, wants: %d, got:%d, range: %d-%d)", value, step, want, got, min, max)
 	return cenums.EVENT_PASS
 }
 
@@ -385,13 +384,13 @@ func (s *CScrollbar) FindWidgetAt(p *ptypes.Point2I) Widget {
 }
 
 func (s *CScrollbar) ValueChanged() {
-	s.Invalidate()
 	s.Emit(SignalValueChanged, s)
+	s.Invalidate()
 }
 
 func (s *CScrollbar) Changed() {
-	s.Invalidate()
 	s.Emit(SignalChanged, s)
+	s.Invalidate()
 }
 
 func (s *CScrollbar) CancelEvent() {
@@ -784,8 +783,41 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) cenums.Event
 }
 
 func (s *CScrollbar) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	s.LockDraw()
+	defer s.UnlockDraw()
+
 	s.resizeSteppers()
 	s.resizeSlider()
+
+	// origin := s.GetOrigin()
+	isSelected := s.HasState(enums.StateSelected)
+	isPrelight := s.HasState(enums.StatePrelight)
+	size := ptypes.MakeRectangle(1, 1)
+	// style := theme.Content.Normal
+
+	doConfigure := func(b Button, sz ptypes.Rectangle) {
+		if b != nil {
+			// bid := b.ObjectID()
+			if isSelected {
+				b.SetState(enums.StateSelected)
+			} else {
+				b.UnsetState(enums.StateSelected)
+			}
+			if isPrelight {
+				b.SetState(enums.StatePrelight)
+			} else {
+				b.UnsetState(enums.StatePrelight)
+			}
+			b.Invalidate()
+		}
+	}
+
+	doConfigure(s.slider, s.slider.GetAllocation())
+	doConfigure(s.forwardStepper, size)
+	doConfigure(s.backwardStepper, size)
+	doConfigure(s.secondaryForwardStepper, size)
+	doConfigure(s.secondaryBackwardStepper, size)
+
 	s.Invalidate()
 	return cenums.EVENT_STOP
 }
@@ -826,7 +858,6 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 	a := NewArrow(arrow)
 	a.Show()
 	a.SetOrigin(0, 0)
-	// a.SetSizeRequest(1, 1)
 	a.SetAllocation(ptypes.MakeRectangle(1, 1))
 	a.SetTheme(DefaultButtonTheme)
 	a.UnsetFlags(enums.CAN_FOCUS)
@@ -872,9 +903,8 @@ func (s *CScrollbar) resizeStepper(fArrow, bArrow enums.ArrowType, has bool, b B
 			}
 		}
 		b.SetOrigin(x, y)
-		// b.SetSizeRequest(w, h)
 		b.SetAllocation(ptypes.MakeRectangle(w, h))
-		b.ShowAll()
+		b.Show()
 		b.Resize()
 	} else {
 		b.Hide()
@@ -884,55 +914,11 @@ func (s *CScrollbar) resizeStepper(fArrow, bArrow enums.ArrowType, has bool, b B
 
 func (s *CScrollbar) resizeSlider() {
 	sr := s.GetSliderRegion()
-	s.Lock()
 	s.slider.SetOrigin(sr.X, sr.Y)
 	s.slider.SetSizeRequest(sr.W, sr.H)
 	s.slider.SetAllocation(sr.Size())
-	s.slider.ShowAll()
+	s.slider.Show()
 	s.slider.Resize()
-	s.Unlock()
-}
-
-func (s *CScrollbar) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	// s.resizeSteppers()
-	// s.resizeSlider()
-	origin := s.GetOrigin()
-	isSelected := s.HasState(enums.StateSelected)
-	isPrelight := s.HasState(enums.StatePrelight)
-	size := ptypes.MakeRectangle(1, 1)
-	theme := s.GetThemeRequest()
-	style := theme.Content.Normal
-	doConfigure := func(b Button, sz ptypes.Rectangle) {
-		if b != nil {
-			bid := b.ObjectID()
-			if isSelected {
-				b.SetState(enums.StateSelected)
-			} else {
-				b.UnsetState(enums.StateSelected)
-			}
-			if isPrelight {
-				b.SetState(enums.StatePrelight)
-			} else {
-				b.UnsetState(enums.StatePrelight)
-			}
-			local := b.GetOrigin()
-			local.SubPoint(origin)
-			if b.IsMapped() {
-				// b.LockDraw()
-				if err := memphis.MakeConfigureSurface(bid, local, sz, style); err != nil {
-					b.LogErr(err)
-				}
-				// b.UnlockDraw()
-			}
-			b.Invalidate()
-		}
-	}
-	doConfigure(s.slider, s.slider.GetAllocation())
-	doConfigure(s.forwardStepper, size)
-	doConfigure(s.backwardStepper, size)
-	doConfigure(s.secondaryForwardStepper, size)
-	doConfigure(s.secondaryBackwardStepper, size)
-	return cenums.EVENT_STOP
 }
 
 func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -983,9 +969,8 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventF
 		// draw the stepper buttons
 		drawStepper := func(has bool, b Button, r ptypes.Region) error {
 			if has && b != nil {
-				if f := b.Draw(); f == cenums.EVENT_STOP {
-					return surface.Composite(b.ObjectID())
-				}
+				b.Draw()
+				return surface.Composite(b.ObjectID())
 			}
 			return nil
 		}
