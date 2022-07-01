@@ -81,6 +81,7 @@ func (a *CArrow) Init() bool {
 	a.SetFlags(enums.APP_PAINTABLE)
 	_ = a.InstallBuildableProperty(PropertyArrowType, cdk.StructProperty, true, nil)
 	_ = a.InstallBuildableProperty(PropertyArrowShadowType, cdk.StructProperty, true, nil)
+	a.Connect(SignalResize, ArrowResizeHandle, a.resize)
 	a.Connect(SignalDraw, ArrowDrawHandle, a.draw)
 	return false
 }
@@ -165,23 +166,32 @@ func (a *CArrow) GetSizeRequest() (width, height int) {
 	return size.W, size.H
 }
 
+func (a *CArrow) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	a.Invalidate()
+	return cenums.EVENT_STOP
+}
+
 func (a *CArrow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	a.LockDraw()
 	defer a.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := a.GetAllocation()
+
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 			a.LogTrace("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
 
-		style := a.GetThemeRequest().Content.Normal
+		theme := a.GetThemeRequest()
+		style := theme.Content.Normal
 		r, _ := a.GetArrowRune()
 		xAlign, yAlign := a.GetAlignment()
 		xPad, yPad := a.GetPadding()
 		size := ptypes.MakeRectangle(alloc.W-(xPad*2), alloc.H-(yPad*2))
 		point := ptypes.MakePoint2I(xPad, yPad)
+
+		surface.Fill(theme)
 
 		if size.W < alloc.W {
 			delta := alloc.W - size.W
@@ -199,6 +209,7 @@ func (a *CArrow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		if debug, _ := a.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, a.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
@@ -213,5 +224,7 @@ const PropertyArrowType cdk.Property = "arrow-type"
 // Flags: Read / Write
 // Default value: GTK_SHADOW_OUT
 const PropertyArrowShadowType cdk.Property = "shadow-type"
+
+const ArrowResizeHandle = "arrow-resize-handler"
 
 const ArrowDrawHandle = "arrow-draw-handler"
