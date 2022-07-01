@@ -22,6 +22,7 @@ import (
 	cenums "github.com/go-curses/cdk/lib/enums"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
+	"github.com/go-curses/cdk/memphis"
 
 	"github.com/go-curses/ctk/lib/enums"
 )
@@ -50,6 +51,8 @@ type Object interface {
 	GetObjectAt(p *ptypes.Point2I) Object
 	HasPoint(p *ptypes.Point2I) (contains bool)
 	Invalidate() cenums.EventFlag
+	SetInvalidated(invalidated bool)
+	GetInvalidated() (invalidated bool)
 	ProcessEvent(evt cdk.Event) cenums.EventFlag
 	Resize() cenums.EventFlag
 	GetTextDirection() (direction enums.TextDirection)
@@ -77,6 +80,7 @@ type CObject struct {
 	origin        *ptypes.Point2I
 	allocation    *ptypes.Rectangle
 	textDirection enums.TextDirection
+	invalidated   bool
 	css           map[enums.StateType]map[cdk.Property]*CStyleProperty
 }
 
@@ -231,7 +235,24 @@ func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 //
 // Locking: expected read/write
 func (o *CObject) Invalidate() cenums.EventFlag {
-	return o.Emit(SignalInvalidate, o)
+	o.SetInvalidated(true)
+	return o.Emit(SignalInvalidate, o, true)
+}
+
+func (o *CObject) SetInvalidated(invalidated bool) {
+	if o.GetInvalidated() != invalidated {
+		o.Lock()
+		o.invalidated = invalidated
+		o.Unlock()
+		o.Emit(SignalInvalidateChanged, invalidated)
+	}
+}
+
+func (o *CObject) GetInvalidated() (invalidated bool) {
+	o.RLock()
+	defer o.RUnlock()
+	invalidated = o.invalidated
+	return
 }
 
 // ProcessEvent emits a cdk-event signal, primarily used to consume CDK events
@@ -248,7 +269,13 @@ func (o *CObject) ProcessEvent(evt cdk.Event) cenums.EventFlag {
 //
 // Locking: read
 func (o *CObject) Resize() cenums.EventFlag {
-	return o.Emit(SignalResize, o, o.GetOrigin(), o.GetAllocation())
+	origin := o.GetOrigin()
+	alloc := o.GetAllocation()
+	if surface, err := memphis.GetSurface(o.ObjectID()); err == nil {
+		surface.SetOrigin(origin)
+		surface.Resize(alloc)
+	}
+	return o.Emit(SignalResize, o, origin, alloc)
 }
 
 // GetTextDirection returns the current text direction for this Object instance.
