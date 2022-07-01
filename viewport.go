@@ -93,7 +93,6 @@ func (v *CViewport) Init() (already bool) {
 	_ = v.InstallProperty(PropertyHAdjustment, cdk.StructProperty, true, v.hAdjustment)
 	_ = v.InstallProperty(PropertyViewportShadowType, cdk.StructProperty, true, nil)
 	_ = v.InstallProperty(PropertyVAdjustment, cdk.StructProperty, true, v.vAdjustment)
-	v.Connect(SignalInvalidate, ViewportInvalidateHandle, v.invalidate)
 	v.Connect(SignalResize, ViewportResizeHandle, v.resize)
 	v.Connect(SignalDraw, ViewportDrawHandle, v.draw)
 	return false
@@ -182,21 +181,10 @@ func (v *CViewport) GetViewWindow() (value Window) {
 	return nil
 }
 
-func (v *CViewport) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if child := v.GetChild(); child != nil {
-		local := child.GetOrigin()
-		local.SubPoint(v.GetOrigin())
-		// v.LockDraw()
-		if err := memphis.MakeConfigureSurface(v.ObjectID(), local, child.GetAllocation(), child.GetThemeRequest().Content.Normal); err != nil {
-			v.LogErr(err)
-		}
-		// v.UnlockDraw()
-		return cenums.EVENT_STOP
-	}
-	return cenums.EVENT_PASS
-}
-
 func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	v.LockDraw()
+	defer v.UnlockDraw()
+
 	alloc := v.GetAllocation()
 	child := v.GetChild()
 	horizontal, vertical := v.GetHAdjustment(), v.GetVAdjustment()
@@ -211,15 +199,13 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.Event
 		if vertical != nil {
 			vertical.Configure(0, 0, 0, 0, 0, 0)
 		}
-		v.Invalidate()
-		// return v.Emit(SignalResize, v)
 		return cenums.EVENT_STOP
 	}
+
 	hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
 	vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
+
 	if child != nil {
-		child.Freeze()
-		defer child.Thaw()
 
 		childSize := ptypes.NewRectangle(child.GetSizeRequest())
 		if childSize.W <= -1 {
@@ -260,6 +246,8 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.Event
 
 		child.SetOrigin(childOrigin.X, childOrigin.Y)
 		child.SetAllocation(*childSize)
+		child.Resize()
+		// v.LogDebug("child resized: origin=%v, alloc=%v", child.GetOrigin(), child.GetAllocation())
 
 		if hChanged {
 			if horizontal != nil {
@@ -271,10 +259,10 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.Event
 				vertical.Changed()
 			}
 		}
-		v.Invalidate()
-		return cenums.EVENT_STOP
 	}
-	return cenums.EVENT_PASS
+
+	v.Invalidate()
+	return cenums.EVENT_STOP
 }
 
 func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -288,17 +276,19 @@ func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFl
 			return cenums.EVENT_PASS
 		}
 
+		surface.Fill(v.GetThemeRequest())
+
 		if child := v.GetChild(); child != nil {
-			if f := child.Draw(); f == cenums.EVENT_STOP {
-				if err := surface.Composite(child.ObjectID()); err != nil {
-					v.LogError("composite error: %v", err)
-				}
+			child.Draw()
+			if err := surface.Composite(child.ObjectID()); err != nil {
+				v.LogError("composite error: %v", err)
 			}
 		}
 
 		if debug, _ := v.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, v.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
