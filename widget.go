@@ -8,7 +8,6 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/lib/sync"
-	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/cdk/memphis"
 
 	"github.com/go-curses/ctk/lib/enums"
@@ -83,14 +82,14 @@ type Widget interface {
 	SetAccelPath(accelPath string, accelGroup AccelGroup)
 	CanActivateAccel(signalId int) (value bool)
 	Activate() (value bool)
-	Reparent(parent Container)
+	Reparent(parent Widget)
 	IsFocus() (value bool)
 	GrabFocus()
 	GrabDefault()
 	SetSensitive(sensitive bool)
 	CssFullPath() (selector string)
 	CssState() (state enums.StateType)
-	SetParent(parent Container)
+	SetParent(parent Widget)
 	GetParentWindow() (value Window)
 	SetEvents(events cdk.EventMask)
 	AddEvents(events cdk.EventMask)
@@ -121,7 +120,7 @@ type Widget interface {
 	ChildNotify(childProperty string)
 	FreezeChildNotify()
 	GetChildVisible() (value bool)
-	GetParent() (value Container)
+	GetParent() (value Widget)
 	GetDisplay() (value cdk.Display)
 	GetRootWindow() (value Window)
 	GetScreen() (value cdk.Display)
@@ -186,7 +185,7 @@ type Widget interface {
 	HasEventFocus() bool
 	GrabEventFocus()
 	ReleaseEventFocus()
-	GetTopParent() (parent Container)
+	GetTopParent() (parent Widget)
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	PushCompositeChild(child Widget)
 	PopCompositeChild(child Widget)
@@ -194,6 +193,9 @@ type Widget interface {
 	RenderFrozen() bool
 	RenderFreeze()
 	RenderThaw()
+	RequestDrawAndShow()
+	RequestDrawAndSync()
+	Invalidate() cenums.EventFlag
 }
 
 // The CWidget structure implements the Widget interface and is exported
@@ -466,7 +468,7 @@ func (w *CWidget) tooltipResize(data []interface{}, argv ...interface{}) cenums.
 		if surface, err := memphis.GetSurface(tooltipWindow.ObjectID()); err != nil {
 			w.LogErr(err)
 		} else {
-			surface.Resize(alloc, tooltipWindow.GetThemeRequest().Content.Normal)
+			surface.Resize(alloc)
 		}
 		// tooltipWindow.UnlockDraw()
 	}
@@ -656,8 +658,6 @@ func (w *CWidget) RenderFrozen() bool {
 func (w *CWidget) RenderFreeze() {
 	if !w.RenderFrozen() {
 		w.PassSignal(SignalInvalidate, SignalDraw)
-		// w.StopSignal(SignalInvalidate, SignalDraw)
-		// w.LockDraw()
 	}
 	w.Lock()
 	w.renderFrozen += 1
@@ -674,7 +674,6 @@ func (w *CWidget) RenderThaw() {
 		w.ResumeSignal(SignalInvalidate)
 		w.Resize()
 		w.ResumeSignal(SignalDraw)
-		// w.UnlockDraw()
 	}
 }
 
@@ -772,14 +771,16 @@ func (w *CWidget) Activate() (value bool) {
 // 	newParent	a Container to move the widget into
 //
 // Emits: SignalReparent, Argv=[Widget instance, new parent]
-func (w *CWidget) Reparent(parent Container) {
+func (w *CWidget) Reparent(parent Widget) {
 	if r := w.Emit(SignalReparent, w, parent); r == cenums.EVENT_PASS {
-		if w.parent != nil {
-			if pc, ok := w.parent.Self().(Container); ok {
-				pc.Remove(w)
+		if pc, ok := parent.Self().(Container); ok {
+			if w.parent != nil {
+				if pc, ok := w.parent.Self().(Container); ok {
+					pc.Remove(w)
+				}
 			}
+			pc.Add(w)
 		}
-		parent.Add(w)
 	}
 }
 
@@ -824,6 +825,7 @@ func (w *CWidget) GrabFocus() {
 	if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
 		if r := w.Emit(SignalGrabFocus, w); r == cenums.EVENT_PASS {
 			if tl := w.GetWindow(); tl != nil {
+				act := false
 				if focused := tl.GetFocus(); focused != nil {
 					if focused.ObjectID() != w.ObjectID() {
 						if err := focused.SetProperty(PropertyHasFocus, false); err != nil {
@@ -831,14 +833,22 @@ func (w *CWidget) GrabFocus() {
 						}
 						focused.UnsetState(enums.StateSelected)
 						focused.Emit(SignalLostFocus)
+						focused.Invalidate()
+						act = true
 					}
+				} else {
+					act = true
 				}
-				tl.SetFocus(w)
-				if err := w.SetProperty(PropertyHasFocus, true); err != nil {
-					w.LogErr(err)
+
+				if act {
+					tl.SetFocus(w)
+					if err := w.SetProperty(PropertyHasFocus, true); err != nil {
+						w.LogErr(err)
+					}
+					w.SetState(enums.StateSelected)
+					w.Emit(SignalGainedFocus)
+					w.Invalidate()
 				}
-				w.SetState(enums.StateSelected)
-				w.Emit(SignalGainedFocus)
 			}
 		}
 	} else {
@@ -921,7 +931,7 @@ func (w *CWidget) CssState() (state enums.StateType) {
 // new location. The opposite function is Unparent.
 // Parameters:
 // 	parent	parent container
-func (w *CWidget) SetParent(parent Container) {
+func (w *CWidget) SetParent(parent Widget) {
 	if f := w.Emit(SignalSetParent, w, w.parent, parent); f == cenums.EVENT_PASS {
 		w.closeTooltip()
 		if w.HasFlags(enums.PARENT_SENSITIVE) && w.parent != nil {
@@ -1174,8 +1184,9 @@ func (w *CWidget) GetCompositeName() (value string) {
 
 func (w *CWidget) PushCompositeChild(child Widget) {
 	if f := w.Emit(SignalPushCompositeChild, w, child); f == cenums.EVENT_PASS {
-		log.DebugDF(1, "push composite child: %v", child.ObjectName())
+		// log.DebugDF(1, "push composite child: %v", child.ObjectName())
 		child.Map()
+		child.SetParent(w)
 		if window := w.GetWindow(); window != nil {
 			if wc, ok := child.Self().(Container); ok {
 				wc.SetWindow(window)
@@ -1191,7 +1202,7 @@ func (w *CWidget) PushCompositeChild(child Widget) {
 
 func (w *CWidget) PopCompositeChild(child Widget) {
 	if f := w.Emit(SignalPopCompositeChild, w, child); f == cenums.EVENT_PASS {
-		log.DebugDF(1, "pop composite child: %v", child.ObjectName())
+		// log.DebugDF(1, "pop composite child: %v", child.ObjectName())
 		w.Lock()
 		id := -1
 		for idx, composite := range w.composites {
@@ -1305,12 +1316,20 @@ func (w *CWidget) SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjus
 //
 // Emits: SignalDraw, Argv=[Object instance, canvas]
 func (w *CWidget) Draw() cenums.EventFlag {
-	if surface, err := memphis.GetSurface(w.ObjectID()); err != nil {
-		w.LogErr(err)
-	} else if w.IsDrawable() {
-		return w.Emit(SignalDraw, w, surface)
+	if w.IsDrawable() && w.GetInvalidated() {
+		w.SetInvalidated(false)
+		oid := w.ObjectID()
+		if err := memphis.MakeConfigureSurface(oid, w.GetOrigin(), w.GetAllocation(), w.GetThemeRequest().Content.Normal); err != nil {
+			w.LogErr(err)
+		} else {
+			if surface, err := memphis.GetSurface(oid); err != nil {
+				w.LogErr(err)
+			} else {
+				return w.Emit(SignalDraw, w, surface)
+			}
+		}
 	}
-	return w.Emit(SignalDraw, w, nil)
+	return cenums.EVENT_PASS
 }
 
 // Emits the mnemonic-activate signal. The default handler for this
@@ -1409,13 +1428,13 @@ func (w *CWidget) GetChildVisible() (value bool) {
 // Returns the parent container of widget .
 // Returns:
 // 	the parent container of widget , or NULL.
-func (w *CWidget) GetParent() (value Container) {
+func (w *CWidget) GetParent() (value Widget) {
 	if v, err := w.GetStructProperty(PropertyParent); err != nil {
 		w.LogErr(err)
 	} else {
 		var ok bool
-		if value, ok = v.(Container); !ok && v != nil {
-			w.LogError("value stored in %v property is not a Container type: %v (%T)", PropertyParent, v, v)
+		if value, ok = v.(Widget); !ok && v != nil {
+			w.LogError("value stored as %v property is not of Widget type: %v (%T)", PropertyParent, v, v)
 			value = nil
 		}
 	}
@@ -1958,6 +1977,11 @@ func (w *CWidget) SetWindow(window Window) {
 		if err := w.SetStructProperty(PropertyWindow, window); err != nil {
 			w.LogErr(err)
 		} else if window != nil {
+			for _, composite := range w.GetCompositeChildren() {
+				if err := composite.SetStructProperty(PropertyWindow, window); err != nil {
+					w.LogErr(err)
+				}
+			}
 			window.ApplyStylesTo(w)
 		}
 	}
@@ -2088,7 +2112,7 @@ func (w *CWidget) GetThemeRequest() (theme paint.Theme) {
 func (w *CWidget) SetTheme(theme paint.Theme) {
 	if theme.String() != w.GetTheme().String() {
 		if f := w.Emit(SignalSetTheme, w, theme); f == cenums.EVENT_PASS {
-			w.CObject.SetTheme(theme)
+
 			apply := func(state enums.StateType, cs, bs paint.Style) {
 				fg, bg, attr := cs.Decompose()
 				if prop := w.GetCssProperty(CssPropertyColor, state); prop != nil {
@@ -2149,12 +2173,15 @@ func (w *CWidget) SetTheme(theme paint.Theme) {
 				}
 				return
 			}
-			// Normal
+
+			w.CObject.SetTheme(theme)
+
 			apply(enums.StateNormal, theme.Content.Normal, theme.Border.Normal)
 			apply(enums.StateActive, theme.Content.Active, theme.Border.Active)
 			apply(enums.StateSelected, theme.Content.Selected, theme.Border.Selected)
 			apply(enums.StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
 			apply(enums.StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
+
 			w.Invalidate()
 		}
 	}
@@ -2363,16 +2390,16 @@ func (w *CWidget) ReleaseEventFocus() {
 
 // Returns the top-most parent in the Widget instance's parent hierarchy.
 // Returns nil if the Widget has no parent container
-func (w *CWidget) GetTopParent() (parent Container) {
-	var ok bool
-	if parent, ok = w.GetParent().(Container); !ok {
-		return
-	}
-	for {
-		if parent != nil {
-			parent, _ = w.GetParent().(Container)
-		} else {
-			break
+func (w *CWidget) GetTopParent() (parent Widget) {
+	if parent = w.GetParent(); parent != nil {
+		var last Widget
+		for {
+			if parent = parent.GetParent(); parent != nil && parent.ObjectID() != last.ObjectID() {
+				last = parent
+			} else {
+				parent = last
+				break
+			}
 		}
 	}
 	return
@@ -2389,40 +2416,64 @@ func (w *CWidget) GetWidgetAt(p *ptypes.Point2I) Widget {
 	return nil
 }
 
+func (w *CWidget) RequestDrawAndShow() {
+	if window := w.GetWindow(); window != nil {
+		window.RequestDrawAndShow()
+	}
+}
+
+func (w *CWidget) RequestDrawAndSync() {
+	if window := w.GetWindow(); window != nil {
+		window.RequestDrawAndSync()
+	}
+}
+
+func (w *CWidget) Invalidate() cenums.EventFlag {
+	if !w.GetInvalidated() {
+		w.SetInvalidated(true)
+		parent := w.GetParent()
+		for parent != nil {
+			parent.SetInvalidated(true)
+			if next := parent.GetParent(); next != nil && next.ObjectID() != parent.ObjectID() {
+				parent = next
+			} else {
+				parent = nil
+			}
+		}
+		w.RequestDrawAndShow()
+	}
+	return w.CObject.Invalidate()
+}
+
 func (w *CWidget) lostFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
-		if w.HasState(enums.StateSelected) {
-			w.UnsetState(enums.StateSelected)
-		}
+		w.UnsetState(enums.StateSelected)
 		w.Invalidate()
 		w.LogDebug("lost focus")
-		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
 }
 
 func (w *CWidget) gainedFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
-	if w.IsDrawable() && w.IsVisible() {
-		if !w.HasState(enums.StateSelected) {
-			w.SetState(enums.StateSelected)
-		}
+	if w.IsDrawable() && w.IsVisible() && w.IsSensitive() {
+		w.SetState(enums.StateSelected)
 		w.Invalidate()
 		w.LogDebug("gained focus")
-		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
 }
 
 func (w *CWidget) enter(_ []interface{}, argv ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
-		if !w.HasState(enums.StatePrelight) {
-			w.LogTrace("mouse enter")
+		if w.IsSensitive() {
 			w.SetState(enums.StatePrelight)
 			if w.GetHasTooltip() {
 				w.openTooltip()
 			}
-			return cenums.EVENT_STOP
 		}
+		w.Invalidate()
+		w.LogDebug("mouse enter - %v", w.ObjectInfo())
+		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
 }
@@ -2431,10 +2482,11 @@ func (w *CWidget) leave(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 	if w.IsDrawable() && w.IsVisible() {
 		if w.HasState(enums.StatePrelight) {
 			w.UnsetState(enums.StatePrelight)
-			w.LogTrace("mouse leave")
-			w.closeTooltip()
-			return cenums.EVENT_STOP
 		}
+		w.closeTooltip()
+		w.Invalidate()
+		w.LogDebug("mouse leave - %v", w.ObjectInfo())
+		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
 }
