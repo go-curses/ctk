@@ -179,16 +179,7 @@ func (l *CEntry) Init() (already bool) {
 	l.flags = enums.NULL_WIDGET_FLAG
 	l.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.APP_PAINTABLE | enums.CAN_FOCUS)
 	l.SetTheme(DefaultEntryTheme)
-	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
-	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_NONE)
-	_ = l.InstallProperty(PropertyText, cdk.StringProperty, true, "")
-	_ = l.InstallProperty(PropertyMaxWidthChars, cdk.IntProperty, true, -1)
-	_ = l.InstallProperty(PropertySelectable, cdk.BoolProperty, true, false)
-	_ = l.InstallProperty(PropertySingleLineMode, cdk.BoolProperty, true, false)
-	_ = l.InstallProperty(PropertyWidthChars, cdk.IntProperty, true, -1)
-	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
-	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_NONE)
-	_ = l.InstallProperty(PropertyEditable, cdk.BoolProperty, true, true)
+
 	l.selection = nil
 	l.position = 0
 	l.qEnabled = false
@@ -204,14 +195,24 @@ func (l *CEntry) Init() (already bool) {
 	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
 		l.LogErr(err)
 	}
+
+	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
+	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_NONE)
+	_ = l.InstallProperty(PropertyText, cdk.StringProperty, true, "")
+	_ = l.InstallProperty(PropertyMaxWidthChars, cdk.IntProperty, true, -1)
+	_ = l.InstallProperty(PropertySelectable, cdk.BoolProperty, true, false)
+	_ = l.InstallProperty(PropertySingleLineMode, cdk.BoolProperty, true, false)
+	_ = l.InstallProperty(PropertyWidthChars, cdk.IntProperty, true, -1)
+	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
+	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_NONE)
+	_ = l.InstallProperty(PropertyEditable, cdk.BoolProperty, true, true)
+
 	l.Connect(SignalCdkEvent, TextFieldEventHandle, l.event)
 	l.Connect(SignalLostFocus, TextFieldLostFocusHandle, l.lostFocus)
 	l.Connect(SignalGainedFocus, TextFieldGainedFocusHandle, l.gainedFocus)
-	l.Connect(SignalInvalidate, TextFieldInvalidateHandle, l.invalidate)
 	l.Connect(SignalResize, TextFieldResizeHandle, l.resize)
 	l.Connect(SignalDraw, TextFieldDrawHandle, l.draw)
 	// _ = l.SetBoolProperty(PropertyDebug, true)
-	l.Invalidate()
 	return false
 }
 
@@ -244,8 +245,6 @@ func (l *CEntry) Build(builder Builder, element *CBuilderElement) error {
 // Locking: write
 func (l *CEntry) SetText(text string) {
 	l.setText(text)
-	l.Invalidate()
-	l.updateCursor()
 }
 
 func (l *CEntry) setText(text string) {
@@ -254,6 +253,8 @@ func (l *CEntry) setText(text string) {
 	l.Unlock()
 	if err := l.SetStringProperty(PropertyText, l.tProfile.Get()); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -283,6 +284,8 @@ func (l *CEntry) SetAttributes(attrs paint.Style) {
 func (l *CEntry) SetJustify(justify cenums.Justification) {
 	if err := l.SetStructProperty(PropertyJustify, justify); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -295,6 +298,8 @@ func (l *CEntry) SetJustify(justify cenums.Justification) {
 func (l *CEntry) SetWidthChars(nChars int) {
 	if err := l.SetIntProperty(PropertyWidthChars, nChars); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -308,6 +313,8 @@ func (l *CEntry) SetWidthChars(nChars int) {
 func (l *CEntry) SetMaxWidthChars(nChars int) {
 	if err := l.SetIntProperty(PropertyMaxWidthChars, nChars); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -326,6 +333,8 @@ func (l *CEntry) SetMaxWidthChars(nChars int) {
 func (l *CEntry) SetLineWrap(wrap bool) {
 	if err := l.SetBoolProperty(PropertyWrap, wrap); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -340,6 +349,8 @@ func (l *CEntry) SetLineWrap(wrap bool) {
 func (l *CEntry) SetLineWrapMode(wrapMode cenums.WrapMode) {
 	if err := l.SetStructProperty(PropertyWrapMode, wrapMode); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -392,6 +403,8 @@ func (l *CEntry) SelectRegion(startOffset int, endOffset int) {
 func (l *CEntry) SetSelectable(setting bool) {
 	if err := l.SetBoolProperty(PropertySelectable, setting); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -495,7 +508,7 @@ func (l *CEntry) SetSingleLineMode(singleLineMode bool) {
 	if err := l.SetBoolProperty(PropertySingleLineMode, singleLineMode); err != nil {
 		l.LogErr(err)
 	} else {
-		l.Invalidate()
+		l.refresh()
 	}
 }
 
@@ -522,9 +535,6 @@ func (l *CEntry) GetSelectionBounds() (startPos, endPos int, ok bool) {
 
 func (l *CEntry) InsertTextAndSetPosition(newText string, index, position int) {
 	l.insertTextAndSetPosition(newText, index, position)
-	l.Invalidate()
-	l.updateCursor()
-	_ = l.Emit(SignalChangedText, l)
 }
 
 func (l *CEntry) insertTextAndSetPosition(newText string, index, position int) {
@@ -534,26 +544,21 @@ func (l *CEntry) insertTextAndSetPosition(newText string, index, position int) {
 
 func (l *CEntry) InsertText(newText string, position int) {
 	l.insertText(newText, position)
-	l.Invalidate()
-	l.updateCursor()
-	_ = l.Emit(SignalChangedText, l)
 }
 
 func (l *CEntry) insertText(newText string, position int) {
-	l.Lock()
 	if modified, ok := l.tProfile.Insert(newText, position); ok {
 		if err := l.SetStringProperty(PropertyText, modified); err != nil {
 			l.LogErr(err)
+		} else {
+			l.refresh()
+			l.Emit(SignalChangedText, l, modified)
 		}
 	}
-	l.Unlock()
 }
 
 func (l *CEntry) DeleteTextAndSetPosition(start, end, position int) {
 	l.deleteTextAndSetPosition(start, end, position)
-	l.Invalidate()
-	l.updateCursor()
-	_ = l.Emit(SignalChangedText, l)
 }
 
 func (l *CEntry) deleteTextAndSetPosition(start, end, position int) {
@@ -563,15 +568,15 @@ func (l *CEntry) deleteTextAndSetPosition(start, end, position int) {
 
 func (l *CEntry) DeleteText(startPos int, endPos int) {
 	l.deleteText(startPos, endPos)
-	l.Invalidate()
-	l.updateCursor()
-	_ = l.Emit(SignalChangedText, l)
 }
 
 func (l *CEntry) deleteText(startPos int, endPos int) {
 	if modified, ok := l.tProfile.Delete(startPos, endPos); ok {
 		if err := l.SetStringProperty(PropertyText, modified); err != nil {
 			l.LogErr(err)
+		} else {
+			l.refresh()
+			l.Emit(SignalChangedText, l, modified)
 		}
 	}
 }
@@ -611,8 +616,6 @@ func (l *CEntry) DeleteSelection() {
 
 func (l *CEntry) SetPosition(position int) {
 	l.setPosition(position)
-	l.Invalidate()
-	l.updateCursor()
 }
 
 func (l *CEntry) setPosition(position int) {
@@ -623,6 +626,7 @@ func (l *CEntry) setPosition(position int) {
 	}
 	l.position = position
 	l.Unlock()
+	l.refresh()
 }
 
 func (l *CEntry) GetPosition() (value int) {
@@ -634,6 +638,8 @@ func (l *CEntry) GetPosition() (value int) {
 func (l *CEntry) SetEditable(isEditable bool) {
 	if err := l.SetBoolProperty(PropertyEditable, isEditable); err != nil {
 		l.LogErr(err)
+	} else {
+		l.refresh()
 	}
 }
 
@@ -726,26 +732,40 @@ func (l *CEntry) refreshTextBuffer() (err error) {
 	text := l.tProfile.Crop(*l.offset)
 	// l.LogDebug("pos:%v, posPoint:%v, offset:%v, cursor:%v", pos, posPoint, l.offset, l.cursor)
 
-	l.tBuffer = memphis.NewTextBuffer(text, style, false)
+	if l.tBuffer != nil {
+		l.tBuffer.Set(text, style)
+	} else {
+		l.tBuffer = memphis.NewTextBuffer(text, style, false)
+	}
+
 	l.Unlock()
 	return
 }
 
+func (l *CEntry) refresh() {
+	if err := l.refreshTextBuffer(); err != nil {
+		l.LogErr(err)
+	}
+	l.updateCursor()
+	l.Invalidate()
+}
+
 func (l *CEntry) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	l.LockDraw()
+	defer l.UnlockDraw()
+
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
 		l.LogTrace("not visible, zero width or zero height")
 		return cenums.EVENT_PASS
 	}
 
-	theme := l.GetThemeRequest()
 	origin := l.GetOrigin()
-	id := l.ObjectID()
 	xPad, _ := l.GetPadding()
 	_, yAlign := l.GetAlignment()
 
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
-	local := ptypes.MakePoint2I(xPad, 0)
+	local := ptypes.MakePoint2I(origin.X+xPad, origin.Y)
 	size.W = alloc.W - (xPad * 2)
 	size.H = alloc.H - (xPad * 2)
 
@@ -754,53 +774,28 @@ func (l *CEntry) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 		local.Y += int(float64(delta) * yAlign)
 	}
 
+	l.Lock()
 	l.tRegion = ptypes.MakeRegion(local.X, local.Y, size.W, size.H)
+	l.Unlock()
 
-	// l.LockDraw()
-	if err := memphis.ConfigureSurface(id, origin, alloc, theme.Content.Normal); err != nil {
+	theme := l.GetThemeRequest()
+	if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
 		l.LogErr(err)
 	}
-	if err := memphis.ConfigureSurface(l.tid, local, *size, theme.Content.Normal); err != nil {
+	if err := memphis.MakeConfigureSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
+		l.LogErr(err)
+	} else if err := memphis.FillSurface(l.tid, theme); err != nil {
 		l.LogErr(err)
 	}
-	// l.UnlockDraw()
 
-	l.Invalidate()
+	l.refresh()
 	return cenums.EVENT_STOP
 }
 
-func (l *CEntry) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	theme := l.GetThemeRequest()
-	if err := l.refreshTextBuffer(); err != nil {
-		l.LogErr(err)
-	}
-	id := l.ObjectID()
-	// region := l.GetRegion()
-	origin := l.GetOrigin()
-	alloc := l.GetAllocation()
-	l.Lock()
-	if !memphis.HasSurface(id) {
-		if err := memphis.MakeSurface(id, origin, alloc, theme.Content.Normal); err != nil {
-			l.LogErr(err)
-		}
-	}
-	theme.Content.FillRune = rune(0)
-	if err := memphis.FillSurface(id, theme); err != nil {
-		l.LogErr(err)
-	}
-	if !memphis.HasSurface(l.tid) {
-		if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
-			l.LogErr(err)
-		}
-	}
-	if err := memphis.FillSurface(l.tid, theme); err != nil {
-		l.LogErr(err)
-	}
-	l.Unlock()
-	return cenums.EVENT_PASS
-}
-
 func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	l.LockDraw()
+	defer l.UnlockDraw()
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := l.GetAllocation()
 		if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -808,31 +803,25 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 			return cenums.EVENT_PASS
 		}
 
-		l.LockDraw()
-		defer l.UnlockDraw()
-
 		theme := l.GetThemeRequest()
-
 		singleLineMode, lineWrapMode, justify, _ := l.Settings()
 
-		if l.tBuffer != nil {
+		if tBuffer := l.tBuffer.Clone(); tBuffer != nil {
+			tBuffer.SetStyle(theme.Content.Normal)
+
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
 			} else {
-				tSurface.Box(
-					ptypes.MakePoint2I(0, 0),
-					ptypes.MakeRectangle(alloc.W, alloc.H),
-					false, true,
-					theme.Content.Overlay,
-					theme.Content.FillRune,
-					theme.Content.Normal,
-					theme.Border.Normal,
-					theme.Border.BorderRunes,
-				)
-				if f := l.tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, false, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
+				tSurface.Fill(theme)
+
+				if f := tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, false, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
+					surface.Fill(theme)
+
 					if err := surface.CompositeSurface(tSurface); err != nil {
 						l.LogErr(err)
 					}
+				} else {
+					l.LogError("TextBuffer draw failed, nothing to composite")
 				}
 			}
 		}
@@ -840,6 +829,7 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		if debug, _ := l.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, l.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
@@ -1093,9 +1083,15 @@ func (l *CEntry) processChange(change *cEntryChange) (changesApplied bool) {
 }
 
 func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	l.LockEvent()
+	defer l.UnlockEvent()
+
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
 		case *cdk.EventPaste:
+			if !l.HasFocus() {
+				return cenums.EVENT_PASS
+			}
 			l.Lock()
 			l.pasting = e.Start()
 			l.Unlock()
@@ -1105,6 +1101,7 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				l.pasted = ""
 				l.Unlock()
 			}
+			return cenums.EVENT_STOP
 
 		case *cdk.EventKey:
 			if !l.HasFocus() {
@@ -1292,15 +1289,14 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			// }
 			case cdk.BUTTON_RELEASE:
 				if l.HasPoint(pos) {
+					if !l.HasFocus() {
+						l.GrabFocus()
+					}
 					local := pos.NewClone()
 					local.SubPoint(l.GetOrigin())
 					local.AddPoint(l.offset.Origin())
 					l.SetPosition(l.tProfile.GetPositionFromPoint(*local))
-					if !l.HasFocus() {
-						l.GrabFocus()
-					}
-					l.GetDisplay().RequestDraw()
-					l.GetDisplay().RequestShow()
+					return cenums.EVENT_STOP
 				}
 			}
 		}
@@ -1341,38 +1337,37 @@ func (l *CEntry) updateCursor() {
 }
 
 func (l *CEntry) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
+	l.qLock.Lock()
 	if l.qTimer != uuid.Nil {
 		cdk.StopTimeout(l.qTimer)
 		l.qTimer = uuid.Nil
 	}
+	l.qLock.Unlock()
 	l.UnsetState(enums.StateSelected)
 	l.Invalidate()
-	l.updateCursor()
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 func (l *CEntry) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	l.SetState(enums.StateSelected)
 	l.Invalidate()
-	l.updateCursor()
+	l.qLock.Lock()
 	if l.qTimer != uuid.Nil {
 		cdk.StopTimeout(l.qTimer)
 		l.qTimer = uuid.Nil
 	}
-	l.qLock.Lock()
 	if l.qEnabled {
 		l.queue = nil
 		l.qTimer = cdk.AddTimeout(time.Millisecond*50, func() cenums.EventFlag {
 			if l.processQueue() {
-				_ = l.Emit(SignalChangedText, l)
+				// _ = l.Emit(SignalChangedText, l)
 				l.Invalidate()
-				l.updateCursor()
 			}
 			return cenums.EVENT_PASS
 		})
 	}
 	l.qLock.Unlock()
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 const PropertyText cdk.Property = "text"
