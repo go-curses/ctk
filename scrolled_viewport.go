@@ -69,6 +69,7 @@ type ScrolledViewport interface {
 	GetWidgetAt(p *ptypes.Point2I) Widget
 	CancelEvent()
 	GetRegions() (c, h, v ptypes.Region)
+	ScrollTo(child Widget)
 }
 
 type CScrolledViewport struct {
@@ -94,36 +95,56 @@ func (s *CScrolledViewport) Init() (already bool) {
 	s.CViewport.Init()
 	s.flags = enums.NULL_WIDGET_FLAG
 	s.SetFlags(enums.SENSITIVE | enums.CAN_FOCUS | enums.APP_PAINTABLE)
+	s.SetTheme(paint.DefaultColorTheme)
+
 	_ = s.InstallProperty(PropertyHScrollbarPolicy, cdk.StructProperty, true, enums.PolicyAlways)
 	_ = s.InstallProperty(PropertyScrolledViewportShadowType, cdk.StructProperty, true, enums.SHADOW_NONE)
 	_ = s.InstallProperty(PropertyVScrollbarPolicy, cdk.StructProperty, true, enums.PolicyAlways)
 	_ = s.InstallProperty(PropertyWindowPlacement, cdk.StructProperty, true, enums.GravityNorthWest)
 	_ = s.InstallProperty(PropertyWindowPlacementSet, cdk.BoolProperty, true, false)
-	s.SetTheme(paint.DefaultColorTheme)
+
 	s.SetPolicy(enums.PolicyAlways, enums.PolicyAlways)
+
 	// hScrollbar
 	s.CContainer.Add(NewHScrollbar())
 	if hs := s.GetHScrollbar(); hs != nil {
+		hs.Show()
 		hs.SetParent(s)
 		hs.SetWindow(s.GetWindow())
-		s.SetHAdjustment(hs.GetAdjustment())
+		ha := hs.GetAdjustment()
+		s.SetHAdjustment(ha)
 		hs.UnsetFlags(enums.CAN_FOCUS)
+		hs.Connect(SignalValueChanged, "value-changed-handler", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
+			s.LogDebug("hs value changed: %v", ha.GetValue())
+			s.Resize()
+			s.RequestDrawAndShow()
+			return cenums.EVENT_PASS
+		})
 	}
+
 	// vScrollbar
 	s.CContainer.Add(NewVScrollbar())
 	if vs := s.GetVScrollbar(); vs != nil {
+		vs.Show()
 		vs.SetParent(s)
 		vs.SetWindow(s.GetWindow())
-		s.SetVAdjustment(vs.GetAdjustment())
+		va := vs.GetAdjustment()
+		s.SetVAdjustment(va)
 		vs.UnsetFlags(enums.CAN_FOCUS)
+		vs.Connect(SignalValueChanged, "value-changed-handler", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
+			s.LogDebug("vs value changed: %v", va.GetValue())
+			s.Resize()
+			s.RequestDrawAndShow()
+			return cenums.EVENT_PASS
+		})
 	}
+
 	s.Connect(SignalCdkEvent, ScrolledViewportEventHandle, s.event)
 	s.Connect(SignalLostFocus, ScrolledViewportLostFocusHandle, s.lostFocus)
 	s.Connect(SignalGainedFocus, ScrolledViewportGainedFocusHandle, s.gainedFocus)
 	s.Connect(SignalInvalidate, ScrolledViewportDrawHandle, s.invalidate)
 	s.Connect(SignalResize, ScrolledViewportDrawHandle, s.resize)
 	s.Connect(SignalDraw, ScrolledViewportDrawHandle, s.draw)
-	// s.Invalidate()
 	return false
 }
 
@@ -396,7 +417,6 @@ func (s *CScrolledViewport) Add(w Widget) {
 		}
 	}
 	s.CContainer.Add(w)
-	// s.resizeViewport()
 	s.Invalidate()
 }
 
@@ -520,6 +540,87 @@ func (s *CScrolledViewport) CancelEvent() {
 	s.Invalidate()
 }
 
+func (s *CScrolledViewport) SetWindow(w Window) {
+	if oldWindow := s.GetWindow(); oldWindow != nil {
+		_ = oldWindow.Disconnect(SignalFocusChanged, ScrolledViewportWindowFocusHandle)
+	}
+	s.CBin.SetWindow(w)
+	if w != nil {
+		w.Connect(SignalFocusChanged, ScrolledViewportWindowFocusHandle, s.windowFocusSet)
+	}
+}
+
+func (s *CScrolledViewport) ScrollTo(target Widget) {
+	if !s.HasChild(target) {
+		s.LogDebug("not parent to target: %v", target.ObjectInfo())
+		return
+	}
+
+	s.LogDebug("scrolling to: %v", target)
+
+	origin := s.GetOrigin()
+	alloc := s.GetAllocation()
+	region := ptypes.MakeRegion(origin.X, origin.Y, alloc.W, alloc.H)
+	farPoint := region.FarPoint()
+	childOrigin := target.GetOrigin()
+	childAlloc := target.GetAllocation()
+	childRegion := ptypes.MakeRegion(childOrigin.X, childOrigin.Y, childAlloc.W, childAlloc.H)
+	childFarPoint := childRegion.FarPoint()
+
+	if region.ContainsRegion(childRegion) {
+		s.LogDebug("already visible: %v", target.ObjectInfo())
+		return
+	}
+
+	// if region.OccludesRegion(childRegion) {
+	// 	s.LogDebug("partially visible: %v", target.ObjectInfo())
+	// 	return
+	// }
+
+	s.LogDebug("move position to include: %v within %v", childRegion, region)
+
+	wantResize := false
+
+	if s.HorizontalShowByPolicy() {
+		// check for left aligning, x+w visible
+		horizontal := s.GetHAdjustment()
+		upper := horizontal.GetUpper()
+		delta := childFarPoint.Y - farPoint.Y + horizontal.GetValue()
+		if delta > upper {
+			delta = upper
+		}
+		horizontal.SetValue(delta)
+		s.LogDebug("set horizontal delta: %v", delta)
+		wantResize = true
+	}
+
+	if s.VerticalShowByPolicy() {
+		// child for top aligning, y+h visible
+		vertical := s.GetVAdjustment()
+		upper := vertical.GetUpper()
+		delta := childFarPoint.Y - farPoint.Y + vertical.GetValue()
+		if delta > upper {
+			delta = upper
+		}
+		vertical.SetValue(delta)
+		s.LogDebug("set vertical delta: %v", delta)
+		wantResize = true
+	}
+
+	if wantResize {
+		s.Resize()
+	}
+}
+
+func (s *CScrolledViewport) windowFocusSet(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	if len(argv) >= 2 {
+		if focus, ok := argv[1].(Widget); ok {
+			s.ScrollTo(focus)
+		}
+	}
+	return cenums.EVENT_PASS
+}
+
 func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
@@ -530,57 +631,37 @@ func (s *CScrolledViewport) event(data []interface{}, argv ...interface{}) cenum
 				switch e.WheelImpulse() {
 				case cdk.WheelUp:
 					if vs != nil {
-						s.Lock()
 						if f := vs.ForwardPage(); f == cenums.EVENT_STOP {
-							s.Unlock()
 							s.Invalidate()
-							s.GrabFocus()
 							return cenums.EVENT_STOP
 						}
-						s.Unlock()
-						// return cenums.EVENT_PASS
 					}
 				case cdk.WheelLeft:
 					if hs != nil {
-						s.Lock()
 						if f := hs.BackwardStep(); f == cenums.EVENT_STOP {
-							s.Unlock()
 							s.Invalidate()
-							s.GrabFocus()
 							return cenums.EVENT_STOP
 						}
-						s.Unlock()
-						// return cenums.EVENT_PASS
 					}
 				case cdk.WheelDown:
 					if vs != nil {
-						s.Lock()
 						if f := vs.BackwardPage(); f == cenums.EVENT_STOP {
-							s.Unlock()
 							s.Invalidate()
-							s.GrabFocus()
 							return cenums.EVENT_STOP
 						}
-						s.Unlock()
-						// return cenums.EVENT_PASS
 					}
 				case cdk.WheelRight:
 					if hs != nil {
-						s.Lock()
 						if f := hs.ForwardStep(); f == cenums.EVENT_STOP {
-							s.Unlock()
 							s.Invalidate()
-							s.GrabFocus()
 							return cenums.EVENT_STOP
 						}
-						s.Unlock()
-						// return cenums.EVENT_PASS
 					}
 				}
 			}
 			point := ptypes.NewPoint2I(e.Position())
 			if f := s.processEventAtPoint(point, e); f == cenums.EVENT_STOP {
-				s.GrabFocus()
+				s.Invalidate()
 				return cenums.EVENT_STOP
 			}
 		case *cdk.EventKey:
@@ -622,9 +703,34 @@ func (s *CScrolledViewport) GetRegions() (c, h, v ptypes.Region) {
 	return
 }
 
+func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	child := s.GetChild()
+	vs := s.GetVScrollbar()
+	hs := s.GetHScrollbar()
+	horizontalShow := s.HorizontalShowByPolicy()
+	verticalShow := s.VerticalShowByPolicy()
+
+	if child != nil {
+		WidgetRecurseInvalidate(child)
+	}
+
+	if vs != nil && verticalShow {
+		WidgetRecurseInvalidate(vs)
+	}
+
+	if hs != nil && horizontalShow {
+		WidgetRecurseInvalidate(hs)
+	}
+	return cenums.EVENT_PASS
+}
+
 func (s *CScrolledViewport) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	s.LockDraw()
+	defer s.UnlockDraw()
+
 	s.resizeViewport()
 	s.resizeScrollbars()
+
 	s.Invalidate()
 	return cenums.EVENT_STOP
 }
@@ -648,101 +754,50 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums
 
 		theme := s.GetThemeRequest()
 
+		surface.Box(
+			ptypes.MakePoint2I(0, 0),
+			ptypes.MakeRectangle(alloc.W, alloc.H),
+			false, true,
+			theme.Content.Overlay,
+			theme.Content.FillRune,
+			theme.Content.Normal,
+			theme.Border.Normal,
+			paint.EmptyBorderRune,
+		)
+
 		if child != nil {
-			if f := child.Draw(); f == cenums.EVENT_STOP {
-				surface.Box(
-					ptypes.MakePoint2I(0, 0),
-					ptypes.MakeRectangle(alloc.W, alloc.H),
-					false, true,
-					theme.Content.Overlay,
-					theme.Content.FillRune,
-					theme.Content.Normal,
-					theme.Border.Normal,
-					paint.EmptyBorderRune,
-				)
-				if err := surface.Composite(child.ObjectID()); err != nil {
-					s.LogError("child composite error: %v", err)
-				}
+			child.Draw()
+			if err := surface.Composite(child.ObjectID()); err != nil {
+				s.LogError("child composite error: %v", err)
 			}
-		}
-		if child != nil && vs != nil && verticalShow {
-			if f := vs.Draw(); f == cenums.EVENT_STOP {
+
+			if vs != nil && verticalShow {
+				vs.Draw()
 				if err := surface.Composite(vs.ObjectID()); err != nil {
 					s.LogError("vertical scrollbar composite error: %v", err)
 				}
 			}
-		}
-		if child != nil && hs != nil && horizontalShow {
-			if f := hs.Draw(); f == cenums.EVENT_STOP {
+
+			if hs != nil && horizontalShow {
+				hs.Draw()
 				if err := surface.Composite(hs.ObjectID()); err != nil {
 					s.LogError("horizontal scrollbar composite error: %v", err)
 				}
 			}
-		}
 
-		if child != nil && verticalShow && horizontalShow {
-			// fill in the corner gap between scrollbars
-			_ = surface.SetRune(alloc.W-1, alloc.H-1, theme.Content.FillRune, theme.Content.Normal)
+			if verticalShow && horizontalShow {
+				// fill in the corner gap between scrollbars
+				_ = surface.SetRune(alloc.W-1, alloc.H-1, theme.Content.FillRune, theme.Content.Normal)
+			}
 		}
 
 		if debug, _ := s.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, s.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
-}
-
-func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	s.resizeViewport()
-	s.resizeScrollbars()
-	origin := s.GetOrigin()
-	child := s.GetChild()
-	vs := s.GetVScrollbar()
-	hs := s.GetHScrollbar()
-	theme := s.GetThemeRequest()
-	horizontalShow := s.HorizontalShowByPolicy()
-	verticalShow := s.VerticalShowByPolicy()
-	state := s.GetState()
-	s.Lock()
-
-	if child != nil {
-		local := child.GetOrigin()
-		local.SubPoint(origin)
-		size := child.GetAllocation() // set by resizeViewport() call
-		child.SetState(enums.StateNone)
-		child.SetState(state)
-		style := child.GetThemeRequest().Content.Normal
-		// child.LockDraw()
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), local, size, style); err != nil {
-			child.LogErr(err)
-		}
-		// child.UnlockDraw()
-	}
-	if vs != nil {
-		if verticalShow {
-			local := vs.GetOrigin()
-			local.SubPoint(origin)
-			// vs.LockDraw()
-			if err := memphis.MakeConfigureSurface(vs.ObjectID(), local, vs.GetAllocation(), theme.Content.Normal); err != nil {
-				vs.LogErr(err)
-			}
-			// vs.UnlockDraw()
-		}
-	}
-	if hs != nil {
-		if horizontalShow {
-			local := hs.GetOrigin()
-			local.SubPoint(origin)
-			// hs.LockDraw()
-			if err := memphis.MakeConfigureSurface(hs.ObjectID(), local, hs.GetAllocation(), theme.Content.Normal); err != nil {
-				hs.LogErr(err)
-			}
-			// hs.UnlockDraw()
-		}
-	}
-	s.Unlock()
-	return cenums.EVENT_STOP
 }
 
 func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed bool) {
@@ -751,10 +806,14 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 	child := s.GetChild()
 	verticalShow := s.VerticalShowByPolicy()
 	horizontalShow := s.HorizontalShowByPolicy()
-	s.Lock()
 	horizontal, vertical := s.GetHAdjustment(), s.GetVAdjustment()
+
+	s.Lock()
+	defer s.Unlock()
+
 	changed = false
 	region = ptypes.MakeRegion(0, 0, 0, 0)
+
 	if alloc.W == 0 || alloc.H == 0 {
 		if horizontal != nil {
 			ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
@@ -770,11 +829,9 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			changed = changed || cmath.EqInts(av, bv)
 			vertical.Configure(0, 0, 0, ovStepIncrement, ovPageIncrement, ovPageSize)
 		}
-		s.Unlock()
 		return
 	}
-	// hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize := 0, 0, 0, 0, 0, 0
-	// vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize := 0, 0, 0, 0, 0, 0
+
 	hValue, hLower, hUpper := 0, 0, 0
 	vValue, vLower, vUpper := 0, 0, 0
 	if child != nil {
@@ -786,7 +843,6 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			size.H = alloc.H
 		}
 		if size.W >= alloc.W {
-			// hStepIncrement, hPageIncrement, hPageSize = 1, alloc.W/2, alloc.W
 			if size.W >= alloc.W {
 				overflow := size.W - alloc.W
 				hLower, hUpper = 0, overflow
@@ -803,7 +859,6 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 		region.X = origin.X - hValue
 		region.W = size.W
 		if size.H >= alloc.H {
-			// vStepIncrement, vPageIncrement, vPageSize = 1, alloc.H/2, alloc.H
 			if size.H >= alloc.H {
 				overflow := size.H - alloc.H
 				vLower, vUpper = 0, overflow
@@ -820,15 +875,8 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 		region.Y = origin.Y - vValue
 		region.H = size.H
 	}
-	// horizontal
+
 	if horizontal != nil {
-		// ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
-		// ah := []int{ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize}
-		// bh := []int{hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize}
-		// if !cmath.EqInts(ah, bh) {
-		// 	changed = true
-		// 	horizontal.Configure(hValue, hLower, hUpper, hStepIncrement, hPageIncrement, hPageSize)
-		// }
 		ohValue, ohLower, ohUpper, ohStepIncrement, ohPageIncrement, ohPageSize := horizontal.Settings()
 		ah := []int{ohValue, ohLower, ohUpper}
 		bh := []int{hValue, hLower, hUpper}
@@ -837,15 +885,8 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			horizontal.Configure(hValue, hLower, hUpper, ohStepIncrement, ohPageIncrement, ohPageSize)
 		}
 	}
-	// vertical
+
 	if vertical != nil {
-		// ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize := vertical.Settings()
-		// av := []int{ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize}
-		// bv := []int{vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize}
-		// if !cmath.EqInts(av, bv) {
-		// 	changed = true
-		// 	vertical.Configure(vValue, vLower, vUpper, vStepIncrement, vPageIncrement, vPageSize)
-		// }
 		ovValue, ovLower, ovUpper, ovStepIncrement, ovPageIncrement, ovPageSize := vertical.Settings()
 		av := []int{ovValue, ovLower, ovUpper}
 		bv := []int{vValue, vLower, vUpper}
@@ -854,7 +895,7 @@ func (s *CScrolledViewport) makeAdjustments() (region ptypes.Region, changed boo
 			vertical.Configure(vValue, vLower, vUpper, ovStepIncrement, ovPageIncrement, ovPageSize)
 		}
 	}
-	s.Unlock()
+
 	return
 }
 
@@ -862,11 +903,9 @@ func (s *CScrolledViewport) resizeViewport() cenums.EventFlag {
 	region, _ := s.makeAdjustments()
 	child := s.GetChild()
 	if child != nil {
-		s.Lock()
 		child.SetOrigin(region.X, region.Y)
 		child.SetAllocation(region.Size())
 		child.Resize()
-		s.Unlock()
 	}
 	return cenums.EVENT_STOP
 }
@@ -879,7 +918,6 @@ func (s *CScrolledViewport) resizeScrollbars() cenums.EventFlag {
 	verticalShow := s.VerticalShowByPolicy()
 	horizontalShow := s.HorizontalShowByPolicy()
 	state := s.GetState()
-	s.Lock()
 	if hs != nil {
 		o := ptypes.MakePoint2I(origin.X, origin.Y+alloc.H-1)
 		a := ptypes.MakeRectangle(alloc.W, 1)
@@ -904,20 +942,19 @@ func (s *CScrolledViewport) resizeScrollbars() cenums.EventFlag {
 		vs.SetState(state)
 		vs.Resize()
 	}
-	s.Unlock()
 	return cenums.EVENT_STOP
 }
 
 func (s *CScrolledViewport) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	s.UnsetState(enums.StateSelected)
 	s.Invalidate()
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 func (s *CScrolledViewport) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	s.SetState(enums.StateSelected)
 	s.Invalidate()
-	return cenums.EVENT_STOP
+	return cenums.EVENT_PASS
 }
 
 // The Adjustment for the horizontal position.
@@ -972,3 +1009,4 @@ const ScrolledViewportEventHandle = "scrolled-viewport-event-handler"
 const ScrolledViewportInvalidateHandle = "scrolled-viewport-invalidate-handler"
 const ScrolledViewportResizeHandle = "scrolled-viewport-resize-handler"
 const ScrolledViewportDrawHandle = "scrolled-viewport-draw-handler"
+const ScrolledViewportWindowFocusHandle = "scrolled-viewport-window-focus-handler"
