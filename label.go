@@ -123,7 +123,7 @@ type CLabel struct {
 	tid     uuid.UUID
 	tRegion *ptypes.Region
 
-	tbuffer memphis.TextBuffer
+	tBuffer memphis.TextBuffer
 	tbStyle paint.Style
 }
 
@@ -182,6 +182,15 @@ func (l *CLabel) Init() (already bool) {
 	l.CMisc.Init()
 	l.flags = enums.NULL_WIDGET_FLAG
 	l.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
+
+	l.text = ""
+	l.tBuffer = nil
+	l.tid, _ = uuid.NewV4()
+	l.tRegion = ptypes.NewRegion(0, 0, 0, 0)
+	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
+		l.LogErr(err)
+	}
+
 	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
 	_ = l.InstallProperty(PropertyCursorPosition, cdk.IntProperty, false, 0)
 	_ = l.InstallProperty(PropertyEllipsize, cdk.BoolProperty, true, false)
@@ -199,18 +208,11 @@ func (l *CLabel) Init() (already bool) {
 	_ = l.InstallProperty(PropertyWidthChars, cdk.IntProperty, true, -1)
 	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
 	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_WORD)
-	l.Connect(SignalInvalidate, LabelInvalidateHandle, l.invalidate)
+
 	l.Connect(SignalResize, LabelResizeHandle, l.resize)
 	l.Connect(SignalDraw, LabelDrawHandle, l.draw)
-	l.text = ""
-	l.tbuffer = nil
-	l.tid, _ = uuid.NewV4()
-	l.tRegion = ptypes.NewRegion(0, 0, 0, 0)
-	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
-		l.LogErr(err)
-	}
+
 	// _ = l.SetBoolProperty(PropertyDebug, true)
-	l.Invalidate()
 	return false
 }
 
@@ -803,12 +805,12 @@ func (l *CLabel) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, 
 //
 // Locking: read
 func (l *CLabel) GetClearText() (text string) {
-	if l.tbuffer == nil {
+	if l.tBuffer == nil {
 		return ""
 	}
 	singleLineMode, lineWrapMode, ellipsize, justify, maxWidthChars := l.Settings()
 	l.RLock()
-	text = l.tbuffer.ClearText(lineWrapMode, ellipsize, justify, maxWidthChars)
+	text = l.tBuffer.ClearText(lineWrapMode, ellipsize, justify, maxWidthChars)
 	if singleLineMode {
 		if strings.Contains(text, "\n") {
 			if idx := strings.Index(text, "\n"); idx >= 0 {
@@ -824,12 +826,12 @@ func (l *CLabel) GetClearText() (text string) {
 //
 // Locking: read
 func (l *CLabel) GetPlainText() (text string) {
-	if l.tbuffer == nil {
+	if l.tBuffer == nil {
 		return ""
 	}
 	singleLineMode, lineWrapMode, ellipsize, justify, maxWidthChars := l.Settings()
 	l.RLock()
-	text = l.tbuffer.PlainText(lineWrapMode, ellipsize, justify, maxWidthChars)
+	text = l.tBuffer.PlainText(lineWrapMode, ellipsize, justify, maxWidthChars)
 	if singleLineMode {
 		if strings.Contains(text, "\n") {
 			if idx := strings.Index(text, "\n"); idx >= 0 {
@@ -867,12 +869,12 @@ func (l *CLabel) GetPlainTextInfo() (maxWidth, lineCount int) {
 //
 // Locking: read
 func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
-	if l.tbuffer == nil {
+	if l.tBuffer == nil {
 		return -1, -1
 	}
 	_, lineWrapMode, ellipsize, justify, _ := l.Settings()
 	l.RLock()
-	maxWidth, lineCount = l.tbuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, width)
+	maxWidth, lineCount = l.tBuffer.PlainTextInfo(lineWrapMode, ellipsize, justify, width)
 	l.RUnlock()
 	return
 }
@@ -904,10 +906,8 @@ func (l *CLabel) GetSizeRequest() (width, height int) {
 	}
 	// add padding
 	xPadding, yPadding := l.GetPadding()
-	// l.RLock()
 	size.W += xPadding * 2
 	size.H += yPadding * 2
-	// l.RUnlock()
 	return size.W, size.H
 }
 
@@ -963,21 +963,23 @@ func (l *CLabel) refreshTextBuffer() (err error) {
 	if markup, err = l.GetBoolProperty(PropertyUseMarkup); err == nil && markup {
 		var m memphis.Tango
 		if m, err = memphis.NewMarkup(l.text, style); err != nil {
-			// tbuffer must always be valid, default to plain text on error
-			l.tbuffer = memphis.NewTextBuffer(l.text, style, useUnderline)
+			// tBuffer must always be valid, default to plain text on error
+			l.tBuffer = memphis.NewTextBuffer(l.text, style, useUnderline)
 		} else {
-			// use the markup tbuffer
-			l.tbuffer = m.TextBuffer(useUnderline)
+			// use the markup tBuffer
+			l.tBuffer = m.TextBuffer(useUnderline)
 		}
 	} else {
-		// plain text tbuffer
-		l.tbuffer = memphis.NewTextBuffer(l.text, style, useUnderline)
+		// plain text tBuffer
+		l.tBuffer = memphis.NewTextBuffer(l.text, style, useUnderline)
 	}
 	l.Unlock()
 	return
 }
 
 func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	l.LockDraw()
+	defer l.UnlockDraw()
 
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -985,68 +987,40 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 		return cenums.EVENT_PASS
 	}
 
+	origin := l.GetOrigin()
 	xPad, _ := l.GetPadding()
 	_, yAlign := l.GetAlignment()
 
-	size := ptypes.NewRectangle(alloc.W, alloc.H)
-	local := ptypes.MakePoint2I(xPad, 0)
-	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
-	theme := l.GetThemeRequest()
-	region := l.GetRegion()
-	id := l.ObjectID()
-
-	l.Lock()
-
-	if err := memphis.ConfigureSurface(id, region.Origin(), region.Size(), theme.Content.Normal); err != nil {
+	if err := l.refreshTextBuffer(); err != nil {
 		l.LogErr(err)
 	}
+	l.refreshMnemonics()
+
+	size := ptypes.NewRectangle(alloc.W, alloc.H)
+	local := ptypes.MakePoint2I(origin.X+xPad, origin.Y)
+	_, size.H = l.GetPlainTextInfoAtWidth(alloc.W - (xPad * 2))
 
 	if size.H < alloc.H {
 		delta := alloc.H - size.H
 		local.Y += int(float64(delta) * yAlign)
 	}
 
+	l.Lock()
 	l.tRegion.Set(local.X, local.Y, size.W, size.H)
-
-	if err := memphis.ConfigureSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
-		l.LogErr(err)
-	}
-
 	l.Unlock()
+
+	// theme := l.GetThemeRequest()
+	// if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
+	// 	l.LogErr(err)
+	// }
+	// if err := memphis.MakeConfigureSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
+	// 	l.LogErr(err)
+	// } else if err := memphis.FillSurface(l.tid, theme); err != nil {
+	// 	l.LogErr(err)
+	// }
+
 	l.Invalidate()
 	return cenums.EVENT_STOP
-}
-
-func (l *CLabel) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	theme := l.GetThemeRequest()
-	if err := l.refreshTextBuffer(); err != nil {
-		l.LogErr(err)
-	}
-	l.refreshMnemonics()
-	id := l.ObjectID()
-	// region := l.GetRegion()
-	origin := l.GetOrigin()
-	alloc := l.GetAllocation()
-	l.Lock()
-	if !memphis.HasSurface(id) {
-		if err := memphis.MakeSurface(id, origin, alloc, theme.Content.Normal); err != nil {
-			l.LogErr(err)
-		}
-	}
-	theme.Content.FillRune = rune(0)
-	if err := memphis.FillSurface(id, theme); err != nil {
-		l.LogErr(err)
-	}
-	if !memphis.HasSurface(l.tid) {
-		if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
-			l.LogErr(err)
-		}
-	}
-	if err := memphis.FillSurface(l.tid, theme); err != nil {
-		l.LogErr(err)
-	}
-	l.Unlock()
-	return cenums.EVENT_PASS
 }
 
 func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -1063,22 +1037,36 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		singleLineMode, lineWrapMode, ellipsize, justify, _ := l.Settings()
 		theme := l.GetThemeRequest()
 
-		if l.tbuffer != nil {
-			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
-				l.LogErr(err)
-			} else {
-				if f := l.tbuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
-					surface.Fill(theme)
-					if err := surface.CompositeSurface(tSurface); err != nil {
-						l.LogErr(err)
-					}
+		if err := l.refreshTextBuffer(); err != nil {
+			l.LogErr(err)
+		}
+
+		if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
+			l.LogErr(err)
+		}
+
+		if err := memphis.MakeConfigureSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
+			l.LogErr(err)
+		} else if err := memphis.FillSurface(l.tid, theme); err != nil {
+			l.LogErr(err)
+		} else if tSurface, err := memphis.GetSurface(l.tid); err != nil {
+			l.LogErr(err)
+		} else {
+			if f := l.tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
+				// surface.Fill(theme)
+
+				if err := surface.CompositeSurface(tSurface); err != nil {
+					l.LogErr(err)
 				}
+			} else {
+				l.LogError("TextBuffer draw failed, check prior log entries for warnings and/or errors")
 			}
 		}
 
 		if debug, _ := l.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorSilver, l.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
