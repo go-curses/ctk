@@ -141,6 +141,8 @@ type Window interface {
 	SetMnemonicsVisible(setting bool)
 	GetDisplay() (dm cdk.Display)
 	SetDisplay(dm cdk.Display)
+	RequestDrawAndShow()
+	RequestDrawAndSync()
 	GetVBox() (vbox VBox)
 	GetNextFocus() (next Widget)
 	GetPreviousFocus() (previous Widget)
@@ -160,7 +162,6 @@ type CWindow struct {
 	display cdk.Display
 
 	prevMouseEvent *cdk.EventMouse
-	focused        interface{}
 	eventFocus     interface{}
 	hoverFocus     Widget
 	accelGroups    AccelGroups
@@ -211,7 +212,7 @@ func (w *CWindow) Init() (already bool) {
 	w.flags = enums.NULL_WIDGET_FLAG
 	w.SetFlags(enums.TOPLEVEL | enums.SENSITIVE | enums.APP_PAINTABLE)
 	w.prevMouseEvent = cdk.NewEventMouse(0, 0, 0, 0)
-	w.parent = nil
+	w.parent = w
 	w.display = cdk.GetDefaultDisplay()
 	w.origin.X = 0
 	w.origin.Y = 0
@@ -220,6 +221,8 @@ func (w *CWindow) Init() (already bool) {
 	w.mnemonics = make([]*mnemonicEntry, 0)
 	w.mnemonicMod = cdk.ModAlt
 	w.mnemonicLock = &sync.RWMutex{}
+	w.hoverFocus = nil
+
 	_ = w.InstallProperty(PropertyWindowType, cdk.StructProperty, true, cenums.WINDOW_TOPLEVEL)
 	_ = w.InstallProperty(PropertyAcceptFocus, cdk.BoolProperty, true, true)
 	_ = w.InstallProperty(PropertyDecorated, cdk.BoolProperty, true, true)
@@ -248,24 +251,24 @@ func (w *CWindow) Init() (already bool) {
 	_ = w.InstallProperty(PropertyTypeHint, cdk.StructProperty, true, enums.WindowTypeHintNormal)
 	_ = w.InstallProperty(PropertyUrgencyHint, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyWindowPosition, cdk.StructProperty, true, enums.WinPosNone)
-	w.hoverFocus = nil
+
 	var err error
 	if w.styleSheet, err = newStyleSheetFromString(DefaultStyles); err != nil {
 		w.LogErr(err)
 	} else {
 		w.styleSheet = newStyleSheet()
 	}
+	w.SetWindow(w) // after stylesheet setup
+
 	w.Connect(SignalCdkEvent, WindowEventHandle, w.event)
-	w.Connect(SignalInvalidate, WindowInvalidateHandle, w.invalidate)
+	w.Connect(SignalInvalidate, "window-invalidate-handler", w.invalidate)
 	w.Connect(SignalResize, WindowResizeHandle, w.resize)
 	w.Connect(SignalDraw, WindowDrawHandle, w.draw)
-	w.SetParent(w)
-	w.SetWindow(w)
+
 	if err := w.SetProperty(PropertyWindow, w); err != nil {
 		w.LogErr(err)
 	}
 	_ = w.GetVBox()
-	w.Invalidate()
 	return false
 }
 
@@ -743,23 +746,28 @@ func (w *CWindow) SetFocus(focus Widget) {
 		transient.SetFocus(focus)
 		return
 	}
+
 	if focus == nil {
-		w.Lock()
-		w.focused = nil
-		w.Unlock()
-	} else if fw, ok := focus.Self().(Sensitive); ok {
-		if fw.CanFocus() && fw.IsVisible() && fw.IsSensitive() {
+		if err := w.SetStructProperty(PropertyFocusedWidget, nil); err != nil {
+			w.LogErr(err)
+		} else {
+			w.Emit(SignalFocusChanged, nil)
+		}
+		return
+	}
+
+	if sensitive, ok := focus.Self().(Sensitive); ok {
+		if sensitive.CanFocus() && sensitive.IsVisible() && sensitive.IsSensitive() {
 			if err := w.SetStructProperty(PropertyFocusedWidget, focus); err != nil {
 				w.LogErr(err)
+			} else {
+				w.Emit(SignalFocusChanged, w, focus)
 			}
-			w.Lock()
-			w.focused = focus.Self()
-			w.Unlock()
 		} else {
 			w.LogError("cannot focus, not visible or not sensitive")
 		}
 	} else {
-		w.LogError("does not implement Sensitive interface: %v", focus)
+		w.LogError("does not implement Sensitive interface: %T %v", focus, focus)
 	}
 }
 
@@ -1499,6 +1507,22 @@ func (w *CWindow) SetDisplay(dm cdk.Display) {
 	w.Unlock()
 }
 
+func (w *CWindow) RequestDrawAndShow() {
+	if d := w.GetDisplay(); d != nil {
+		// w.Invalidate()
+		d.RequestDraw()
+		d.RequestShow()
+	}
+}
+
+func (w *CWindow) RequestDrawAndSync() {
+	if d := w.GetDisplay(); d != nil {
+		// w.Invalidate()
+		d.RequestDraw()
+		d.RequestSync()
+	}
+}
+
 func (w *CWindow) GetVBox() (vbox VBox) {
 	// bin child must be an internal VBox
 	if child := w.GetChild(); child != nil {
@@ -1717,55 +1741,46 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	origin := w.GetOrigin()
-	alloc := w.GetAllocation()
-	w.LockDraw()
-	if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, w.GetThemeRequest().Content.Normal); err != nil {
-		w.LogErr(err)
-	}
-	w.UnlockDraw()
-	if child := w.GetChild(); child != nil {
-		childOrigin := child.GetOrigin()
-		// childOrigin.SubPoint(w.GetOrigin())
-		childAlloc := child.GetAllocation()
-		child.LockDraw()
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, childAlloc, child.GetThemeRequest().Content.Normal); err != nil {
-			child.LogErr(err)
-		}
-		child.UnlockDraw()
-	}
+	// w.RequestDrawAndShow()
 	return cenums.EVENT_PASS
 }
 
 func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	w.LockDraw()
+	defer w.UnlockDraw()
+
 	argc := len(argv)
+
 	origin := w.GetOrigin()
 	if argc >= 2 {
 		if eOrigin, ok := argv[1].(ptypes.Point2I); ok {
 			origin = eOrigin
+		} else {
+			w.LogError("expected Point2I, resize event received: %T %v - %v", argv[1], argv[1], argv)
+			return cenums.EVENT_PASS
 		}
 	}
+
 	alloc := w.GetAllocation()
 	if argc >= 3 {
 		if eAlloc, ok := argv[2].(ptypes.Rectangle); ok {
 			alloc = eAlloc
+		} else {
+			w.LogError("expected Rectangle, resize event received: %T %v - %v", argv[1], argv[1], argv)
+			return cenums.EVENT_PASS
 		}
 	}
 
-	// w.LockDraw()
-
 	if w.GetWindowType() != cenums.WINDOW_POPUP {
-		w.SetAllocation(alloc)
 		w.SetOrigin(origin.X, origin.Y)
-		theme := w.GetThemeRequest()
-		style := theme.Content.Normal
-		if err := memphis.MakeConfigureSurface(w.ObjectID(), origin, alloc, style); err != nil {
-			w.LogErr(err)
-		}
-		if err := memphis.FillSurface(w.ObjectID(), theme); err != nil {
-			w.LogErr(err)
-		}
-		w.LogDebug("resized window: origin=%v, alloc=%v", origin, alloc)
+		w.SetAllocation(alloc)
+	}
+
+	theme := w.GetThemeRequest()
+	if err := memphis.MakeConfigureSurface(w.ObjectID(), w.GetOrigin(), w.GetAllocation(), theme.Content.Normal); err != nil {
+		w.LogErr(err)
+	} else if err := memphis.FillSurface(w.ObjectID(), theme); err != nil {
+		w.LogErr(err)
 	}
 
 	if child := w.GetChild(); child != nil {
@@ -1776,32 +1791,15 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		} else if size.W >= 3 && size.H >= 3 {
 			size.Sub(2, 2) // borders
 		}
+
 		// child.LockDraw()
 		child.SetOrigin(local.X, local.Y)
 		child.SetAllocation(size)
-		theme := child.GetThemeRequest()
-		style := theme.Content.Normal
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), *local, size, style); err != nil {
-			child.LogErr(err)
-		}
-		if err := memphis.FillSurface(w.ObjectID(), theme); err != nil {
-			w.LogErr(err)
-		}
-		// child.UnlockDraw()
 		child.Resize()
-		w.LogDebug("resized child: origin=%v, alloc=%v, local=%v", child.GetOrigin(), child.GetAllocation(), local)
 	}
 
-	// w.UnlockDraw()
-
+	w.LogDebug("window resized: origin=%v, alloc=%v", w.GetOrigin(), w.GetAllocation())
 	w.Invalidate()
-
-	// if rv := w.Invalidate(); rv == cenums.EVENT_STOP {
-	// 	if d := w.GetDisplay(); d != nil {
-	// 		d.RequestDraw()
-	// 		d.RequestSync()
-	// 	}
-	// }
 	return cenums.EVENT_STOP
 }
 
@@ -1809,41 +1807,44 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 	w.LockDraw()
 	defer w.UnlockDraw()
 
-	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		size := surface.GetSize()
-		if !w.IsVisible() || size.W == 0 || size.H == 0 {
+	oid := w.ObjectID()
+	origin := w.GetOrigin()
+	alloc := w.GetAllocation()
+	theme := w.GetThemeRequest()
+
+	if err := memphis.MakeConfigureSurface(oid, origin, alloc, theme.Content.Normal); err != nil {
+		w.LogErr(err)
+	} else if surface, err := memphis.GetSurface(oid); err != nil {
+		w.LogErr(err)
+	} else {
+
+		if !w.IsVisible() || alloc.W == 0 || alloc.H == 0 {
 			w.LogDebug("not visible, zero width or zero height")
 			return cenums.EVENT_PASS
 		}
 
 		title := w.GetTitle()
-		theme := w.GetThemeRequest()
 		child := w.GetChild()
 
-		if child != nil && child.IsVisible() {
-			if f := child.Draw(); f == cenums.EVENT_STOP {
-				if title != "" {
-					surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
-				} else {
-					surface.FillBorder(false, true, theme)
-				}
-				// child.LockDraw()
-				if err := surface.Composite(child.ObjectID()); err != nil {
-					w.LogError("composite error: %v", err)
-				}
-				// child.UnlockDraw()
-			}
+		if title != "" {
+			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
 		} else {
-			if title != "" {
-				surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
-			} else {
-				surface.FillBorder(false, true, theme)
+			surface.FillBorder(false, true, theme)
+		}
+
+		if child != nil && child.IsVisible() {
+			child.Draw()
+			child.LockDraw()
+			if err := surface.Composite(child.ObjectID()); err != nil {
+				w.LogError("composite error: %v", err)
 			}
+			child.UnlockDraw()
 		}
 
 		if debug, _ := w.GetBoolProperty(cdk.PropertyDebug); debug {
 			surface.DebugBox(paint.ColorNavy, w.ObjectInfo())
 		}
+
 		return cenums.EVENT_STOP
 	}
 
@@ -2010,7 +2011,7 @@ const SignalKeysChanged cdk.Signal = "keys-changed"
 
 // Listener function arguments:
 // 	widget Widget
-const SignalSetFocus cdk.Signal = "set-focus"
+const SignalFocusChanged cdk.Signal = "focus-changed"
 
 var ErrFallthrough = fmt.Errorf("fallthrough")
 
