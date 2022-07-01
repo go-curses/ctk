@@ -315,7 +315,7 @@ func (r *CRange) SetValue(value int) {
 	}
 	r.Unlock()
 	if valueChanged {
-		r.Emit(SignalRangeValueChanged, r, previousValue, value)
+		r.Emit(SignalValueChanged, r, previousValue, value)
 	}
 }
 
@@ -687,6 +687,3 @@ const SignalChangeValue cdk.Signal = "change-value"
 // Listener function arguments:
 // 	step ScrollType	how to move the slider
 const SignalMoveSlider cdk.Signal = "move-slider"
-
-// Emitted when the range value changes.
-const SignalRangeValueChanged cdk.Signal = "value-changed"
