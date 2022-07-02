@@ -97,7 +97,6 @@ func (a *CAlignment) Init() (already bool) {
 	a.Connect(SignalLostFocus, AlignmentLostFocusHandle, a.childLostFocus)
 	a.Connect(SignalGainedFocus, AlignmentGainedFocusHandle, a.childGainedFocus)
 	a.Connect(SignalResize, AlignmentEventResizeHandle, a.resize)
-	a.Connect(SignalInvalidate, AlignmentInvalidateHandler, a.invalidate)
 	a.Connect(SignalDraw, AlignmentDrawHandle, a.draw)
 	return false
 }
@@ -281,24 +280,8 @@ func (a *CAlignment) resize(data []interface{}, argv ...interface{}) cenums.Even
 	return cenums.EVENT_PASS
 }
 
-func (a *CAlignment) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	theme := a.GetThemeRequest()
-	style := theme.Content.Normal
-	origin := a.GetOrigin()
-	if child := a.GetChild(); child != nil {
-		a.Lock()
-		childOrigin := child.GetOrigin()
-		childOrigin.SubPoint(origin)
-		childSize := child.GetAllocation()
-		if err := memphis.MakeConfigureSurface(child.ObjectID(), childOrigin, childSize, style); err != nil {
-			child.LogErr(err)
-		}
-		a.Unlock()
-	}
-	return cenums.EVENT_PASS
-}
-
 func (a *CAlignment) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := a.GetAllocation()
 		if !a.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -387,5 +370,3 @@ const AlignmentGainedFocusHandle = "alignment-gained-focus-handler"
 const AlignmentDrawHandle = "alignment-draw-handler"
 
 const AlignmentEventResizeHandle = "alignment-event-resize-handler"
-
-const AlignmentInvalidateHandler = "alignment-invalidate-handler"

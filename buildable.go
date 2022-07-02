@@ -4,6 +4,8 @@ import (
 	"github.com/go-curses/cdk"
 )
 
+// TODO: decide if Buildable is even necessary as all of it's methods are present in Widget, Object or MetaData
+
 type Buildable interface {
 	Widget
 

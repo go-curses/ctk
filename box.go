@@ -515,9 +515,6 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 	}
 
 	orientation := b.GetOrientation()
-	// spacing := b.GetSpacing()
-	// isHomogeneous := b.GetHomogeneous()
-	isVertical := orientation == cenums.ORIENTATION_VERTICAL
 
 	b.Lock()
 	defer b.Unlock()
@@ -534,7 +531,7 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 		}
 	}
 
-	if isVertical {
+	if orientation == cenums.ORIENTATION_VERTICAL {
 		if rw <= -1 {
 			rw = mrw
 		}
@@ -546,109 +543,6 @@ func (b *CBox) GetSizeRequest() (width, height int) {
 
 	width = rw
 	height = rh
-	return
-
-	// if isHomogeneous {
-	// 	return b.getSizeRequestHomogeneous(children, isVertical, spacing)
-	// }
-	//
-	// return b.getSizeRequestDynamic(children, isVertical, spacing)
-}
-
-func (b *CBox) getSizeRequestHomogeneous(children []*cBoxChild, isVertical bool, spacing int) (width, height int) {
-	var w, h int
-	totalChildren := len(children)
-
-	// get the size of the largest child and request that for all children
-	for _, child := range children {
-		req := ptypes.MakeRectangle(child.widget.GetSizeRequest())
-		req.Floor(0, 0)
-		if w < req.W {
-			w = req.W
-			if !isVertical && child.padding > 0 {
-				w += child.padding * 2
-			}
-		}
-		if h < req.H {
-			h = req.H
-			if isVertical && child.padding > 0 {
-				h += child.padding * 2
-			}
-		}
-	}
-
-	rw, rh := b.CContainer.GetSizeRequest()
-	if w == 0 {
-		w = rw
-	}
-	if h == 0 {
-		h = rh
-	}
-
-	if isVertical {
-		width = w
-		height = (totalChildren * h) + cmath.FloorI((totalChildren-1)*spacing, 0)
-	} else {
-		width = (totalChildren * w) + cmath.FloorI((totalChildren-1)*spacing, 0)
-		height = h
-	}
-	return
-}
-
-func (b *CBox) getSizeRequestDynamic(children []*cBoxChild, isVertical bool, spacing int) (width, height int) {
-	var w, h int
-	totalChildren := len(children)
-
-	// add up the sizes of all children, including spacing and child padding
-	tally := ptypes.NewRectangle(0, 0)
-	for _, child := range children {
-		childSizeRequest := ptypes.NewRectangle(child.widget.GetSizeRequest())
-		// childSizeRequest.Floor(0, 0)
-		// vertical total width
-		if w < childSizeRequest.W {
-			w = childSizeRequest.W
-			if !isVertical && child.padding > 0 {
-				w += child.padding * 2
-			}
-		}
-		// horizontal total width
-		if childSizeRequest.W > 0 {
-			tally.W += childSizeRequest.W
-		}
-		if !isVertical && child.padding > 0 {
-			tally.W += child.padding * 2
-		}
-		// horizontal child height
-		if h < childSizeRequest.H {
-			h = childSizeRequest.H
-			if isVertical && child.padding > 0 {
-				h += child.padding * 2
-			}
-		}
-		// vertical total height
-		if childSizeRequest.H > 0 {
-			tally.H += childSizeRequest.H
-		}
-		if !isVertical && child.padding > 0 {
-			tally.H += child.padding * 2
-		}
-	}
-
-	rw, rh := b.CContainer.GetSizeRequest()
-	if w == 0 {
-		w = rw
-	}
-	if h == 0 {
-		h = rh
-	}
-
-	if isVertical {
-		width = w
-		height = tally.H + cmath.FloorI((totalChildren-1)*spacing, 0)
-	} else {
-		width = tally.W + cmath.FloorI((totalChildren-1)*spacing, 0)
-		height = h
-	}
 	return
 }
 

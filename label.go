@@ -1007,16 +1007,6 @@ func (l *CLabel) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 	l.tRegion.Set(local.X, local.Y, size.W, size.H)
 	l.Unlock()
 
-	// theme := l.GetThemeRequest()
-	// if err := memphis.FillSurface(l.ObjectID(), theme); err != nil {
-	// 	l.LogErr(err)
-	// }
-	// if err := memphis.MakeConfigureSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
-	// 	l.LogErr(err)
-	// } else if err := memphis.FillSurface(l.tid, theme); err != nil {
-	// 	l.LogErr(err)
-	// }
-
 	l.Invalidate()
 	return cenums.EVENT_STOP
 }

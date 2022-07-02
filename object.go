@@ -219,9 +219,9 @@ func (o *CObject) GetObjectAt(p *ptypes.Point2I) Object {
 // space bounds.
 func (o *CObject) HasPoint(p *ptypes.Point2I) (contains bool) {
 	o.RLock()
+	defer o.RUnlock()
 	origin := o.origin.Clone()
 	size := o.allocation.Clone()
-	o.RUnlock()
 	if p.X >= origin.X && p.X < (origin.X+size.W) {
 		contains = p.Y >= origin.Y && p.Y < (origin.Y+size.H)
 	}
