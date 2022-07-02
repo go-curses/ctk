@@ -489,16 +489,22 @@ func (s *CScrolledViewport) GetWidgetAt(p *ptypes.Point2I) Widget {
 
 func (s *CScrolledViewport) internalGetWidgetAt(p *ptypes.Point2I) Widget {
 	if s.HasPoint(p) {
-		if vs := s.GetVScrollbar(); vs != nil {
-			if vs.HasPoint(p) {
-				return vs
+		if s.VerticalShowByPolicy() {
+			if vs := s.GetVScrollbar(); vs != nil {
+				if vs.HasPoint(p) {
+					return vs
+				}
 			}
 		}
-		if hs := s.GetHScrollbar(); hs != nil {
-			if hs.HasPoint(p) {
-				return hs
+
+		if s.HorizontalShowByPolicy() {
+			if hs := s.GetHScrollbar(); hs != nil {
+				if hs.HasPoint(p) {
+					return hs
+				}
 			}
 		}
+
 		if child := s.GetChild(); child != nil {
 			if child.HasPoint(p) {
 				if found := child.GetWidgetAt(p); found != nil {
