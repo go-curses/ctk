@@ -172,8 +172,6 @@ func (a *CArrow) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (a *CArrow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	a.LockDraw()
-	defer a.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := a.GetAllocation()

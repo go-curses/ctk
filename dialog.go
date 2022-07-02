@@ -628,8 +628,6 @@ func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.Eve
 }
 
 func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	d.LockDraw()
-	defer d.UnlockDraw()
 
 	region := d.getDialogRegion().NewClone()
 	d.SetOrigin(region.X, region.Y)
@@ -649,8 +647,6 @@ func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 }
 
 func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	d.LockDraw()
-	defer d.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := d.GetAllocation()

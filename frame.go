@@ -416,8 +416,6 @@ func (f *CFrame) childGainedFocus(_ []interface{}, _ ...interface{}) cenums.Even
 }
 
 func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	f.LockDraw()
-	defer f.UnlockDraw()
 
 	// our allocation has been set prior to Resize() being called
 	alloc := f.GetAllocation()
@@ -493,8 +491,6 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	f.LockDraw()
-	defer f.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := f.GetAllocation()

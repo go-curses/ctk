@@ -725,8 +725,6 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 }
 
 func (s *CScrolledViewport) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	s.LockDraw()
-	defer s.UnlockDraw()
 
 	s.resizeViewport()
 	s.resizeScrollbars()
@@ -736,8 +734,6 @@ func (s *CScrolledViewport) resize(data []interface{}, argv ...interface{}) cenu
 }
 
 func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	s.LockDraw()
-	defer s.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := s.GetAllocation()

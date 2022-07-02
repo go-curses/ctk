@@ -783,8 +783,6 @@ func (s *CScrollbar) event(data []interface{}, argv ...interface{}) cenums.Event
 }
 
 func (s *CScrollbar) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	s.LockDraw()
-	defer s.UnlockDraw()
 
 	s.resizeSteppers()
 	s.resizeSlider()
@@ -922,8 +920,6 @@ func (s *CScrollbar) resizeSlider() {
 }
 
 func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	s.LockDraw()
-	defer s.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := s.GetAllocation()

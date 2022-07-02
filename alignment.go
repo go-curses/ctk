@@ -306,9 +306,6 @@ func (a *CAlignment) draw(data []interface{}, argv ...interface{}) cenums.EventF
 			return cenums.EVENT_PASS
 		}
 
-		a.LockDraw()
-		defer a.UnlockDraw()
-
 		theme := a.GetThemeRequest()
 		boxOrigin := ptypes.MakePoint2I(0, 0)
 		boxSize := alloc

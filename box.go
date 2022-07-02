@@ -653,9 +653,6 @@ func (b *CBox) getSizeRequestDynamic(children []*cBoxChild, isVertical bool, spa
 }
 
 func (b *CBox) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.LockDraw()
-	defer b.UnlockDraw()
-
 	children := b.getBoxChildren()
 	numChildren := len(children)
 	if numChildren == 0 {
@@ -985,8 +982,6 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 }
 
 func (b *CBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.LockDraw()
-	defer b.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := b.GetAllocation()

@@ -1318,6 +1318,8 @@ func (w *CWidget) SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjus
 func (w *CWidget) Draw() cenums.EventFlag {
 	if w.IsDrawable() && w.GetInvalidated() {
 		w.SetInvalidated(false)
+		w.LockDraw()
+		defer w.UnlockDraw()
 		oid := w.ObjectID()
 		if err := memphis.MakeConfigureSurface(oid, w.GetOrigin(), w.GetAllocation(), w.GetThemeRequest().Content.Normal); err != nil {
 			w.LogErr(err)
@@ -1330,6 +1332,12 @@ func (w *CWidget) Draw() cenums.EventFlag {
 		}
 	}
 	return cenums.EVENT_PASS
+}
+
+func (w *CWidget) Resize() cenums.EventFlag {
+	w.LockDraw()
+	defer w.UnlockDraw()
+	return w.CObject.Resize()
 }
 
 // Emits the mnemonic-activate signal. The default handler for this

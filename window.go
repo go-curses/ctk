@@ -1749,8 +1749,6 @@ func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.Eve
 }
 
 func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	w.LockDraw()
-	defer w.UnlockDraw()
 
 	argc := len(argv)
 
@@ -1807,8 +1805,6 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 }
 
 func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	w.LockDraw()
-	defer w.UnlockDraw()
 
 	oid := w.ObjectID()
 	origin := w.GetOrigin()

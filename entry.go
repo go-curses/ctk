@@ -751,8 +751,6 @@ func (l *CEntry) refresh() {
 }
 
 func (l *CEntry) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	l.LockDraw()
-	defer l.UnlockDraw()
 
 	alloc := l.GetAllocation()
 	if !l.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
@@ -793,8 +791,6 @@ func (l *CEntry) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	l.LockDraw()
-	defer l.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := l.GetAllocation()

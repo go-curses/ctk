@@ -376,8 +376,6 @@ func (b *CButtonBox) getSecondary() (box Box) {
 }
 
 func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.LockDraw()
-	defer b.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		alloc := b.GetAllocation()

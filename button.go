@@ -791,8 +791,6 @@ func (b *CButton) invalidate(data []interface{}, argv ...interface{}) cenums.Eve
 }
 
 func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.LockDraw()
-	defer b.UnlockDraw()
 
 	alloc := b.GetAllocation()
 	size := ptypes.NewRectangle(alloc.W, alloc.H)
@@ -852,8 +850,6 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 }
 
 func (b *CButton) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.LockDraw()
-	defer b.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := b.GetAllocation()

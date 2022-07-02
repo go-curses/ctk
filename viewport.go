@@ -182,8 +182,6 @@ func (v *CViewport) GetViewWindow() (value Window) {
 }
 
 func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	v.LockDraw()
-	defer v.UnlockDraw()
 
 	alloc := v.GetAllocation()
 	child := v.GetChild()
@@ -266,8 +264,6 @@ func (v *CViewport) resize(data []interface{}, argv ...interface{}) cenums.Event
 }
 
 func (v *CViewport) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	v.LockDraw()
-	defer v.UnlockDraw()
 
 	if surface, ok := argv[1].(*memphis.CSurface); ok {
 		size := v.GetAllocation()
