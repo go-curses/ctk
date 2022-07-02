@@ -16,9 +16,9 @@ func init() {
 
 type HScrollbar interface {
 	Scrollbar
-
-	Init() (already bool)
 }
+
+var _ HScrollbar = (*CHScrollbar)(nil)
 
 type CHScrollbar struct {
 	CScrollbar

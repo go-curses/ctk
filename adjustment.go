@@ -24,7 +24,6 @@ func init() {
 type Adjustment interface {
 	Object
 
-	Init() bool
 	GetValue() (value int)
 	SetValue(value int)
 	ClampPage(upper, lower int)
@@ -45,6 +44,8 @@ type Adjustment interface {
 	Moot() bool
 	ShowByPolicy(policy enums.PolicyType) bool
 }
+
+var _ Adjustment = (*CAdjustment)(nil)
 
 // The CAdjustment structure implements the Adjustment interface and is
 // exported to facilitate type embedding with custom implementations. No member

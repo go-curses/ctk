@@ -27,9 +27,9 @@ type Separator interface {
 	Bin
 	Buildable
 	Orientable
-
-	Init() (already bool)
 }
+
+var _ Separator = (*CSeparator)(nil)
 
 // The CSeparator structure implements the Separator interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

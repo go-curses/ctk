@@ -29,7 +29,6 @@ type Frame interface {
 	Bin
 	Buildable
 
-	Init() (already bool)
 	GetLabel() (value string)
 	SetLabel(label string)
 	GetLabelWidget() (value Widget)
@@ -38,14 +37,11 @@ type Frame interface {
 	SetLabelAlign(xAlign float64, yAlign float64)
 	GetShadowType() (value enums.ShadowType)
 	SetShadowType(shadowType enums.ShadowType)
-	Add(w Widget)
-	Remove(w Widget)
-	IsFocus() bool
 	GetFocusWithChild() (focusWithChild bool)
 	SetFocusWithChild(focusWithChild bool)
-	GetSizeRequest() (width, height int)
-	GetWidgetAt(p *ptypes.Point2I) Widget
 }
+
+var _ Frame = (*CFrame)(nil)
 
 // The CFrame structure implements the Frame interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

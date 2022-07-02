@@ -16,9 +16,9 @@ func init() {
 
 type HBox interface {
 	Box
-
-	Init() bool
 }
+
+var _ HBox = (*CHBox)(nil)
 
 type CHBox struct {
 	CBox

@@ -23,7 +23,6 @@ var ctkDefaultSettings *CSettings
 type Settings interface {
 	Object
 
-	Init() (already bool)
 	LoadFromString(rc string) (err error)
 	GetAlternativeButtonOrder() (value bool)
 	GetAlternativeSortArrows() (value bool)
@@ -118,6 +117,8 @@ type Settings interface {
 	SetCtkTooltipTimeout(value time.Duration)
 	SetCtkTouchscreenMode(value bool)
 }
+
+var _ Settings = (*CSettings)(nil)
 
 // The CSettings structure implements the Settings interface and is
 // exported to facilitate type embedding with custom implementations. No member

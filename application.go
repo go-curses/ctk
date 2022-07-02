@@ -33,10 +33,11 @@ func init() {
 type Application interface {
 	cdk.Application
 
-	Init() (already bool)
 	AccelMap() (accelMap AccelMap)
 	AccelGroup() (accelGroup AccelGroup)
 }
+
+var _ Application = (*CApplication)(nil)
 
 type CApplication struct {
 	cdk.CApplication

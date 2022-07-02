@@ -33,24 +33,18 @@ type Box interface {
 	Buildable
 	Orientable
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
-	GetOrientation() (orientation cenums.Orientation)
-	SetOrientation(orientation cenums.Orientation)
 	GetHomogeneous() (value bool)
 	SetHomogeneous(homogeneous bool)
 	GetSpacing() (value int)
 	SetSpacing(spacing int)
-	Add(child Widget)
-	Remove(w Widget)
 	PackStart(child Widget, expand, fill bool, padding int)
 	PackEnd(child Widget, expand, fill bool, padding int)
 	ReorderChild(child Widget, position int)
 	QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType enums.PackType)
 	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType)
-	GetFocusChain() (focusableWidgets []Widget, explicitlySet bool)
-	GetSizeRequest() (width, height int)
 }
+
+var _ Box = (*CBox)(nil)
 
 // The CBox structure implements the Box interface and is exported to
 // facilitate type embedding with custom implementations. No member variables

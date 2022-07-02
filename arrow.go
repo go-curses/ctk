@@ -36,12 +36,12 @@ type Arrow interface {
 	Misc
 	Buildable
 
-	Init() bool
 	GetArrowType() (arrow enums.ArrowType)
 	SetArrowType(arrow enums.ArrowType)
 	GetArrowRune() (r rune, width int)
-	GetSizeRequest() (width, height int)
 }
+
+var _ Arrow = (*CArrow)(nil)
 
 // The CArrow structure implements the Arrow interface and is exported to
 // facilitate type embedding with custom implementations. No member variables

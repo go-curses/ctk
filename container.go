@@ -52,12 +52,7 @@ func init() {
 type Container interface {
 	Widget
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
-	SetWindow(w Window)
 	ShowAll()
-	Map()
-	Unmap()
 	Add(w Widget)
 	AddWithProperties(widget Widget, argv ...interface{})
 	Remove(w Widget)
@@ -83,12 +78,10 @@ type Container interface {
 	FindChildProperty(property cdk.Property) (value *cdk.CProperty)
 	InstallChildProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) error
 	ListChildProperties() (properties []*cdk.CProperty)
-	GetWidgetAt(p *ptypes.Point2I) Widget
 	FindWidgetAt(p *ptypes.Point2I) (found Widget)
-	RenderFreeze()
-	RenderThaw()
-	Destroy()
 }
+
+var _ Container = (*CContainer)(nil)
 
 // The CContainer structure implements the Container interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

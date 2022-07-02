@@ -14,9 +14,9 @@ func init() {
 
 type VButtonBox interface {
 	ButtonBox
-
-	Init() bool
 }
+
+var _ VButtonBox = (*CVButtonBox)(nil)
 
 type CVButtonBox struct {
 	CButtonBox

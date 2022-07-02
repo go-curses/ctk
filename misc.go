@@ -27,12 +27,13 @@ type Misc interface {
 	Widget
 	Buildable
 
-	Init() (already bool)
 	GetAlignment() (xAlign float64, yAlign float64)
 	SetAlignment(xAlign float64, yAlign float64)
 	GetPadding() (xPad int, yPad int)
 	SetPadding(xPad int, yPad int)
 }
+
+var _ Misc = (*CMisc)(nil)
 
 // The CMisc structure implements the Misc interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

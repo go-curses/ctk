@@ -17,9 +17,9 @@ func init() {
 // Basic vbox interface
 type VBox interface {
 	Box
-
-	Init() bool
 }
+
+var _ VBox = (*CVBox)(nil)
 
 type CVBox struct {
 	CBox

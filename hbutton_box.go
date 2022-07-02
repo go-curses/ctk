@@ -14,9 +14,9 @@ func init() {
 
 type HButtonBox interface {
 	ButtonBox
-
-	Init() bool
 }
+
+var _ ButtonBox = (*CButtonBox)(nil)
 
 type CHButtonBox struct {
 	CButtonBox

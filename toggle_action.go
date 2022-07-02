@@ -18,13 +18,14 @@ func init() {
 type ToggleAction interface {
 	Action
 
-	Init() (already bool)
 	Toggled()
 	SetActive(isActive bool)
 	GetActive() (value bool)
 	SetDrawAsRadio(drawAsRadio bool)
 	GetDrawAsRadio() (value bool)
 }
+
+var _ ToggleAction = (*CToggleAction)(nil)
 
 // The CToggleAction structure implements the ToggleAction interface and is
 // exported to facilitate type embedding with custom implementations. No member

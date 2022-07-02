@@ -25,7 +25,6 @@ func init() {
 type Range interface {
 	Widget
 
-	Init() (already bool)
 	GetFillLevel() (value float64)
 	GetRestrictToFillLevel() (value bool)
 	GetShowFillLevel() (value bool)
@@ -68,6 +67,8 @@ type Range interface {
 	GetTroughUnderSteppers() (underSteppers bool)
 	SetTroughUnderSteppers(underSteppers bool)
 }
+
+var _ Range = (*CRange)(nil)
 
 // The CRange structure implements the Range interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

@@ -63,8 +63,6 @@ type Label interface {
 	Alignable
 	Buildable
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	SetText(text string)
 	SetAttributes(attrs paint.Style)
 	SetMarkup(text string) (parseError error)
@@ -108,8 +106,9 @@ type Label interface {
 	GetCleanText() (text string)
 	GetPlainTextInfo() (maxWidth, lineCount int)
 	GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int)
-	GetSizeRequest() (width, height int)
 }
+
+var _ Label = (*CLabel)(nil)
 
 // The CLabel structure implements the Label interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

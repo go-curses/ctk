@@ -64,8 +64,6 @@ var (
 type Widget interface {
 	Object
 
-	Init() (already bool)
-	Destroy()
 	Unparent()
 	Map()
 	Unmap()
@@ -195,8 +193,9 @@ type Widget interface {
 	RenderThaw()
 	RequestDrawAndShow()
 	RequestDrawAndSync()
-	Invalidate() cenums.EventFlag
 }
+
+var _ Widget = (*CWidget)(nil)
 
 // The CWidget structure implements the Widget interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

@@ -24,16 +24,15 @@ func init() {
 type EventBox interface {
 	Bin
 	Buildable
+	Sensitive
 
-	Init() (already bool)
 	SetAboveChild(aboveChild bool)
 	GetAboveChild() (value bool)
 	SetVisibleWindow(visibleWindow bool)
 	GetVisibleWindow() (value bool)
-	Activate() (value bool)
-	CancelEvent()
-	ProcessEvent(evt cdk.Event) cenums.EventFlag
 }
+
+var _ EventBox = (*CEventBox)(nil)
 
 // The CEventBox structure implements the EventBox interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

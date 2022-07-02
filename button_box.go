@@ -41,21 +41,15 @@ type ButtonBox interface {
 	Buildable
 	Orientable
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	GetLayout() (value enums.ButtonBoxStyle)
 	SetLayout(layoutStyle enums.ButtonBoxStyle)
-	GetChildren() (children []Widget)
-	Add(w Widget)
-	Remove(w Widget)
-	PackStart(w Widget, expand, fill bool, padding int)
-	PackEnd(w Widget, expand, fill bool, padding int)
 	GetChildPrimary(w Widget) (isPrimary bool)
 	GetChildSecondary(w Widget) (isSecondary bool)
 	SetChildSecondary(child Widget, isSecondary bool)
 	SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType)
-	SetSpacing(spacing int)
 }
+
+var _ ButtonBox = (*CButtonBox)(nil)
 
 // The CButtonBox structure implements the ButtonBox interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

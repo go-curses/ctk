@@ -18,12 +18,13 @@ func init() {
 type RadioAction interface {
 	ToggleAction
 
-	Init() (already bool)
 	GetGroup() (value ActionGroup)
 	SetGroup(group ActionGroup)
 	GetCurrentValue() (value int)
 	SetCurrentValue(currentValue int)
 }
+
+var _ RadioAction = (*CRadioAction)(nil)
 
 // The CRadioAction structure implements the RadioAction interface and is
 // exported to facilitate type embedding with custom implementations. No member

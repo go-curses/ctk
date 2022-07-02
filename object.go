@@ -39,7 +39,6 @@ func init() {
 type Object interface {
 	cdk.Object
 
-	Init() (already bool)
 	Build(builder Builder, element *CBuilderElement) error
 	ObjectInfo() string
 	SetOrigin(x, y int)
@@ -69,6 +68,8 @@ type Object interface {
 	GetCssFloat(name cdk.Property, state enums.StateType) (value float64, err error)
 	GetCssColor(name cdk.Property, state enums.StateType) (value paint.Color, err error)
 }
+
+var _ Object = (*CObject)(nil)
 
 // The CObject structure implements the Object interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

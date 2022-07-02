@@ -59,7 +59,6 @@ var (
 type Scrollbar interface {
 	Range
 
-	Init() (already bool)
 	GetHasBackwardStepper() (hasBackwardStepper bool)
 	SetHasBackwardStepper(hasBackwardStepper bool)
 	GetHasForwardStepper() (hasForwardStepper bool)
@@ -74,8 +73,6 @@ type Scrollbar interface {
 	Backward(step int) cenums.EventFlag
 	BackwardStep() cenums.EventFlag
 	BackwardPage() cenums.EventFlag
-	GetSizeRequest() (width, height int)
-	GetWidgetAt(p *ptypes.Point2I) Widget
 	FindWidgetAt(p *ptypes.Point2I) Widget
 	ValueChanged()
 	Changed()
@@ -85,6 +82,8 @@ type Scrollbar interface {
 	GetTroughRegion() (region ptypes.Region)
 	GetSliderRegion() (region ptypes.Region)
 }
+
+var _ Scrollbar = (*CScrollbar)(nil)
 
 // The CScrollbar structure implements the Scrollbar interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

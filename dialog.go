@@ -50,12 +50,8 @@ type Dialog interface {
 	Window
 	Buildable
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	Run() (response chan enums.ResponseType)
 	Response(responseId enums.ResponseType)
-	Add(w Widget)
-	GetWindow() Window
 	GetDialogFlags() (flags enums.DialogFlags)
 	SetDialogFlags(flags enums.DialogFlags)
 	AddButton(buttonText string, responseId enums.ResponseType) (button Button)
@@ -68,10 +64,9 @@ type Dialog interface {
 	GetWidgetForResponse(responseId enums.ResponseType) (value Widget)
 	GetActionArea() (value ButtonBox)
 	GetContentArea() (value VBox)
-	Show()
-	ShowAll()
-	Destroy()
 }
+
+var _ Dialog = (*CDialog)(nil)
 
 // The CDialog structure implements the Dialog interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

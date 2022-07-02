@@ -19,7 +19,6 @@ func init() {
 type Style interface {
 	Object
 
-	Init() (already bool)
 	PaintArrow(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, arrowType enums.ArrowType, fill bool, x int, y int, width int, height int)
 	PaintBox(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int)
 	PaintBoxGap(window Window, stateType enums.StateType, shadowType enums.ShadowType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, width int, height int, gapSide enums.PositionType, gapX int, gapWidth int)
@@ -40,6 +39,8 @@ type Style interface {
 	PaintExpander(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, x int, y int, expanderStyle enums.ExpanderStyle)
 	PaintResizeGrip(window Window, stateType enums.StateType, area ptypes.Rectangle, widget Widget, detail string, edge enums.WindowEdge, x int, y int, width int, height int)
 }
+
+var _ Style = (*CStyle)(nil)
 
 // The CStyle structure implements the Style interface and is
 // exported to facilitate type embedding with custom implementations. No member

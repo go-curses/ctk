@@ -46,11 +46,6 @@ func init() {
 }
 
 var (
-	_ Editable = (*CEntry)(nil)
-	_ Entry    = (*CEntry)(nil)
-)
-
-var (
 	DefaultEntryTheme = paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(true).Bold(false),
@@ -93,8 +88,6 @@ type Entry interface {
 	Editable
 	Sensitive
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	SetText(text string)
 	SetAttributes(attrs paint.Style)
 	SetJustify(justify cenums.Justification)
@@ -115,9 +108,9 @@ type Entry interface {
 	GetSingleLineMode() (value bool)
 	SetSingleLineMode(singleLineMode bool)
 	Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, justify cenums.Justification, maxWidthChars int)
-	GetSizeRequest() (width, height int)
-	CancelEvent()
 }
+
+var _ Entry = (*CEntry)(nil)
 
 type cEntryChange struct {
 	name string

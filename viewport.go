@@ -35,7 +35,6 @@ func init() {
 type Viewport interface {
 	Bin
 
-	Init() (already bool)
 	GetHAdjustment() (adjustment Adjustment)
 	SetHAdjustment(adjustment Adjustment)
 	GetVAdjustment() (adjustment Adjustment)
@@ -45,6 +44,8 @@ type Viewport interface {
 	GetBinWindow() (value Window)
 	GetViewWindow() (value Window)
 }
+
+var _ Viewport = (*CViewport)(nil)
 
 // The CViewport structure implements the Viewport interface and is exported
 // to facilitate type embedding with custom implementations. No member variables

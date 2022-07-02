@@ -36,14 +36,13 @@ type Alignment interface {
 	Bin
 	Buildable
 
-	Init() (already bool)
 	Get() (xAlign, yAlign, xScale, yScale float64)
 	Set(xAlign, yAlign, xScale, yScale float64)
 	GetPadding() (paddingTop, paddingBottom, paddingLeft, paddingRight int)
 	SetPadding(paddingTop, paddingBottom, paddingLeft, paddingRight int)
-	Add(w Widget)
-	Remove(w Widget)
 }
+
+var _ Alignment = (*CAlignment)(nil)
 
 // The CAlignment structure implements the Alignment interface and is
 // exported to facilitate type embedding with custom implementations. No member

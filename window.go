@@ -55,15 +55,10 @@ type Window interface {
 	cdk.Window
 	Bin
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	ImportStylesFromString(css string) (err error)
 	ReplaceStylesFromString(css string) (err error)
 	ExportStylesToString() (css string)
 	ApplyStylesTo(widget Widget)
-	Show()
-	ShowAll()
-	Hide()
 	SetTitle(title string)
 	SetResizable(resizable bool)
 	GetResizable() (value bool)
@@ -151,6 +146,8 @@ type Window interface {
 	GetEventFocus() (o cdk.Object)
 	SetEventFocus(o cdk.Object)
 }
+
+var _ Window = (*CWindow)(nil)
 
 // The CWindow structure implements the Window interface and is exported to
 // facilitate type embedding with custom implementations. No member variables

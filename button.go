@@ -72,8 +72,6 @@ type Button interface {
 	Buildable
 	Sensitive
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	Activate() (value bool)
 	Clicked() cenums.EventFlag
 	GetRelief() (value enums.ReliefStyle)
@@ -96,13 +94,10 @@ type Button interface {
 	SetImagePosition(position enums.PositionType)
 	GetPressed() bool
 	SetPressed(pressed bool)
-	GetFocusChain() (focusableWidgets []Widget, explicitlySet bool)
 	CancelEvent()
-	GetWidgetAt(p *ptypes.Point2I) Widget
-	GetSizeRequest() (width, height int)
-	SetTheme(theme paint.Theme)
-	Add(w Widget)
 }
+
+var _ Button = (*CButton)(nil)
 
 // The CButton structure implements the Button interface and is exported to
 // facilitate type embedding with custom implementations. No member variables

@@ -37,10 +37,10 @@ type Bin interface {
 	Container
 	Buildable
 
-	Init() (already bool)
 	GetChild() (value Widget)
-	Add(w Widget)
 }
+
+var _ Bin = (*CBin)(nil)
 
 // The CBin structure implements the Bin interface and is exported to
 // facilitate type embedding with custom implementations. No member variables

@@ -43,8 +43,6 @@ func init() {
 type ScrolledViewport interface {
 	Viewport
 
-	Init() (already bool)
-	Build(builder Builder, element *CBuilderElement) error
 	GetHAdjustment() (value Adjustment)
 	GetVAdjustment() (value Adjustment)
 	SetPolicy(hScrollbarPolicy enums.PolicyType, vScrollbarPolicy enums.PolicyType)
@@ -59,18 +57,14 @@ type ScrolledViewport interface {
 	GetShadowType() (value enums.ShadowType)
 	VerticalShowByPolicy() (show bool)
 	HorizontalShowByPolicy() (show bool)
-	Add(w Widget)
-	Remove(w Widget)
-	GetChild() Widget
 	GetHScrollbar() HScrollbar
 	GetVScrollbar() VScrollbar
-	Show()
-	Hide()
-	GetWidgetAt(p *ptypes.Point2I) Widget
 	CancelEvent()
 	GetRegions() (c, h, v ptypes.Region)
 	ScrollTo(child Widget)
 }
+
+var _ ScrolledViewport = (*CScrolledViewport)(nil)
 
 type CScrolledViewport struct {
 	CViewport
