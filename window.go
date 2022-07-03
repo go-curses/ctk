@@ -265,6 +265,11 @@ func (w *CWindow) Init() (already bool) {
 		w.LogErr(err)
 	}
 	_ = w.GetVBox()
+
+	if w.display != nil {
+		w.display.Connect(cdk.SignalFocusedWindow, WindowDisplayFocusHandle, w.displayFocusedWindow)
+	}
+
 	return false
 }
 
@@ -1836,6 +1841,24 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 	return cenums.EVENT_PASS
 }
 
+func (w *CWindow) displayFocusedWindow(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	if len(argv) >= 1 {
+		if focused, ok := argv[0].(cdk.Window); ok {
+			if focused.ObjectID() == w.ObjectID() {
+				if internalFocused := w.GetFocus(); internalFocused != nil {
+					w.SetFocus(nil)
+					internalFocused.GrabFocus()
+				}
+			} else {
+				w.display.Screen().HideCursor()
+			}
+		}
+	}
+	WidgetRecurseInvalidate(w)
+	w.Invalidate()
+	return cenums.EVENT_PASS
+}
+
 // Whether the window should receive the input focus.
 // Flags: Read / Write
 // Default value: TRUE
@@ -2001,6 +2024,8 @@ const SignalFocusChanged cdk.Signal = "focus-changed"
 var ErrFallthrough = fmt.Errorf("fallthrough")
 
 const WindowEventHandle = "window-event-handler"
+
+const WindowDisplayFocusHandle = "window-display-focus-handler"
 
 const WindowInvalidateHandle = "window-invalidate-handler"
 
