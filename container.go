@@ -571,7 +571,11 @@ func (c *CContainer) GetFocusChain() (focusableWidgets []Widget, explicitlySet b
 	if c.focusChainSet {
 		return c.focusChain, true
 	}
-	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
+	var allChildren []Widget
+	if c.CanFocus() && c.IsVisible() && c.IsSensitive() {
+		allChildren = append(allChildren, c)
+	}
+	allChildren = append(allChildren, c.GetCompositeChildren()...)
 	allChildren = append(allChildren, c.children...)
 	c.Lock()
 	defer c.Unlock()
