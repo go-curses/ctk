@@ -595,10 +595,8 @@ func (w *CWidget) Show() {
 	if w.HasFlags(enums.APP_PAINTABLE) {
 		if !w.HasFlags(enums.VISIBLE) {
 			w.SetFlags(enums.VISIBLE)
-			// w.Map() // not supposed to be here
-			if r := w.Emit(SignalShow, w); r == cenums.EVENT_PASS {
-				w.Invalidate()
-			}
+			w.Emit(SignalShow, w)
+			w.Invalidate()
 		}
 	}
 }
@@ -610,10 +608,9 @@ func (w *CWidget) Hide() {
 		if w.HasFlags(enums.VISIBLE) {
 			w.Unmap()
 			w.UnsetFlags(enums.VISIBLE)
-			if r := w.Emit(SignalHide, w); r == cenums.EVENT_PASS {
-				w.Invalidate()
-				w.closeTooltip()
-			}
+			w.Emit(SignalHide, w)
+			w.Invalidate()
+			w.closeTooltip()
 		}
 	}
 }
