@@ -2433,8 +2433,7 @@ func (w *CWidget) RequestDrawAndSync() {
 }
 
 func (w *CWidget) Invalidate() cenums.EventFlag {
-	if !w.GetInvalidated() {
-		w.SetInvalidated(true)
+	if rv := w.CObject.Invalidate(); rv == cenums.EVENT_PASS {
 		parent := w.GetParent()
 		for parent != nil {
 			parent.SetInvalidated(true)
@@ -2445,8 +2444,9 @@ func (w *CWidget) Invalidate() cenums.EventFlag {
 			}
 		}
 		w.RequestDrawAndShow()
+		return cenums.EVENT_STOP
 	}
-	return w.CObject.Invalidate()
+	return cenums.EVENT_PASS
 }
 
 func (w *CWidget) lostFocus(_ []interface{}, _ ...interface{}) cenums.EventFlag {
