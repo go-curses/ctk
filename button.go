@@ -803,6 +803,9 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		if alloc.W >= 3 && alloc.H >= 3 {
 			local.Add(1, 1)
 			size.Sub(2, 2)
+		} else if alloc.W >= 3 {
+			local.Add(1, 0)
+			size.Sub(2, 0)
 		}
 
 		req := ptypes.MakeRectangle(child.GetSizeRequest())
