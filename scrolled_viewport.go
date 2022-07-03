@@ -711,12 +711,22 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 		WidgetRecurseInvalidate(child)
 	}
 
-	if vs != nil && verticalShow {
-		WidgetRecurseInvalidate(vs)
+	if vs != nil {
+		if verticalShow {
+			vs.SetFlags(enums.VISIBLE)
+			WidgetRecurseInvalidate(vs)
+		} else if vs.IsVisible() {
+			vs.UnsetFlags(enums.VISIBLE)
+		}
 	}
 
-	if hs != nil && horizontalShow {
-		WidgetRecurseInvalidate(hs)
+	if hs != nil {
+		if horizontalShow {
+			hs.SetFlags(enums.VISIBLE)
+			WidgetRecurseInvalidate(hs)
+		} else if hs.IsVisible() {
+			hs.UnsetFlags(enums.VISIBLE)
+		}
 	}
 	return cenums.EVENT_PASS
 }
@@ -764,14 +774,14 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums
 				s.LogError("child composite error: %v", err)
 			}
 
-			if vs != nil && verticalShow {
+			if vs != nil && vs.IsVisible() && verticalShow {
 				vs.Draw()
 				if err := surface.Composite(vs.ObjectID()); err != nil {
 					s.LogError("vertical scrollbar composite error: %v", err)
 				}
 			}
 
-			if hs != nil && horizontalShow {
+			if hs != nil && hs.IsVisible() && horizontalShow {
 				hs.Draw()
 				if err := surface.Composite(hs.ObjectID()); err != nil {
 					s.LogError("horizontal scrollbar composite error: %v", err)
