@@ -142,7 +142,6 @@ func (s *CScrollbar) Init() (already bool) {
 	l.SetSingleLineMode(true)
 	l.SetMaxWidthChars(1)
 	s.slider = NewButtonWithWidget(l)
-	// s.PushCompositeChild(s.slider)
 
 	s.Connect(SignalCdkEvent, ScrollbarEventHandle, s.event)
 	s.Connect(SignalResize, ScrollbarResizeHandle, s.resize)
@@ -1005,8 +1004,6 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventF
 }
 
 const ScrollbarEventHandle = "scrollbar-event-handler"
-
-const ScrollbarInvalidateHandle = "scrollbar-invalidate-handler"
 
 const ScrollbarResizeHandle = "scrollbar-resize-handler"
 
