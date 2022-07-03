@@ -164,6 +164,7 @@ func (d *CDialog) Init() (already bool) {
 	vbox.PackEnd(d.action, false, true, 0)
 	d.done = make(chan bool, 1)
 	d.response = enums.ResponseNone
+	d.widgets = make(map[enums.ResponseType][]Widget)
 	d.Connect(SignalResponse, DialogResponseHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if len(argv) == 1 {
 			if value, ok := argv[0].(enums.ResponseType); ok {
@@ -182,7 +183,6 @@ func (d *CDialog) Init() (already bool) {
 	d.Connect(SignalInvalidate, DialogInvalidateHandle, d.invalidate)
 	d.Connect(SignalResize, DialogResizeHandle, d.resize)
 	d.Connect(SignalDraw, DialogDrawHandle, d.draw)
-	d.widgets = make(map[enums.ResponseType][]Widget)
 	return false
 }
 
@@ -557,8 +557,6 @@ func (d *CDialog) getDialogRegionForAllocation(alloc ptypes.Rectangle) (region p
 	}
 	return
 }
-
-// TODO: set-size-request makes dialog window size, truncated by actual size
 
 func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
