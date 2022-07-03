@@ -821,7 +821,6 @@ func (w *CWidget) GrabFocus() {
 	if w.CanFocus() && w.IsVisible() && w.IsSensitive() {
 		if r := w.Emit(SignalGrabFocus, w); r == cenums.EVENT_PASS {
 			if tl := w.GetWindow(); tl != nil {
-				act := false
 				if focused := tl.GetFocus(); focused != nil {
 					if focused.ObjectID() != w.ObjectID() {
 						if err := focused.SetProperty(PropertyHasFocus, false); err != nil {
@@ -830,21 +829,16 @@ func (w *CWidget) GrabFocus() {
 						focused.UnsetState(enums.StateSelected)
 						focused.Emit(SignalLostFocus)
 						focused.Invalidate()
-						act = true
 					}
-				} else {
-					act = true
 				}
 
-				if act {
-					tl.SetFocus(w)
-					if err := w.SetProperty(PropertyHasFocus, true); err != nil {
-						w.LogErr(err)
-					}
-					w.SetState(enums.StateSelected)
-					w.Emit(SignalGainedFocus)
-					w.Invalidate()
+				tl.SetFocus(w)
+				if err := w.SetProperty(PropertyHasFocus, true); err != nil {
+					w.LogErr(err)
 				}
+				w.SetState(enums.StateSelected)
+				w.Emit(SignalGainedFocus)
+				w.Invalidate()
 			}
 		}
 	} else {
