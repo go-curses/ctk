@@ -360,16 +360,14 @@ func (b *CButton) SetLabel(label string) {
 		if strings.HasPrefix(label, "<markup") {
 			if err := v.SetMarkup(label); err != nil {
 				b.LogErr(err)
-			} else {
-				b.Invalidate()
 			}
 		} else {
 			v.SetText(label)
-			b.Invalidate()
 		}
 	} else if err := b.SetStringProperty(PropertyButtonLabel, label); err != nil {
 		b.LogErr(err)
 	}
+	b.Invalidate()
 }
 
 // GetUseStock is a convenience method to return the use-stock property value.
