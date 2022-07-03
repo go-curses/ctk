@@ -406,11 +406,6 @@ func (d *CDialog) SetDefaultResponse(responseId enums.ResponseType) {
 	d.Lock()
 	d.defResponse = responseId
 	d.Unlock()
-	if widgets, ok := d.widgets[responseId]; ok {
-		if len(widgets) > 0 {
-			widgets[0].GrabFocus()
-		}
-	}
 }
 
 // SetResponseSensitive calls Widget.SetSensitive for each widget in the
@@ -483,6 +478,11 @@ func (d *CDialog) Show() {
 	d.CWindow.Show()
 	d.content.Show()
 	d.action.Show()
+	if widgets, ok := d.widgets[d.defResponse]; ok {
+		if len(widgets) > 0 {
+			widgets[0].GrabFocus()
+		}
+	}
 }
 
 // ShowAll calls ShowAll upon the Dialog, content area, action area and all the
