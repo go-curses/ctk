@@ -558,33 +558,6 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 			d.SetOrigin(region.X, region.Y)
 			d.SetAllocation(region.Size())
 			return d.Resize()
-
-		case *cdk.EventMouse:
-			if f := d.Emit(SignalEventMouse, d, evt); f == cenums.EVENT_PASS {
-				if child := d.GetChild(); child != nil {
-					position := ptypes.NewPoint2I(e.Position())
-					point := position.NewClone()
-					point.AddPoint(d.GetOrigin())
-					if mw := child.GetWidgetAt(point); mw != nil {
-						if ms, ok := mw.Self().(Sensitive); ok && ms.IsSensitive() && ms.IsVisible() {
-							if f := ms.ProcessEvent(evt); f == cenums.EVENT_STOP {
-								return cenums.EVENT_STOP
-							}
-						}
-					} else if !e.IsMoving() && !e.IsDragging() {
-						d.RLock()
-						modal := d.dialogFlags.Has(enums.DialogModal)
-						d.RUnlock()
-						if !modal {
-							if display := d.GetDisplay(); display != nil {
-								if found := display.GetWindowAtPoint(*position); found != nil {
-									display.FocusWindow(found)
-								}
-							}
-						}
-					}
-				}
-			}
 		}
 		// do not block parent event handlers with cenums.EVENT_STOP, always
 		// allow event-pass-through so that normal Window events can be handled
