@@ -1524,6 +1524,7 @@ func (w *CWindow) GetVBox() (vbox VBox) {
 	if child := w.GetChild(); child != nil {
 		var ok bool
 		if vbox, ok = child.Self().(VBox); ok {
+			vbox.SetFlags(enums.VISIBLE)
 			return // exists, use it
 		}
 		w.LogError("removing internal widget: %v (%T) - not a VBox", child, child)
