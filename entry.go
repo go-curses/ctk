@@ -1333,13 +1333,13 @@ func (l *CEntry) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	}
 	l.qLock.Unlock()
 	l.UnsetState(enums.StateSelected)
-	l.Invalidate()
+	l.refresh()
 	return cenums.EVENT_PASS
 }
 
 func (l *CEntry) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	l.SetState(enums.StateSelected)
-	l.Invalidate()
+	l.refresh()
 	l.qLock.Lock()
 	if l.qTimer != uuid.Nil {
 		cdk.StopTimeout(l.qTimer)
