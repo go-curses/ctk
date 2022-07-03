@@ -257,6 +257,23 @@ func (b *CButton) SetTheme(theme paint.Theme) {
 	if child := b.GetChild(); child != nil {
 		child.SetTheme(theme)
 	}
+	WidgetRecurseInvalidate(b)
+}
+
+func (b *CButton) SetState(state enums.StateType) {
+	b.CBin.SetState(state)
+	if child := b.GetChild(); child != nil {
+		child.SetState(state)
+	}
+	WidgetRecurseInvalidate(b)
+}
+
+func (b *CButton) UnsetState(state enums.StateType) {
+	b.CBin.UnsetState(state)
+	if child := b.GetChild(); child != nil {
+		child.UnsetState(state)
+	}
+	WidgetRecurseInvalidate(b)
 }
 
 // Activate emits a SignalActivate, returning TRUE if the event was handled
@@ -587,18 +604,11 @@ func (b *CButton) SetPressed(pressed bool) {
 	b.Unlock()
 	if pressed {
 		b.SetState(enums.StateActive)
-		if child := b.GetChild(); child != nil {
-			child.SetState(enums.StateActive)
-		}
 		b.Emit(SignalPressed)
 	} else {
 		b.UnsetState(enums.StateActive)
-		if child := b.GetChild(); child != nil {
-			child.UnsetState(enums.StateActive)
-		}
 		b.Emit(SignalReleased)
 	}
-	b.Invalidate()
 }
 
 // GetFocusChain overloads the Container.GetFocusChain to always return the
@@ -686,23 +696,13 @@ func (b *CButton) setProperty(data []interface{}, argv ...interface{}) cenums.Ev
 }
 
 func (b *CButton) lostFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.UnsetState(enums.StateSelected)
-	if child := b.GetChild(); child != nil {
-		child.UnsetState(enums.StateSelected)
-		child.Invalidate()
-	}
-	b.Invalidate()
-	return cenums.EVENT_STOP
+	WidgetRecurseInvalidate(b)
+	return cenums.EVENT_PASS
 }
 
 func (b *CButton) gainedFocus(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	b.SetState(enums.StateSelected)
-	if child := b.GetChild(); child != nil {
-		child.SetState(enums.StateSelected)
-		child.Invalidate()
-	}
-	b.Invalidate()
-	return cenums.EVENT_STOP
+	WidgetRecurseInvalidate(b)
+	return cenums.EVENT_PASS
 }
 
 func (b *CButton) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -775,12 +775,8 @@ func (b *CButton) event(data []interface{}, argv ...interface{}) cenums.EventFla
 }
 
 func (b *CButton) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if !b.GetInvalidated() {
-		b.SetInvalidated(true)
-		if child := b.GetChild(); child != nil {
-			child.SetTheme(b.GetThemeRequest())
-			child.Invalidate()
-		}
+	if child := b.GetChild(); child != nil {
+		WidgetRecurseInvalidate(child)
 	}
 	return cenums.EVENT_PASS
 }
@@ -835,9 +831,6 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		child.SetOrigin(origin.X+local.X, origin.Y+local.Y)
 		child.SetAllocation(*size)
 		child.Resize()
-		// if rv := child.Resize(); rv == cenums.EVENT_STOP {
-		// 	b.LogDebug("button child resized: origin=%v, alloc=%v", child.GetOrigin(), child.GetAllocation())
-		// }
 	}
 
 	b.Invalidate()
