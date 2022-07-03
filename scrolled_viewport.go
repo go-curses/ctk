@@ -756,17 +756,7 @@ func (s *CScrolledViewport) draw(data []interface{}, argv ...interface{}) cenums
 		horizontalShow := s.HorizontalShowByPolicy()
 
 		theme := s.GetThemeRequest()
-
-		surface.Box(
-			ptypes.MakePoint2I(0, 0),
-			ptypes.MakeRectangle(alloc.W, alloc.H),
-			false, true,
-			theme.Content.Overlay,
-			theme.Content.FillRune,
-			theme.Content.Normal,
-			theme.Border.Normal,
-			paint.EmptyBorderRune,
-		)
+		surface.Fill(theme)
 
 		if child != nil {
 			child.Draw()
