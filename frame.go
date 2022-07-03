@@ -461,25 +461,16 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 		label.SetOrigin(labelOrigin.X, labelOrigin.Y)
 		label.SetAllocation(labelAlloc)
 		label.Resize()
-		// if rv := label.Resize(); rv == cenums.EVENT_STOP {
-		// 	f.LogDebug("label resized: origin=%v, alloc=%v", labelOrigin, labelAlloc)
-		// }
 	} else if widget != nil {
 		widget.SetOrigin(labelOrigin.X, labelOrigin.Y)
 		widget.SetAllocation(labelAlloc)
 		widget.Resize()
-		// if rv := widget.Resize(); rv == cenums.EVENT_STOP {
-		// 	f.LogDebug("widget resized: origin=%v, alloc=%v", labelOrigin, labelAlloc)
-		// }
 	}
 
 	if child != nil {
 		child.SetOrigin(childOrigin.X, childOrigin.Y)
 		child.SetAllocation(childAlloc)
 		child.Resize()
-		// if rv := child.Resize(); rv == cenums.EVENT_STOP {
-		// 	f.LogDebug("child resized: origin=%v, alloc=%v", childOrigin, childAlloc)
-		// }
 	}
 
 	f.Invalidate()
@@ -513,14 +504,18 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		if widget != nil {
 			if label, ok := widget.Self().(Label); ok {
 				label.Draw()
+				label.LockDraw()
 				if err := surface.Composite(label.ObjectID()); err != nil {
 					f.LogError("composite error: %v", err)
 				}
+				label.UnlockDraw()
 			} else {
 				widget.Draw()
+				widget.LockDraw()
 				if err := surface.Composite(widget.ObjectID()); err != nil {
 					f.LogError("composite error: %v", err)
 				}
+				widget.UnlockDraw()
 			}
 		}
 
