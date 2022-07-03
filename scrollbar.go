@@ -979,7 +979,7 @@ func (s *CScrollbar) draw(data []interface{}, argv ...interface{}) cenums.EventF
 
 		// draw the stepper buttons
 		drawStepper := func(has bool, b Button, r ptypes.Region) error {
-			if has && b != nil {
+			if has && b != nil && b.IsVisible() {
 				b.Draw()
 				return surface.Composite(b.ObjectID())
 			}
