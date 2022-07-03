@@ -111,6 +111,8 @@ func (b *CBox) Init() (already bool) {
 	_ = b.InstallChildProperty(PropertyBoxChildFill, cdk.BoolProperty, true, true)
 	_ = b.InstallChildProperty(PropertyBoxChildPadding, cdk.IntProperty, true, 0)
 
+	b.Connect(SignalEnter, BoxEnterHandle, b.enter)
+	b.Connect(SignalLeave, BoxLeaveHandle, b.leave)
 	b.Connect(SignalResize, BoxResizeHandle, b.resize)
 	b.Connect(SignalDraw, BoxDrawHandle, b.draw)
 	return false
@@ -952,6 +954,16 @@ func (b *CBox) getBoxChildren() (children []*cBoxChild) {
 	return
 }
 
+func (b *CBox) enter(_ []interface{}, argv ...interface{}) cenums.EventFlag {
+	WidgetRecurseInvalidate(b)
+	return cenums.EVENT_PASS
+}
+
+func (b *CBox) leave(_ []interface{}, _ ...interface{}) cenums.EventFlag {
+	WidgetRecurseInvalidate(b)
+	return cenums.EVENT_PASS
+}
+
 // Whether the children should all be the same size.
 // Flags: Read / Write
 // Default value: FALSE
@@ -976,6 +988,10 @@ const PropertyBoxChildPadding cdk.Property = "box-child--padding"
 const BoxChildShowHandle = "box-child-show-handler"
 
 const BoxChildHideHandle = "box-child-hide-handler"
+
+const BoxEnterHandle = "box-enter-handler"
+
+const BoxLeaveHandle = "box-leave-handler"
 
 const BoxInvalidateHandle = "box-invalidate-handler"
 
