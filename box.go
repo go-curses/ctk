@@ -181,7 +181,6 @@ func (b *CBox) SetOrientation(orientation cenums.Orientation) {
 		b.LogErr(err)
 	}
 	b.Unlock()
-	// b.Resize()
 }
 
 // GetHomogeneous is a convenience method for returning the homogeneous property
@@ -295,7 +294,6 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 			PropertyBoxChildFill, fill,
 			PropertyBoxChildPadding, padding,
 		)
-		// b.Resize()
 	}
 }
 
@@ -333,7 +331,6 @@ func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
 			PropertyBoxChildFill, fill,
 			PropertyBoxChildPadding, padding,
 		)
-		// b.Resize()
 	}
 }
 
@@ -672,9 +669,6 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(*childSize)
 		child.widget.Resize()
-		// if rv := child.widget.Resize(); rv == cenums.EVENT_STOP {
-		// b.LogDebug("box child resized: origin=%v, alloc=%v, local=%v", nextPoint, childSize, local)
-		// }
 		if isVertical {
 			nextPoint.Y += tracking[idx].h + tracking[idx].overflow
 		} else {
@@ -850,9 +844,6 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
 		child.widget.SetAllocation(ptypes.MakeRectangle(track.w, track.h))
 		child.widget.Resize()
-		// if rv := child.widget.Resize(); rv == cenums.EVENT_STOP {
-		// b.LogDebug("box child resized: %v", child.widget.ObjectInfo())
-		// }
 		if isVertical {
 			nextPoint.Y += track.h + track.overflow
 		} else {
