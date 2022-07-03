@@ -63,8 +63,9 @@ func (s *CSeparator) Init() (already bool) {
 	}
 	s.CBin.Init()
 	s.SetFlags(enums.APP_PAINTABLE)
+	s.SetState(enums.StateInsensitive)
 	_ = s.InstallBuildableProperty(PropertyOrientation, cdk.StructProperty, true, cenums.ORIENTATION_HORIZONTAL)
-	s.Connect(SignalDraw, TextFieldDrawHandle, s.draw)
+	// s.Connect(SignalDraw, SeparatorDrawHanle, s.draw)
 	return false
 }
 
@@ -101,6 +102,8 @@ func (s *CSeparator) SetOrientation(orientation cenums.Orientation) {
 	s.Resize()
 }
 
-func (s *CSeparator) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	return cenums.EVENT_STOP
-}
+// func (s *CSeparator) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
+// 	return cenums.EVENT_STOP
+// }
+
+const SeparatorDrawHandle = "separator-draw-handle"
