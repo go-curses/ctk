@@ -1587,9 +1587,6 @@ func (w *CWindow) GetPreviousFocus() (previous Widget) {
 }
 
 func (w *CWindow) FocusNext() cenums.EventFlag {
-	if focused := w.GetFocus(); focused != nil {
-		focused.Emit(SignalLostFocus)
-	}
 	if next := w.GetNextFocus(); next != nil {
 		next.GrabFocus()
 		return cenums.EVENT_STOP
@@ -1599,9 +1596,6 @@ func (w *CWindow) FocusNext() cenums.EventFlag {
 }
 
 func (w *CWindow) FocusPrevious() cenums.EventFlag {
-	if focused := w.GetFocus(); focused != nil {
-		focused.Emit(SignalLostFocus)
-	}
 	if prev := w.GetPreviousFocus(); prev != nil {
 		prev.GrabFocus()
 		return cenums.EVENT_STOP
