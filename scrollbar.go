@@ -580,6 +580,22 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	return
 }
 
+func (s *CScrollbar) SetState(state enums.StateType) {
+	s.CRange.SetState(state)
+	for _, composite := range s.GetCompositeChildren() {
+		composite.SetState(state)
+	}
+	WidgetRecurseInvalidate(s)
+}
+
+func (s *CScrollbar) UnsetState(state enums.StateType) {
+	s.CRange.UnsetState(state)
+	for _, composite := range s.GetCompositeChildren() {
+		composite.UnsetState(state)
+	}
+	WidgetRecurseInvalidate(s)
+}
+
 func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) cenums.EventFlag {
 	// me := NewMouseEvent(e)
 	slider := s.GetSliderRegion()
