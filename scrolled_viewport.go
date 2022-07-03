@@ -940,12 +940,28 @@ func (s *CScrolledViewport) resizeScrollbars() cenums.EventFlag {
 
 func (s *CScrolledViewport) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	s.UnsetState(enums.StateSelected)
+	if hs := s.GetHScrollbar(); hs != nil {
+		hs.UnsetState(enums.StateSelected)
+		WidgetRecurseInvalidate(hs)
+	}
+	if vs := s.GetVScrollbar(); vs != nil {
+		vs.UnsetState(enums.StateSelected)
+		WidgetRecurseInvalidate(vs)
+	}
 	s.Invalidate()
 	return cenums.EVENT_PASS
 }
 
 func (s *CScrolledViewport) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	s.SetState(enums.StateSelected)
+	if hs := s.GetHScrollbar(); hs != nil {
+		hs.SetState(enums.StateSelected)
+		WidgetRecurseInvalidate(hs)
+	}
+	if vs := s.GetVScrollbar(); vs != nil {
+		vs.SetState(enums.StateSelected)
+		WidgetRecurseInvalidate(vs)
+	}
 	s.Invalidate()
 	return cenums.EVENT_PASS
 }
