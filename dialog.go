@@ -254,10 +254,14 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 			}
 		}
 	}
+
 	if transient := d.GetTransientFor(); transient != nil {
 		// make sure the dialog will be "on top" of the correct window
 		display.FocusWindow(transient)
+	} else {
+		display.FocusWindow(d)
 	}
+
 	d.SetRegion(d.getDialogRegion())
 	d.Resize()
 	d.Show()
