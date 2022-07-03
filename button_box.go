@@ -6,10 +6,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
-	"github.com/go-curses/cdk/lib/paint"
 	cstrings "github.com/go-curses/cdk/lib/strings"
-	"github.com/go-curses/cdk/memphis"
-
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -18,11 +15,6 @@ const TypeButtonBox cdk.CTypeTag = "ctk-button-box"
 func init() {
 	_ = cdk.TypesManager.AddType(TypeButtonBox, func() interface{} { return MakeButtonBox() })
 }
-
-var (
-	_ Box        = (*CButtonBox)(nil)
-	_ Orientable = (*CButtonBox)(nil)
-)
 
 // ButtonBox Hierarchy:
 //	Object
@@ -90,6 +82,7 @@ func (b *CButtonBox) Init() (already bool) {
 	b.CBox.Init()
 	b.flags = enums.NULL_WIDGET_FLAG
 	b.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
+
 	orientation := b.GetOrientation()
 	spacing := b.GetSpacing()
 	primary := NewBox(orientation, false, spacing)
@@ -98,8 +91,9 @@ func (b *CButtonBox) Init() (already bool) {
 	secondary := NewBox(orientation, false, spacing)
 	secondary.Show()
 	b.CBox.PackEnd(secondary, true, true, 0)
+
 	_ = b.InstallProperty(PropertyLayoutStyle, cdk.StructProperty, true, enums.LayoutStart)
-	b.Connect(SignalDraw, ButtonBoxDrawHandle, b.draw)
+
 	return false
 }
 
@@ -369,55 +363,7 @@ func (b *CButtonBox) getSecondary() (box Box) {
 	return nil
 }
 
-func (b *CButtonBox) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-
-	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		alloc := b.GetAllocation()
-		if !b.IsVisible() || alloc.W <= 0 || alloc.H <= 0 {
-			b.LogTrace("not visible, zero width or zero height")
-			return cenums.EVENT_PASS
-		}
-
-		debug, _ := b.GetBoolProperty(cdk.PropertyDebug)
-		debugChildren, _ := b.GetBoolProperty(PropertyDebugChildren)
-		orientation := b.GetOrientation()
-		children := b.getBoxChildren()
-		theme := b.GetThemeRequest()
-		surface.Fill(theme)
-
-		for _, child := range children {
-			if child.widget.IsVisible() {
-				if f := child.widget.Draw(); f == cenums.EVENT_STOP {
-					if childSurface, err := memphis.GetSurface(child.widget.ObjectID()); err != nil {
-						child.widget.LogErr(err)
-					} else {
-						if debugChildren && orientation == cenums.ORIENTATION_VERTICAL {
-							childSurface.DebugBox(paint.ColorPink, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
-						} else if debugChildren {
-							childSurface.DebugBox(paint.ColorPurple, child.widget.ObjectInfo()+" ["+b.ObjectInfo()+"]")
-						}
-						if err := surface.CompositeSurface(childSurface); err != nil {
-							b.LogError("composite error: %v", err)
-						}
-					}
-				}
-			}
-		}
-
-		if debug && orientation == cenums.ORIENTATION_VERTICAL {
-			surface.DebugBox(paint.ColorPink, b.ObjectInfo())
-		} else if debug {
-			surface.DebugBox(paint.ColorPurple, b.ObjectInfo())
-		}
-		return cenums.EVENT_STOP
-	}
-
-	return cenums.EVENT_PASS
-}
-
 // How to lay out the buttons in the box. Possible values are: default, spread, edge, start and end.
 // Flags: Read / Write
 // Default value: GTK_BUTTONBOX_DEFAULT_STYLE
 const PropertyLayoutStyle cdk.Property = "layout-style"
-
-const ButtonBoxDrawHandle = "button-box-draw-handler"
