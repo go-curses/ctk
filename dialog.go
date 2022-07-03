@@ -476,8 +476,6 @@ func (d *CDialog) GetContentArea() (value VBox) {
 // Show ensures that the Dialog, content and action areas are all set to VISIBLE
 func (d *CDialog) Show() {
 	d.CWindow.Show()
-	d.content.Show()
-	d.action.Show()
 	if widgets, ok := d.widgets[d.defResponse]; ok {
 		if len(widgets) > 0 {
 			widgets[0].GrabFocus()
@@ -490,24 +488,7 @@ func (d *CDialog) Show() {
 func (d *CDialog) ShowAll() {
 	d.Show()
 	d.CWindow.ShowAll()
-	d.content.ShowAll()
-	d.action.ShowAll()
-	for _, child := range d.GetChildren() {
-		if cc, ok := child.Self().(Container); ok {
-			cc.ShowAll()
-		} else {
-			child.Show()
-		}
-	}
-	for _, children := range d.widgets {
-		for _, child := range children {
-			if cc, ok := child.Self().(Container); ok {
-				cc.ShowAll()
-			} else {
-				child.Show()
-			}
-		}
-	}
+
 }
 
 // Destroy hides the Dialog, removes it from any transient Window associations,
