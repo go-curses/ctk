@@ -133,7 +133,6 @@ func NewButtonWithLabel(text string) (b Button) {
 	b = NewButton()
 	label := NewLabel(text)
 	label.Show()
-	b.Add(label)
 	label.SetTheme(b.GetTheme())
 	label.UnsetFlags(enums.CAN_FOCUS)
 	label.UnsetFlags(enums.CAN_DEFAULT)
@@ -143,6 +142,7 @@ func NewButtonWithLabel(text string) (b Button) {
 	label.SetJustify(cenums.JUSTIFY_CENTER)
 	label.SetAlignment(0.5, 0.5)
 	label.SetSingleLineMode(true)
+	b.Add(label)
 	return b
 }
 
