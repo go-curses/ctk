@@ -552,11 +552,8 @@ func (s *CScrolledViewport) SetWindow(w Window) {
 
 func (s *CScrolledViewport) ScrollTo(target Widget) {
 	if !s.HasChild(target) {
-		s.LogDebug("not parent to target: %v", target.ObjectInfo())
 		return
 	}
-
-	s.LogDebug("scrolling to: %v", target)
 
 	origin := s.GetOrigin()
 	alloc := s.GetAllocation()
@@ -577,7 +574,7 @@ func (s *CScrolledViewport) ScrollTo(target Widget) {
 	// 	return
 	// }
 
-	s.LogDebug("move position to include: %v within %v", childRegion, region)
+	s.LogDebug("scrolling move position to include: %v within %v for %v", childRegion, region, target)
 
 	wantResize := false
 
