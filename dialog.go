@@ -155,9 +155,7 @@ func (d *CDialog) Init() (already bool) {
 	d.SetParent(d)
 	d.SetWindow(d)
 	d.defResponse = enums.ResponseNone
-	vbox := NewVBox(false, 0)
-	vbox.Show()
-	d.Add(vbox)
+	vbox := d.GetVBox()
 	d.content = NewVBox(false, 0)
 	d.content.Show()
 	vbox.PackStart(d.content, true, true, 0)
