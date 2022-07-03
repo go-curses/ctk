@@ -8,9 +8,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
-	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
-	"github.com/go-curses/cdk/memphis"
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -180,9 +178,6 @@ func (d *CDialog) Init() (already bool) {
 		return cenums.EVENT_PASS
 	})
 	d.Connect(SignalCdkEvent, DialogEventHandle, d.event)
-	d.Connect(SignalInvalidate, DialogInvalidateHandle, d.invalidate)
-	d.Connect(SignalResize, DialogResizeHandle, d.resize)
-	d.Connect(SignalDraw, DialogDrawHandle, d.draw)
 	return false
 }
 
@@ -607,67 +602,6 @@ func (d *CDialog) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		// do not block parent event handlers with cenums.EVENT_STOP, always
 		// allow event-pass-through so that normal Window events can be handled
 		// without duplicating the features here
-	}
-	return cenums.EVENT_PASS
-}
-
-func (d *CDialog) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	if child := d.GetChild(); child != nil {
-		WidgetRecurseInvalidate(child)
-	}
-	return cenums.EVENT_PASS
-}
-
-func (d *CDialog) resize(data []interface{}, argv ...interface{}) cenums.EventFlag {
-
-	region := d.getDialogRegion().NewClone()
-	d.SetOrigin(region.X, region.Y)
-	d.SetAllocation(region.Size())
-
-	if child := d.GetChild(); child != nil {
-		local := ptypes.MakePoint2I(1, 1)
-		alloc := region.Size().NewClone()
-		alloc.Sub(2, 2)
-		child.SetOrigin(region.X+local.X, region.Y+local.Y)
-		child.SetAllocation(*alloc)
-		child.Resize()
-	}
-
-	d.Invalidate()
-	return cenums.EVENT_STOP
-}
-
-func (d *CDialog) draw(data []interface{}, argv ...interface{}) cenums.EventFlag {
-
-	if surface, ok := argv[1].(*memphis.CSurface); ok {
-		size := d.GetAllocation()
-		if !d.IsVisible() || size.W == 0 || size.H == 0 {
-			d.LogDebug("not visible, zero width or zero height")
-			return cenums.EVENT_PASS
-		}
-
-		title := d.GetTitle()
-		theme := d.GetThemeRequest()
-		vbox := d.GetVBox()
-
-		if d.GetTitle() != "" {
-			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
-		} else {
-			surface.FillBorder(false, true, theme)
-		}
-
-		vbox.Draw()
-		vbox.LockDraw()
-		if err := surface.Composite(vbox.ObjectID()); err != nil {
-			vbox.LogErr(err)
-		}
-		vbox.UnlockDraw()
-
-		if debug, _ := d.GetBoolProperty(cdk.PropertyDebug); debug {
-			surface.DebugBox(paint.ColorNavy, d.ObjectInfo())
-		}
-
-		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
 }
