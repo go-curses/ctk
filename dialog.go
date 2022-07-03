@@ -326,6 +326,8 @@ func (d *CDialog) AddButton(buttonText string, responseId enums.ResponseType) (b
 		button = NewButtonWithLabel(buttonText)
 	}
 	button.Show()
+	button.SetUseUnderline(true)
+	button.SetSizeRequest(-1, 1)
 	d.AddActionWidget(button, responseId)
 	return
 }
