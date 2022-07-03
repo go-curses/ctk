@@ -258,7 +258,6 @@ func (w *CWindow) Init() (already bool) {
 	w.SetWindow(w) // after stylesheet setup
 
 	w.Connect(SignalCdkEvent, WindowEventHandle, w.event)
-	w.Connect(SignalInvalidate, "window-invalidate-handler", w.invalidate)
 	w.Connect(SignalResize, WindowResizeHandle, w.resize)
 	w.Connect(SignalDraw, WindowDrawHandle, w.draw)
 
@@ -1737,11 +1736,6 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 		w.LogTrace("ProcessEvent(cdk.Event): %v", evt)
 		return cenums.EVENT_STOP
 	}
-	return cenums.EVENT_PASS
-}
-
-func (w *CWindow) invalidate(data []interface{}, argv ...interface{}) cenums.EventFlag {
-	// w.RequestDrawAndShow()
 	return cenums.EVENT_PASS
 }
 
