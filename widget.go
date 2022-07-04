@@ -463,21 +463,12 @@ func (w *CWidget) tooltipResize(data []interface{}, argv ...interface{}) cenums.
 	alloc := ptypes.MakeRectangle(w.tooltipTextBufferInfo())
 	if tooltipWindow := w.GetTooltipWindow(); tooltipWindow != nil {
 		tooltipWindow.SetAllocation(alloc)
-		// tooltipWindow.LockDraw()
-		if surface, err := memphis.GetSurface(tooltipWindow.ObjectID()); err != nil {
-			w.LogErr(err)
-		} else {
-			surface.Resize(alloc)
-		}
-		// tooltipWindow.UnlockDraw()
 	}
 	return cenums.EVENT_STOP
 }
 
 func (w *CWidget) tooltipDraw(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if tooltipWindow := w.GetTooltipWindow(); tooltipWindow != nil {
-		tooltipWindow.LockDraw()
-		defer tooltipWindow.UnlockDraw()
 
 		if surface, ok := argv[1].(*memphis.CSurface); ok {
 			size := surface.GetSize()
