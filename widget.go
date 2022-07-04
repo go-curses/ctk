@@ -1439,7 +1439,7 @@ func (w *CWidget) GetParent() (value Widget) {
 // Returns:
 // 	the Display for the toplevel for this widget.
 func (w *CWidget) GetDisplay() (value cdk.Display) {
-	if window := w.GetParentWindow(); window != nil {
+	if window := w.GetWindow(); window != nil {
 		value = window.GetDisplay()
 	}
 	return
