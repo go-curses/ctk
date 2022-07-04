@@ -520,6 +520,7 @@ func (w *CWidget) tooltipDraw(data []interface{}, argv ...interface{}) cenums.Ev
 // (windows) require explicit destruction, because when you destroy a
 // toplevel its children will be destroyed as well.
 func (w *CWidget) Destroy() {
+	w.Emit(SignalDestroyEvent, w)
 	w.DisconnectAll()
 	w.Hide()
 	w.closeTooltip()
