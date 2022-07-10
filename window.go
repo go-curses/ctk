@@ -162,6 +162,7 @@ type CWindow struct {
 	prevMouseEvent *cdk.EventMouse
 	eventFocus     interface{}
 	hoverFocus     Widget
+	hoverFocused   *WidgetSlice
 	accelGroups    AccelGroups
 	mnemonics      []*mnemonicEntry
 	mnemonicMod    cdk.ModMask
@@ -220,6 +221,7 @@ func (w *CWindow) Init() (already bool) {
 	w.mnemonicMod = cdk.ModAlt
 	w.mnemonicLock = &sync.RWMutex{}
 	w.hoverFocus = nil
+	w.hoverFocused = new(WidgetSlice)
 
 	_ = w.InstallProperty(PropertyWindowType, cdk.StructProperty, true, cenums.WINDOW_TOPLEVEL)
 	_ = w.InstallProperty(PropertyAcceptFocus, cdk.BoolProperty, true, true)
@@ -1643,6 +1645,7 @@ func (w *CWindow) SetEventFocus(o cdk.Object) {
 func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
+
 		case *cdk.EventPaste:
 			if fi := w.GetFocus(); fi != nil {
 				if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
@@ -1651,10 +1654,12 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					}
 				}
 			}
+
 		case *cdk.EventError:
 			if f := w.Emit(SignalError, w, e); f == cenums.EVENT_PASS {
 				w.LogError(e.Error())
 			}
+
 		case *cdk.EventKey:
 			if f := w.Emit(SignalEventKey, w, e); f == cenums.EVENT_PASS {
 				// check for mnemonics
@@ -1696,38 +1701,53 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					}
 				}
 			}
+
 		case *cdk.EventMouse:
 			// need to track enter/leave widget states
 			if f := w.Emit(SignalEventMouse, w, e); f == cenums.EVENT_PASS {
 				mousePosition := ptypes.NewPoint2I(e.Position())
+
 				if fw := w.FindWidgetAt(mousePosition); fw != nil {
-					if w.hoverFocus != nil {
-						if w.hoverFocus.ObjectID() != fw.ObjectID() {
-							var wantRefresh bool
-							if f := w.hoverFocus.Emit(SignalLeave, e); f == cenums.EVENT_STOP {
+					var wantRefresh bool
+
+					fwid := fw.ObjectID()
+
+					for _, hfw := range *w.hoverFocused {
+						if fwid != hfw.ObjectID() {
+							if !hfw.HasPoint(mousePosition) {
+								w.Lock()
+								w.hoverFocused.Remove(hfw)
+								w.Unlock()
+								hfw.Emit(SignalLeave, e)
 								wantRefresh = true
-								w.hoverFocus.Invalidate()
-							}
-							if f := fw.Emit(SignalEnter, e); f == cenums.EVENT_STOP {
-								wantRefresh = true
-								fw.Invalidate()
-							}
-							w.Lock()
-							w.hoverFocus = fw
-							w.Unlock()
-							if wantRefresh {
-								if d := w.GetDisplay(); d != nil {
-									d.RequestDraw()
-									d.RequestShow()
-								}
+								hfw.Invalidate()
 							}
 						}
-					} else {
-						w.Lock()
-						w.hoverFocus = fw
-						w.Unlock()
+					}
+
+					w.Lock()
+					w.hoverFocus = fw
+					w.Unlock()
+
+					for _, aw := range w.FindAllWidgetsAt(mousePosition) {
+						if idx := w.hoverFocused.IndexOf(aw); idx < 0 {
+							w.Lock()
+							w.hoverFocused.Append(aw)
+							w.Unlock()
+							aw.Emit(SignalEnter, e)
+							wantRefresh = true
+							aw.Invalidate()
+						}
+					}
+
+					if wantRefresh {
+						if d := w.GetDisplay(); d != nil {
+							d.RequestDraw()
+							d.RequestShow()
+						}
 					}
 				}
+
 				if mw := w.GetWidgetAt(mousePosition); mw != nil {
 					if ms, ok := mw.Self().(Sensitive); ok {
 						if ms.IsSensitive() && ms.IsVisible() {
@@ -1736,6 +1756,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					}
 				}
 			}
+
 		case *cdk.EventResize:
 			alloc := ptypes.MakeRectangle(e.Size())
 			origin := ptypes.MakePoint2I(0, 0)
@@ -1747,6 +1768,7 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				}
 			}
 		}
+
 		w.LogTrace("ProcessEvent(cdk.Event): %v", evt)
 		return cenums.EVENT_STOP
 	}
