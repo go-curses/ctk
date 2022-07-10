@@ -78,6 +78,7 @@ type Container interface {
 	FindChildProperty(property cdk.Property) (value *cdk.CProperty)
 	InstallChildProperty(name cdk.Property, kind cdk.PropertyType, write bool, def interface{}) error
 	ListChildProperties() (properties []*cdk.CProperty)
+	FindAllWidgetsAt(p *ptypes.Point2I) (found []Widget)
 	FindWidgetAt(p *ptypes.Point2I) (found Widget)
 }
 
@@ -339,9 +340,9 @@ func (c *CContainer) GetChildren() (children []Widget) {
 }
 
 func (c *CContainer) HasChild(widget Widget) (present bool) {
+	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
 	c.RLock()
 	defer c.RUnlock()
-	allChildren := append([]Widget{}, c.GetCompositeChildren()...)
 	allChildren = append(allChildren, c.children...)
 	wid := widget.ObjectID()
 	for _, child := range allChildren {
@@ -716,6 +717,27 @@ func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 		return c
 	}
 	return nil
+}
+
+func (c *CContainer) FindAllWidgetsAt(p *ptypes.Point2I) (found []Widget) {
+	track := new(WidgetSlice)
+	first := c.FindWidgetAt(p)
+	if first != nil {
+		track.Append(first)
+		parent := first.GetParent()
+		for parent != nil {
+			if idx := track.IndexOf(parent); idx < 0 {
+				track.Append(parent)
+			}
+			next := parent.GetParent()
+			if next == nil || track.IndexOf(next) > -1 {
+				break
+			}
+			parent = next
+		}
+		found = *track
+	}
+	return
 }
 
 func (c *CContainer) FindWidgetAt(p *ptypes.Point2I) (found Widget) {
