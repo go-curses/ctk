@@ -59,6 +59,7 @@ type Window interface {
 	ReplaceStylesFromString(css string) (err error)
 	ExportStylesToString() (css string)
 	ApplyStylesTo(widget Widget)
+	ReApplyStyles()
 	SetTitle(title string)
 	SetResizable(resizable bool)
 	GetResizable() (value bool)
@@ -334,6 +335,19 @@ func (w *CWindow) ExportStylesToString() (css string) {
 
 func (w *CWindow) ApplyStylesTo(widget Widget) {
 	w.styleSheet.ApplyStylesTo(widget)
+}
+
+func (w *CWindow) ReApplyStyles() {
+	var recurse func(top Widget)
+	recurse = func(top Widget) {
+		w.styleSheet.ApplyStylesTo(top)
+		if container, ok := top.Self().(Container); ok {
+			for _, child := range container.GetChildren() {
+				recurse(child)
+			}
+		}
+	}
+	recurse(w)
 }
 
 func (w *CWindow) Show() {
