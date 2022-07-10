@@ -869,7 +869,7 @@ func (l *CLabel) GetPlainTextInfo() (maxWidth, lineCount int) {
 // Locking: read
 func (l *CLabel) GetPlainTextInfoAtWidth(width int) (maxWidth, lineCount int) {
 	if l.tBuffer == nil {
-		return -1, -1
+		_ = l.refreshTextBuffer()
 	}
 	_, lineWrapMode, ellipsize, justify, _ := l.Settings()
 	l.RLock()
