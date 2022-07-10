@@ -795,6 +795,8 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		theme := l.GetThemeRequest()
 		singleLineMode, lineWrapMode, justify, _ := l.Settings()
 
+		surface.Fill(theme)
+
 		if tBuffer := l.tBuffer.Clone(); tBuffer != nil {
 			tBuffer.SetStyle(theme.Content.Normal)
 
@@ -802,15 +804,9 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 				l.LogErr(err)
 			} else {
 				tSurface.Fill(theme)
-
-				if f := tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, false, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
-					surface.Fill(theme)
-
-					if err := surface.CompositeSurface(tSurface); err != nil {
-						l.LogErr(err)
-					}
-				} else {
-					l.LogError("TextBuffer draw failed, nothing to composite")
+				tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, false, justify, cenums.ALIGN_TOP)
+				if err := surface.CompositeSurface(tSurface); err != nil {
+					l.LogErr(err)
 				}
 			}
 		}
