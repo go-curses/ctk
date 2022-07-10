@@ -576,21 +576,19 @@ func (b *CBox) resize(data []interface{}, argv ...interface{}) cenums.EventFlag 
 	isVertical := orientation == cenums.ORIENTATION_VERTICAL
 	homogeneous := b.GetHomogeneous()
 	style := b.GetThemeRequest().Content.Normal
-
-	// intermediaries
-	var increment int
-	var gaps []int
-	if isVertical {
-		increment, gaps = cmath.SolveSpaceAlloc(numChildren, alloc.H, spacing)
-	} else {
-		increment, gaps = cmath.SolveSpaceAlloc(numChildren, alloc.W, spacing)
-	}
 	nextPoint := origin.NewClone()
 
 	if homogeneous {
+		var increment int
+		var gaps []int
+		if isVertical {
+			increment, gaps = cmath.SolveSpaceAlloc(numChildren, alloc.H, spacing)
+		} else {
+			increment, gaps = cmath.SolveSpaceAlloc(numChildren, alloc.W, spacing)
+		}
 		return b.resizeHomogeneous(isVertical, gaps, increment, numChildren, origin, nextPoint, alloc, children, style)
 	}
-	return b.resizeDynamicAlloc(isVertical, gaps, increment, spacing, numChildren, origin, nextPoint, alloc, children, style)
+	return b.resizeDynamicAlloc(isVertical, spacing, numChildren, origin, nextPoint, alloc, children, style)
 }
 
 func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild, style paint.Style) cenums.EventFlag {
@@ -710,150 +708,107 @@ func (b *CBox) resizeHomogeneous(isVertical bool, gaps []int, increment, numChil
 	return cenums.EVENT_STOP
 }
 
-func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild, style paint.Style) cenums.EventFlag {
+func (b *CBox) resizeDynamicAlloc(isVertical bool, spacing, numChildren int, origin, nextPoint *ptypes.Point2I, alloc *ptypes.Rectangle, children []*cBoxChild, style paint.Style) cenums.EventFlag {
+	// TODO: PackEnd children need resizeDynamicAlloc to go RtL, right aligned
 	var (
-		extraSpace   int
+		totalSpace int
+		// extraSpace   int
 		numExpanding int
-		consumed     int
+		// consumed     int
 	)
+
 	tracking := make([]struct {
 		x, y, w, h int
 		rw, rh     int
-		aw, ah     int
 		extra      int
 		overflow   int
 	}, numChildren)
 
-	// TODO: PackEnd children need resizeDynamicAlloc to go RtL, right aligned
-
-	for idx, child := range children {
-		req := ptypes.NewRectangle(child.widget.GetSizeRequest())
-		if child.expand { // expand
-			numExpanding += 1
-			if child.fill { // expand && fill
-				if isVertical {
-					tracking[idx].w = alloc.W
-					tracking[idx].h = increment
-				} else {
-					tracking[idx].w = increment
-					tracking[idx].h = alloc.H
-				}
-				tracking[idx].aw = tracking[idx].w
-				tracking[idx].ah = tracking[idx].h
-			} else {            // expand && !fill
-				if isVertical { // expand && !fill && vertical
-					if req.H <= -1 || req.H > increment {
-						req.H = increment
-					}
-					tracking[idx].w = alloc.W
-					tracking[idx].h = req.H
-					tracking[idx].aw = alloc.W
-					tracking[idx].ah = increment
-				} else { // expand && !fill && horizontal
-					if req.W <= -1 || req.W > increment {
-						req.W = increment
-					}
-					tracking[idx].w = req.W
-					tracking[idx].h = alloc.H
-					tracking[idx].aw = increment
-					tracking[idx].ah = alloc.H
-				}
-			} // else expand, !fill
-		} else {            // if !expand (assume !fill)
-			if isVertical { // !expand, !fill, vertical
-				req.W = alloc.W // force width
-				if req.H <= -1 || req.H > increment {
-					req.H = increment
-				}
-				if req.H < increment {
-					delta := increment - req.H
-					extraSpace += delta
-				}
-			} else { // !expand, !fill, horizontal
-				req.H = alloc.H // force height
-				if req.W <= -1 || req.W > increment {
-					req.W = increment
-				}
-				if req.W < increment {
-					delta := increment - req.W
-					extraSpace += delta
-				}
-			}
-			tracking[idx].w = req.W
-			tracking[idx].h = req.H
-			tracking[idx].aw = req.W
-			tracking[idx].ah = req.H
-		} // else expand
-		tracking[idx].rw = req.W
-		tracking[idx].rh = req.H
-	}
-
-	for idx, _ := range children {
-		if isVertical {
-			consumed += tracking[idx].ah
-		} else {
-			consumed += tracking[idx].aw
-		}
-	}
-	var total = 0
 	if isVertical {
-		total = alloc.H - consumed
+		totalSpace = alloc.H
 	} else {
-		total = alloc.W - consumed
-	}
-	if extraSpace > 0 {
-		var (
-			dist []int
-			err  error
-		)
-		if dist, gaps, err = cmath.Distribute(total, extraSpace, numExpanding, numChildren, spacing); err != nil {
-			b.LogErr(err)
-		} else {
-			di, nDist := 0, len(dist)
-			for idx, child := range children {
-				if child.expand {
-					if di < nDist {
-						if child.fill {
-							if isVertical {
-								tracking[idx].ah += dist[di]
-								tracking[idx].h = tracking[idx].ah
-							} else {
-								tracking[idx].aw += dist[di]
-								tracking[idx].w = tracking[idx].aw
-							}
-						} else { // !fill
-							if isVertical {
-								tracking[idx].ah += dist[di]
-							} else {
-								tracking[idx].aw += dist[di]
-							}
-						}
-						di += 1
-					}
-				}
-			}
-		}
+		totalSpace = alloc.W
 	}
 
-	// solve positions
+	hasSpacing := spacing > 0
+	if hasSpacing {
+		totalSpace -= spacing * (numChildren - 1)
+	}
 
 	for idx, child := range children {
-		if ca, ok := child.widget.Self().(Alignable); ok {
-			xAlign, yAlign := ca.GetAlignment()
+		if child.expand {
+			numExpanding += 1
+			tracking[idx].rw = -1
+			tracking[idx].rh = -1
+		} else {
+			rw, rh := child.widget.GetSizeRequest()
 			if isVertical {
-				if tracking[idx].h < tracking[idx].ah {
-					delta := tracking[idx].ah - tracking[idx].h
-					inc := int(float64(delta) * yAlign)
-					tracking[idx].y += inc
-					tracking[idx].overflow += delta - inc
+				if rh > -1 {
+					totalSpace -= rh
+				} else {
+					numExpanding += 1
 				}
 			} else {
-				if tracking[idx].w < tracking[idx].aw {
-					delta := tracking[idx].aw - tracking[idx].w
-					inc := int(float64(delta) * xAlign)
-					tracking[idx].x += inc
-					tracking[idx].overflow += delta - inc
+				if rw > -1 {
+					totalSpace -= rw
+				} else {
+					numExpanding += 1
 				}
+			}
+			tracking[idx].rw = rw
+			tracking[idx].rh = rh
+		}
+	}
+
+	var increment, remainder int
+	if numExpanding > 0 {
+		increment = totalSpace / numExpanding
+		remainder = totalSpace % numExpanding
+	} else {
+		increment = totalSpace / numChildren
+		remainder = totalSpace % numChildren
+	}
+
+	firstExpanding := -1
+	for idx, child := range children {
+		if child.expand {
+			if firstExpanding == -1 {
+				firstExpanding = idx
+			}
+			if isVertical {
+				tracking[idx].rh = increment
+			} else {
+				tracking[idx].rw = increment
+			}
+		}
+	}
+
+	if firstExpanding > -1 {
+		if isVertical {
+			tracking[firstExpanding].rh += remainder
+		} else {
+			tracking[firstExpanding].rw += remainder
+		}
+	}
+
+	allocPoint := nextPoint.Clone()
+
+	for idx, _ := range children {
+		tracking[idx].x = allocPoint.X
+		tracking[idx].y = allocPoint.Y
+		if isVertical {
+			tracking[idx].w = alloc.W
+			tracking[idx].h = tracking[idx].rh
+			allocPoint.Y += tracking[idx].h
+			if hasSpacing {
+				allocPoint.Y += spacing
+			}
+		} else {
+			tracking[idx].w = tracking[idx].rw
+			tracking[idx].h = alloc.H
+			allocPoint.X += tracking[idx].w
+			if hasSpacing {
+				allocPoint.X += spacing
 			}
 		}
 	}
@@ -862,23 +817,11 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, gaps []int, increment, spacin
 
 	for idx, child := range children {
 		track := tracking[idx]
-		nextPoint.X += track.x
-		nextPoint.Y += track.y
-		child.widget.SetOrigin(nextPoint.X, nextPoint.Y)
-		child.widget.SetAllocation(ptypes.MakeRectangle(track.w, track.h))
+		child.widget.SetOrigin(track.x, track.y)
+		childAlloc := ptypes.MakeRectangle(track.w, track.h)
+		childAlloc.Floor(0, 0)
+		child.widget.SetAllocation(childAlloc)
 		child.widget.Resize()
-		if isVertical {
-			nextPoint.Y += track.h + track.overflow
-		} else {
-			nextPoint.X += track.w + track.overflow
-		}
-		if len(gaps) > idx {
-			if isVertical {
-				nextPoint.Y += gaps[idx]
-			} else {
-				nextPoint.X += gaps[idx]
-			}
-		}
 	}
 
 	b.Invalidate()
