@@ -379,7 +379,8 @@ func (b *CBox) ReorderChild(child Widget, position int) {
 // Locking: read
 func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding int, packType enums.PackType) {
 	b.RLock()
-	if cps, ok := b.property[child.ObjectID()]; ok {
+	cid := child.ObjectID()
+	if cps, ok := b.property[cid]; ok {
 		for _, cp := range cps {
 			switch cp.Name() {
 			case PropertyBoxChildExpand:
@@ -401,7 +402,10 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 			}
 		}
 	} else {
-		b.LogError("%v is not a child of %v", child, b)
+		expand = false
+		fill = false
+		padding = 0
+		packType = enums.PackStart
 	}
 	b.RUnlock()
 	return
@@ -420,9 +424,10 @@ func (b *CBox) QueryChildPacking(child Widget) (expand bool, fill bool, padding 
 //
 // Locking: write
 func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType) {
-	if cps, ok := b.property[child.ObjectID()]; ok {
-		b.Lock()
-		defer b.Unlock()
+	cid := child.ObjectID()
+	b.Lock()
+	defer b.Unlock()
+	if cps, ok := b.property[cid]; ok {
 		for _, cp := range cps {
 			switch cp.Name() {
 			case PropertyBoxChildExpand:
@@ -444,7 +449,25 @@ func (b *CBox) SetChildPacking(child Widget, expand bool, fill bool, padding int
 			}
 		}
 	} else {
-		b.LogError("%v is not a child of %v", child, b)
+		b.property[cid] = make([]*cdk.CProperty, 0)
+		var p *cdk.CProperty
+
+		p = cdk.NewProperty(PropertyBoxChildExpand, cdk.BoolProperty, true, false, false)
+		_ = p.Set(expand)
+		b.property[cid] = append(b.property[cid], p)
+
+		p = cdk.NewProperty(PropertyBoxChildFill, cdk.BoolProperty, true, false, false)
+		_ = p.Set(fill)
+		b.property[cid] = append(b.property[cid], p)
+
+		p = cdk.NewProperty(PropertyBoxChildPadding, cdk.IntProperty, true, false, 0)
+		_ = p.Set(padding)
+		b.property[cid] = append(b.property[cid], p)
+
+		p = cdk.NewProperty(PropertyBoxChildPackType, cdk.StructProperty, true, false, enums.PackStart)
+		_ = p.Set(packType)
+		b.property[cid] = append(b.property[cid], p)
+		b.LogError("%v is missing child packing info in %v", child, b)
 	}
 }
 
