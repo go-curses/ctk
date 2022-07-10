@@ -316,11 +316,6 @@ func (w *CWidget) openTooltip() {
 	settings := GetDefaultSettings()
 	if settings.GetEnableTooltips() {
 		if w.GetHasTooltip() {
-			// if display := w.GetDisplay(); display != nil {
-			// 	w.Lock()
-			// 	w.tooltipPoint, _ = display.CursorPosition()
-			// 	w.Unlock()
-			// }
 			timeout := settings.GetTooltipTimeout()
 			w.Lock()
 			w.tooltipTimer = cdk.AddTimeout(
@@ -359,18 +354,24 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 					}
 					tooltipWindow.Move(position.X, position.Y)
 					tooltipWindow.SetAllocation(ptypes.MakeRectangle(tw, th))
+					settings := GetDefaultSettings()
+					browseModeTimeout := settings.GetTooltipBrowseModeTimeout()
 					if markup := w.GetTooltipMarkup(); markup != "" {
 						tooltipWindow.Resize()
 						tooltipWindow.Show()
-						// settings := GetDefaultSettings()
-						// settings.GetTooltipBrowseTimeout()
+						cdk.AddTimeout(browseModeTimeout, func() cenums.EventFlag {
+							w.closeTooltip()
+							return cenums.EVENT_STOP
+						})
 						return cenums.EVENT_STOP
 					}
 					if text := w.GetTooltipText(); text != "" {
 						tooltipWindow.Resize()
 						tooltipWindow.Show()
-						// settings := GetDefaultSettings()
-						// settings.GetTooltipBrowseTimeout()
+						cdk.AddTimeout(browseModeTimeout, func() cenums.EventFlag {
+							w.closeTooltip()
+							return cenums.EVENT_STOP
+						})
 						return cenums.EVENT_STOP
 					}
 				}
