@@ -707,6 +707,12 @@ func (s *CScrolledViewport) invalidate(data []interface{}, argv ...interface{}) 
 	horizontalShow := s.HorizontalShowByPolicy()
 	verticalShow := s.VerticalShowByPolicy()
 
+	if !horizontalShow && !verticalShow {
+		s.UnsetFlags(enums.CAN_FOCUS)
+	} else {
+		s.SetFlags(enums.CAN_FOCUS)
+	}
+
 	if child != nil {
 		WidgetRecurseInvalidate(child)
 	}
