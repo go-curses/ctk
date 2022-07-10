@@ -1,7 +1,7 @@
 package ctk
 
 import (
-	"unicode/utf8"
+	"github.com/mattn/go-runewidth"
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
@@ -39,6 +39,8 @@ type Arrow interface {
 	GetArrowType() (arrow enums.ArrowType)
 	SetArrowType(arrow enums.ArrowType)
 	GetArrowRune() (r rune, width int)
+	GetArrowRuneSet() (ars paint.ArrowRuneSet)
+	SetArrowRuneSet(ars paint.ArrowRuneSet)
 }
 
 var _ Arrow = (*CArrow)(nil)
@@ -49,6 +51,8 @@ var _ Arrow = (*CArrow)(nil)
 // interacting with Arrow objects.
 type CArrow struct {
 	CMisc
+
+	arrowRuneSet *paint.ArrowRuneSet
 }
 
 // MakeArrow is used by the Buildable system to construct a new Arrow with a
@@ -79,6 +83,7 @@ func (a *CArrow) Init() bool {
 	a.flags = enums.NULL_WIDGET_FLAG
 	a.SetFlags(enums.PARENT_SENSITIVE)
 	a.SetFlags(enums.APP_PAINTABLE)
+	a.arrowRuneSet = nil
 	_ = a.InstallBuildableProperty(PropertyArrowType, cdk.StructProperty, true, nil)
 	_ = a.InstallBuildableProperty(PropertyArrowShadowType, cdk.StructProperty, true, nil)
 	a.Connect(SignalResize, ArrowResizeHandle, a.resize)
@@ -124,23 +129,58 @@ func (a *CArrow) SetArrowType(arrow enums.ArrowType) {
 //
 // Locking: read
 func (a *CArrow) GetArrowRune() (r rune, width int) {
-	theme := a.GetTheme()
-	arrowRunes := theme.Border.ArrowRunes
 	arrowType := a.GetArrowType()
+	theme := a.GetTheme()
+
 	a.RLock()
 	defer a.RUnlock()
+
+	var ars paint.ArrowRuneSet
+	if a.arrowRuneSet == nil {
+		ars = theme.Content.ArrowRunes
+	} else {
+		ars = *a.arrowRuneSet
+	}
+
 	switch arrowType {
 	case enums.ArrowUp:
-		r = arrowRunes.Up
+		r = ars.Up
 	case enums.ArrowLeft:
-		r = arrowRunes.Left
+		r = ars.Left
 	case enums.ArrowDown:
-		r = arrowRunes.Down
+		r = ars.Down
 	case enums.ArrowRight:
-		r = arrowRunes.Right
+		r = ars.Right
 	}
-	width = utf8.RuneLen(r)
+
+	width = runewidth.RuneWidth(r)
 	return
+}
+
+func (a *CArrow) GetArrowRuneSet() (ars paint.ArrowRuneSet) {
+	theme := a.GetTheme()
+
+	a.RLock()
+	defer a.RUnlock()
+
+	if a.arrowRuneSet != nil {
+		ars = *a.arrowRuneSet
+	} else {
+		ars = theme.Content.ArrowRunes
+	}
+	return
+}
+
+func (a *CArrow) UnsetArrowRuneSet() {
+	a.Lock()
+	defer a.Unlock()
+	a.arrowRuneSet = nil
+}
+
+func (a *CArrow) SetArrowRuneSet(ars paint.ArrowRuneSet) {
+	a.Lock()
+	defer a.Unlock()
+	a.arrowRuneSet = &ars
 }
 
 // GetSizeRequest returns the requested size of the Drawable Widget. This method
