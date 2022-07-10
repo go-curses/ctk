@@ -4,6 +4,31 @@ import (
 	cenums "github.com/go-curses/cdk/lib/enums"
 )
 
+type WidgetSlice []Widget
+
+func (ws *WidgetSlice) IndexOf(widget Widget) (idx int) {
+	wid := widget.ObjectID()
+	for idx = 0; idx < len(*ws); idx++ {
+		if wid == (*ws)[idx].ObjectID() {
+			return
+		}
+	}
+	idx = -1
+	return
+}
+
+func (ws *WidgetSlice) Append(widget Widget) {
+	if idx := ws.IndexOf(widget); idx < 0 {
+		*ws = append(*ws, widget)
+	}
+}
+
+func (ws *WidgetSlice) Remove(widget Widget) {
+	if idx := ws.IndexOf(widget); idx > -1 {
+		*ws = append((*ws)[:idx], (*ws)[idx+1:]...)
+	}
+}
+
 type WidgetIteratorFn = func(target Widget) cenums.EventFlag
 
 func WidgetDescend(widget Widget, fn WidgetIteratorFn) (rv cenums.EventFlag) {
