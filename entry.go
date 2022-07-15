@@ -1,8 +1,8 @@
 package ctk
 
 import (
+	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -11,7 +11,6 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
-	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/memphis"
 
 	"github.com/go-curses/ctk/lib/enums"
@@ -132,17 +131,9 @@ type CEntry struct {
 	selection *ptypes.Point2I
 	position  int
 
-	qEnabled bool
-	queue    []*cEntryChange
-	qLock    *sync.RWMutex
-	qTimer   uuid.UUID
-
 	tProfile *memphis.TextProfile
 	tBuffer  memphis.TextBuffer
 	tbStyle  paint.Style
-
-	pasting bool
-	pasted  string
 }
 
 // MakeEntry is used by the Buildable system to construct a new Entry.
@@ -175,10 +166,6 @@ func (l *CEntry) Init() (already bool) {
 
 	l.selection = nil
 	l.position = 0
-	l.qEnabled = false
-	l.queue = make([]*cEntryChange, 0)
-	l.qLock = &sync.RWMutex{}
-	l.qTimer = uuid.Nil
 	l.offset = ptypes.NewRegion(0, 0, 0, 0)
 	l.cursor = ptypes.NewPoint2I(0, 0)
 	l.tProfile = memphis.NewTextProfile("")
@@ -380,7 +367,9 @@ func (l *CEntry) GetText() (value string) {
 //
 func (l *CEntry) SelectRegion(startOffset int, endOffset int) {
 	if l.GetSelectable() {
+		l.Lock()
 		l.selection = ptypes.NewPoint2I(startOffset, endOffset)
+		l.Unlock()
 	}
 }
 
@@ -518,6 +507,8 @@ func (l *CEntry) Settings() (singleLineMode bool, lineWrapMode cenums.WrapMode, 
 }
 
 func (l *CEntry) GetSelectionBounds() (startPos, endPos int, ok bool) {
+	l.RLock()
+	defer l.RUnlock()
 	if l.selection != nil {
 		startPos = l.selection.X
 		endPos = l.selection.Y
@@ -581,30 +572,69 @@ func (l *CEntry) GetChars(startPos int, endPos int) (value string) {
 		return
 	}
 	if contentLength <= endPos {
-		endPos = contentLength - 1
+		value = content[startPos:]
+	} else {
+		value = content[startPos:endPos]
 	}
-	value = content[startPos:endPos]
 	return
 }
 
 func (l *CEntry) CutClipboard() {
-	// TODO implement me
-	panic("implement me")
+	value := ""
+	l.RLock()
+	if l.selection != nil && l.tProfile != nil {
+		if l.tProfile.Len() > 0 {
+			value = l.tProfile.Select(l.selection.X, l.selection.Y)
+		}
+		l.RUnlock()
+		l.deleteTextAndSetPosition(l.selection.X, l.selection.Y, l.selection.X)
+	} else {
+		l.RUnlock()
+	}
+	clipboard := GetDefaultClipboard()
+	clipboard.Copy(value)
+	l.clearSelection()
 }
 
 func (l *CEntry) CopyClipboard() {
-	// TODO implement me
-	panic("implement me")
+	value := ""
+	l.RLock()
+	if l.selection != nil && l.tProfile != nil {
+		if l.tProfile.Len() > 0 {
+			value = l.tProfile.Select(l.selection.X, l.selection.Y)
+		}
+	}
+	l.RUnlock()
+	clipboard := GetDefaultClipboard()
+	clipboard.Copy(value)
+	l.clearSelection()
 }
 
 func (l *CEntry) PasteClipboard() {
-	// TODO implement me
-	panic("implement me")
+	clipboard := GetDefaultClipboard()
+	value := clipboard.GetText()
+	pos := l.GetPosition()
+	l.RLock()
+	selection := l.selection
+	l.RUnlock()
+	if selection != nil {
+		l.deleteTextAndSetPosition(selection.X, selection.Y, selection.X)
+		pos = selection.X
+	}
+	l.insertTextAndSetPosition(value, pos, pos+len(value))
+	l.LogDebug("pasted clipboard: %v", value)
+	l.clearSelection()
 }
 
 func (l *CEntry) DeleteSelection() {
-	// TODO implement me
-	panic("implement me")
+	l.RLock()
+	selection := l.selection
+	l.RUnlock()
+	if selection != nil {
+		l.deleteTextAndSetPosition(l.selection.X, l.selection.Y, l.selection.X)
+		l.LogDebug("selection deleted")
+	}
+	l.clearSelection()
 }
 
 func (l *CEntry) SetPosition(position int) {
@@ -799,6 +829,11 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 
 		if tBuffer := l.tBuffer.Clone(); tBuffer != nil {
 			tBuffer.SetStyle(theme.Content.Normal)
+			l.RLock()
+			if l.selection != nil {
+				tBuffer.Select(l.selection.X, l.selection.Y)
+			}
+			l.RUnlock()
 
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
@@ -820,18 +855,104 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 	return cenums.EVENT_PASS
 }
 
-func (l *CEntry) moveDown(lines int) {
+func (l *CEntry) updateSelection(oldPos, newPos int) (note string) {
+	l.Lock()
+	if l.tProfile != nil && l.tProfile.Len() > 0 {
+
+		isMovingBackwards := oldPos > newPos
+
+		if l.selection != nil {
+
+			// moving selection start backwards
+			// moving selection start forwards
+			// moving selection end backwards
+			// moving selection end forwards
+
+			isMovingStart := newPos <= l.selection.X
+			isFlipping := l.selection.X >= l.selection.Y
+
+			if isFlipping {
+				if isMovingBackwards {
+					l.selection.Y = l.selection.X
+					l.selection.X = newPos
+					note = fmt.Sprintf("moving selection flip backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				} else {
+					l.selection.X = l.selection.Y
+					l.selection.Y = newPos
+					note = fmt.Sprintf("moving selection flip forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				}
+			} else if isMovingStart {
+				if isMovingBackwards {
+					l.selection.X = newPos + 1
+					note = fmt.Sprintf("moving selection start backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				} else {
+					l.selection.X = newPos + 1
+					note = fmt.Sprintf("moving selection start forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				}
+			} else {
+				if isMovingBackwards {
+					l.selection.Y = newPos - 1
+					note = fmt.Sprintf("moving selection end backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				} else {
+					l.selection.Y = newPos - 1
+					note = fmt.Sprintf("moving selection end forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				}
+			}
+
+		} else {
+
+			if isMovingBackwards {
+				l.selection = ptypes.NewPoint2I(newPos+1, oldPos)
+				note = fmt.Sprintf("started new selection backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+			} else {
+				l.selection = ptypes.NewPoint2I(oldPos, newPos-1)
+				note = fmt.Sprintf("started new selection forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+			}
+
+		}
+	} else {
+		note = fmt.Sprintf("cannot select range of zero-length string")
+	}
+	l.Unlock()
+	l.Invalidate()
+	return
+}
+
+func (l *CEntry) clearSelection() {
+	l.Lock()
+	if l.selection != nil {
+		l.selection = nil
+		l.Unlock()
+		l.LogDebug("selection cleared")
+		l.Invalidate()
+	} else {
+		l.Unlock()
+	}
+}
+
+func (l *CEntry) moveSelection(oldPos, newPos int, shift bool) (note string) {
+	note = "not selecting"
+	if shift {
+		note = l.updateSelection(oldPos, newPos)
+	} else {
+		l.clearSelection()
+	}
+	return
+}
+
+func (l *CEntry) moveDown(lines int, shift bool) {
 	pos := l.GetPosition()
 	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.Y += lines
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
 	l.RUnlock()
-	l.queueChange("SetPosition", newPos)
-	l.LogDebug("moved down (%v line) position: %v (%v)", lines, newPos, posPoint)
+	note := l.moveSelection(pos, newPos, shift)
+	l.setPosition(newPos)
+	l.LogDebug("moved down (%v line) position: %v (%v) [%v]", lines, newPos, posPoint, note)
 }
 
-func (l *CEntry) moveUp(lines int) {
+func (l *CEntry) moveUp(lines int, shift bool) {
 	pos := l.GetPosition()
 	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
@@ -841,45 +962,53 @@ func (l *CEntry) moveUp(lines int) {
 	}
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
 	l.RUnlock()
-	l.queueChange("SetPosition", newPos)
-	l.LogDebug("moved up (%v line) position: %v (%v)", lines, newPos, posPoint)
+	note := l.moveSelection(pos, newPos, shift)
+	l.setPosition(newPos)
+	l.LogDebug("moved up (%v line) position: %v (%v) [%v]", lines, newPos, posPoint, note)
 }
 
-func (l *CEntry) moveHome() {
+func (l *CEntry) moveHome(shift bool) {
 	pos := l.GetPosition()
 	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.X = 0
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
 	l.RUnlock()
-	l.queueChange("SetPosition", newPos)
-	l.LogDebug("moved to home position: %v (%v)", newPos, posPoint)
+	note := l.moveSelection(pos, newPos-1, shift)
+	l.setPosition(newPos)
+	l.LogDebug("moved to home position: %v (%v) [%v]", newPos, posPoint, note)
 }
 
-func (l *CEntry) moveEnd() {
+func (l *CEntry) moveEnd(shift bool) {
 	pos := l.GetPosition()
 	l.RLock()
 	posPoint := l.tProfile.GetPointFromPosition(pos)
 	posPoint.X = -1
 	newPos := l.tProfile.GetPositionFromPoint(posPoint)
 	l.RUnlock()
-	l.queueChange("SetPosition", newPos)
-	l.LogDebug("moved to end position: %v (%v)", newPos, posPoint)
+	note := l.moveSelection(pos, newPos, shift)
+	l.setPosition(newPos)
+	l.LogDebug("moved to end position: %v (%v) [%v]", newPos, posPoint, note)
 }
 
-func (l *CEntry) moveLeft(characters int) {
+func (l *CEntry) moveLeft(characters int, shift bool) {
 	if pos := l.GetPosition(); pos > 0 {
-		l.LogDebug("move left %d character(s): %v", characters, pos-characters)
-		l.queueChange("SetPosition", pos-characters)
+		newPos := pos - characters
+		note := l.moveSelection(pos, newPos, shift)
+		l.setPosition(newPos)
+		l.LogDebug("move left %d character(s): %v [%v]", characters, newPos, note)
 	} else {
-		l.LogDebug("at the start")
+		note := l.moveSelection(pos, -1, shift)
+		l.LogDebug("at the start [%v]", note)
 	}
 }
 
-func (l *CEntry) moveRight(characters int) {
+func (l *CEntry) moveRight(characters int, shift bool) {
 	if pos := l.GetPosition(); pos < l.tProfile.Len() {
-		l.LogDebug("move right %d character(s): %v", characters, pos+characters)
-		l.queueChange("SetPosition", pos+characters)
+		newPos := pos + characters
+		note := l.moveSelection(pos, newPos, shift)
+		l.setPosition(newPos)
+		l.LogDebug("move right %d character(s): %v [%v]", characters, newPos, note)
 	} else {
 		l.LogDebug("all the way right: %v", pos)
 	}
@@ -887,13 +1016,25 @@ func (l *CEntry) moveRight(characters int) {
 
 func (l *CEntry) deleteForwards() {
 	pos := l.GetPosition()
+	l.RLock()
+	var selection *ptypes.Point2I
+	if l.selection != nil {
+		selection = l.selection.NewClone()
+	}
+	l.RUnlock()
 	if tLen := l.tProfile.Len(); tLen > 0 {
-		if pos < tLen {
-			l.LogDebug("deleting forwards")
-			l.queueChange("DeleteTextAndSetPosition", pos, pos, pos)
+		if selection != nil {
+			l.LogDebug("deleting selection")
+			l.deleteTextAndSetPosition(selection.X, selection.Y, selection.X)
+			l.clearSelection()
 		} else {
-			l.LogDebug("deleting forwards (EOL)")
-			l.queueChange("DeleteTextAndSetPosition", tLen-1, tLen-1, tLen-1)
+			if pos < tLen {
+				l.LogDebug("deleting forwards")
+				l.deleteTextAndSetPosition(pos, pos, pos)
+			} else {
+				l.LogDebug("deleting forwards (EOL)")
+				l.deleteTextAndSetPosition(tLen-1, tLen-1, tLen-1)
+			}
 		}
 	} else {
 		l.LogDebug("nothing to delete forwards")
@@ -902,169 +1043,26 @@ func (l *CEntry) deleteForwards() {
 
 func (l *CEntry) deleteBackwards() {
 	pos := l.GetPosition()
-	if pos > 0 {
-		l.LogDebug("deleting backwards")
-		l.queueChange("DeleteTextAndSetPosition", pos-1, pos-1, pos-1)
+	l.RLock()
+	var selection *ptypes.Point2I
+	if l.selection != nil {
+		selection = l.selection.NewClone()
+	}
+	l.RUnlock()
+	if tLen := l.tProfile.Len(); tLen > 0 {
+		if selection != nil {
+			l.LogDebug("deleting selection")
+			l.deleteTextAndSetPosition(selection.X, selection.Y, selection.X)
+			l.clearSelection()
+		} else if pos > 0 {
+			l.LogDebug("deleting backwards")
+			l.deleteTextAndSetPosition(pos-1, pos-1, pos-1)
+		} else {
+			l.LogDebug("nothing to delete backwards")
+		}
 	} else {
 		l.LogDebug("nothing to delete backwards")
 	}
-}
-
-func (l *CEntry) queueChange(name string, argv ...interface{}) {
-	if l.qEnabled {
-		l.qLock.Lock()
-		l.queue = append(l.queue, &cEntryChange{
-			name: name,
-			argv: argv,
-		})
-		l.qLock.Unlock()
-	} else {
-		l.applyChange(name, argv...)
-	}
-}
-
-func (l *CEntry) processQueue() (changesApplied bool) {
-	l.qLock.Lock()
-	if l.queue == nil || len(l.queue) == 0 {
-		l.qLock.Unlock()
-		return false
-	}
-	for _, change := range l.queue {
-		if l.processChange(change) {
-			changesApplied = true
-		}
-	}
-	l.queue = nil
-	l.qLock.Unlock()
-	return
-}
-
-func (l *CEntry) applyChange(name string, argv ...interface{}) {
-	switch name {
-	case "SetPosition":
-		if pos, ok := argv[0].(int); ok {
-			l.SetPosition(pos)
-		}
-	case "InsertTextAndSetPosition":
-		if text, ok := argv[0].(string); ok {
-			if index, ok := argv[1].(int); ok {
-				if pos, ok := argv[2].(int); ok {
-					l.InsertTextAndSetPosition(text, index, pos)
-				}
-			}
-		}
-	case "InsertText":
-		if text, ok := argv[0].(string); ok {
-			if index, ok := argv[1].(int); ok {
-				l.InsertText(text, index)
-			}
-		}
-	case "DeleteTextAndSetPosition":
-		if start, ok := argv[0].(int); ok {
-			if end, ok := argv[1].(int); ok {
-				if pos, ok := argv[2].(int); ok {
-					l.DeleteTextAndSetPosition(start, end, pos)
-				}
-			}
-		}
-	case "DeleteText":
-		if start, ok := argv[0].(int); ok {
-			if end, ok := argv[1].(int); ok {
-				l.DeleteText(start, end)
-			}
-		}
-	}
-}
-
-func (l *CEntry) processChange(change *cEntryChange) (changesApplied bool) {
-	switch change.name {
-
-	case "SetPosition":
-		if len(change.argv) == 1 {
-			if v, ok := change.argv[0].(int); ok {
-				l.setPosition(v)
-				changesApplied = true
-			} else {
-				l.LogError("argument is not an 'int' for SetPosition change: %T (%v)", change.argv[0], change.argv)
-			}
-		} else {
-			l.LogError("too many arguments for SetPosition change: %v", change.argv)
-		}
-
-	case "InsertTextAndSetPosition":
-		if len(change.argv) == 3 {
-			if text, ok := change.argv[0].(string); ok {
-				if index, ok := change.argv[1].(int); ok {
-					if pos, ok := change.argv[2].(int); ok {
-						l.insertTextAndSetPosition(text, index, pos)
-						changesApplied = true
-					} else {
-						l.LogError("third argument is not an 'int' for InsertTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
-					}
-				} else {
-					l.LogError("second argument is not an 'int' for InsertTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
-				}
-			} else {
-				l.LogError("first argument is not a 'string' for InsertTextAndSetPosition change: %T (%v)", change.argv[0], change.argv)
-			}
-		} else {
-			l.LogError("too many arguments for InsertTextAndSetPosition change: %v", change.argv)
-		}
-
-	case "InsertText":
-		if len(change.argv) >= 2 {
-			if newText, ok := change.argv[0].(string); ok {
-				if pos, ok := change.argv[1].(int); ok {
-					l.insertText(newText, pos)
-					changesApplied = true
-				} else {
-					l.LogError("second argument is not an 'int' for InsertText change: %T (%v)", change.argv[1], change.argv)
-				}
-			} else {
-				l.LogError("first argument is not a 'string' for InsertText change: %T (%v)", change.argv[0], change.argv)
-			}
-		} else {
-			l.LogError("too many arguments for InsertText change: %v", change.argv)
-		}
-
-	case "DeleteTextAndSetPosition":
-		if len(change.argv) == 3 {
-			if start, ok := change.argv[0].(int); ok {
-				if end, ok := change.argv[1].(int); ok {
-					if pos, ok := change.argv[2].(int); ok {
-						l.deleteTextAndSetPosition(start, end, pos)
-						changesApplied = true
-					} else {
-						l.LogError("third argument is not an 'int' for DeleteTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
-					}
-				} else {
-					l.LogError("second argument is not an 'int' for DeleteTextAndSetPosition change: %T (%v)", change.argv[1], change.argv)
-				}
-			} else {
-				l.LogError("first argument is not an 'int' for DeleteTextAndSetPosition change: %T (%v)", change.argv[0], change.argv)
-			}
-		} else {
-			l.LogError("too many arguments for DeleteTextAndSetPosition change: %v", change.argv)
-		}
-
-	case "DeleteText":
-		if len(change.argv) == 2 {
-			if start, ok := change.argv[0].(int); ok {
-				if end, ok := change.argv[1].(int); ok {
-					l.deleteText(start, end)
-					changesApplied = true
-				} else {
-					l.LogError("second argument is not an 'int' for DeleteText change: %T (%v)", change.argv[1], change.argv)
-				}
-			} else {
-				l.LogError("first argument is not an 'int' for DeleteText change: %T (%v)", change.argv[0], change.argv)
-			}
-		} else {
-			l.LogError("too many arguments for DeleteText change: %v", change.argv)
-		}
-	}
-
-	return
 }
 
 func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
@@ -1077,31 +1075,13 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			if !l.HasFocus() {
 				return cenums.EVENT_PASS
 			}
-			l.Lock()
-			l.pasting = e.Start()
-			l.Unlock()
-			if e.End() {
-				l.InsertText(l.pasted, l.GetPosition())
-				l.Lock()
-				l.pasted = ""
-				l.Unlock()
-			}
+			l.PasteClipboard()
 			return cenums.EVENT_STOP
 
 		case *cdk.EventKey:
 			if !l.HasFocus() {
 				return cenums.EVENT_PASS
 			}
-
-			l.RLock()
-			if l.pasting {
-				l.RUnlock()
-				l.Lock()
-				l.pasted += string(e.Rune())
-				l.Unlock()
-				return cenums.EVENT_STOP
-			}
-			l.RUnlock()
 
 			r := e.Rune()
 			v := e.Name()
@@ -1115,7 +1095,7 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				if l.GetSingleLineMode() {
 					l.LogDebug("activate default")
 				} else {
-					l.queueChange("InsertTextAndSetPosition", "\n", pos, pos+1)
+					l.insertTextAndSetPosition("\n", pos, pos+1)
 					l.LogDebug(`printable key: \n, at pos: %v`, pos)
 				}
 				return cenums.EVENT_STOP
@@ -1128,14 +1108,21 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + a
 					l.LogDebug("move home (ctrl+a)")
-					l.moveHome()
+					l.moveHome(m.Has(cdk.ModShift))
 					return cenums.EVENT_STOP
 				}
 
 			case 2: // 'b':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + b
-					l.moveLeft(1)
+					l.moveLeft(1, m.Has(cdk.ModShift))
+					return cenums.EVENT_STOP
+				}
+
+			case 3: // 'c':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + c
+					l.CopyClipboard()
 					return cenums.EVENT_STOP
 				}
 
@@ -1150,14 +1137,14 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + e
 					l.LogDebug("move end (ctrl+e)")
-					l.moveEnd()
+					l.moveEnd(m.Has(cdk.ModShift))
 					return cenums.EVENT_STOP
 				}
 
 			case 6: // 'f':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + f
-					l.moveRight(1)
+					l.moveRight(1, m.Has(cdk.ModShift))
 					return cenums.EVENT_STOP
 				}
 
@@ -1171,21 +1158,48 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			case 14: // 'n':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + n
-					l.moveDown(1)
+					l.moveDown(1, m.Has(cdk.ModShift))
 					return cenums.EVENT_STOP
 				}
 
 			case 16: // 'p':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + p
-					l.moveUp(1)
+					l.moveUp(1, m.Has(cdk.ModShift))
+					return cenums.EVENT_STOP
+				}
+
+			case 22: // 'v':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + v
+					l.PasteClipboard()
+					return cenums.EVENT_STOP
+				}
+
+			case 24: // 'x':
+				if m.Has(cdk.ModCtrl) {
+					// ctrl + x
+					l.CutClipboard()
 					return cenums.EVENT_STOP
 				}
 			}
 
 			if k := e.Key(); k == cdk.KeyRune {
 				pk := string(r)
-				l.queueChange("InsertTextAndSetPosition", pk, pos, pos+1)
+				// TODO: keypress deletes selection and then inserts at selection start
+				var selection *ptypes.Point2I
+				l.RLock()
+				if l.selection != nil {
+					selection = l.selection.NewClone()
+				}
+				l.RUnlock()
+				if selection != nil {
+					pos = l.selection.X
+					l.deleteText(l.selection.X, l.selection.Y)
+					l.clearSelection()
+					l.LogDebug("replacing selection with printable key...")
+				}
+				l.insertTextAndSetPosition(pk, pos, pos+1)
 				l.LogDebug("printable key: %v, at pos: %v", pk, pos)
 				return cenums.EVENT_STOP
 			}
@@ -1193,47 +1207,48 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			alloc := l.GetAllocation()
 
 			switch v {
-			case "Home":
-				l.moveHome()
+			case "Home", "Shift+Home":
+				l.moveHome(m.Has(cdk.ModShift))
 				l.LogDebug("move home (Home)")
 				return cenums.EVENT_STOP
 
-			case "End":
-				l.moveEnd()
+			case "End", "Shift+End":
+				l.moveEnd(m.Has(cdk.ModShift))
 				l.LogDebug("move end (End)")
 				return cenums.EVENT_STOP
 
-			case "PgUp":
+			case "PgUp", "Shift+PgUp":
 				l.LogDebug("move up %d lines (PgUp)", alloc.H)
-				l.moveUp(alloc.H)
+				l.moveUp(alloc.H, m.Has(cdk.ModShift))
 				return cenums.EVENT_STOP
 
-			case "PgDn":
+			case "PgDn", "Shift+PgDn":
 				l.LogDebug("move down %d lines (PgDn)", alloc.H)
-				l.moveDown(alloc.H)
+				l.moveDown(alloc.H, m.Has(cdk.ModShift))
 				return cenums.EVENT_STOP
 
-			case "Delete":
+			case "Delete", "Shift+Delete":
 				l.deleteForwards()
 				return cenums.EVENT_STOP
 
-			case "Left":
-				l.moveLeft(1)
+			case "Left", "Shift+Left":
+				l.moveLeft(1, m.Has(cdk.ModShift))
 				return cenums.EVENT_STOP
 
-			case "Right":
-				l.moveRight(1)
+			case "Right", "Shift+Right":
+				l.moveRight(1, m.Has(cdk.ModShift))
 				return cenums.EVENT_STOP
 
-			case "Up", "Down":
+			case "Up", "Down", "Shift+Up", "Shift+Down":
+				vv := strings.Replace(v, "Shift+", "", 1)
 				if l.GetSingleLineMode() {
 					l.LogDebug("cannot move %v with single line mode", v)
-				} else if v == "Down" {
+				} else if vv == "Down" {
 					l.LogDebug("move down one line")
-					l.moveDown(1)
+					l.moveDown(1, m.Has(cdk.ModShift))
 				} else {
 					l.LogDebug("move up one line")
-					l.moveUp(1)
+					l.moveUp(1, m.Has(cdk.ModShift))
 				}
 				return cenums.EVENT_STOP
 
@@ -1280,6 +1295,7 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 					local := pos.NewClone()
 					local.SubPoint(l.GetOrigin())
 					local.AddPoint(l.offset.Origin())
+					l.clearSelection()
 					l.SetPosition(l.tProfile.GetPositionFromPoint(*local))
 					return cenums.EVENT_STOP
 				}
@@ -1322,12 +1338,6 @@ func (l *CEntry) updateCursor() {
 }
 
 func (l *CEntry) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
-	l.qLock.Lock()
-	if l.qTimer != uuid.Nil {
-		cdk.StopTimeout(l.qTimer)
-		l.qTimer = uuid.Nil
-	}
-	l.qLock.Unlock()
 	l.UnsetState(enums.StateSelected)
 	l.refresh()
 	return cenums.EVENT_PASS
@@ -1336,22 +1346,6 @@ func (l *CEntry) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 func (l *CEntry) gainedFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	l.SetState(enums.StateSelected)
 	l.refresh()
-	l.qLock.Lock()
-	if l.qTimer != uuid.Nil {
-		cdk.StopTimeout(l.qTimer)
-		l.qTimer = uuid.Nil
-	}
-	if l.qEnabled {
-		l.queue = nil
-		l.qTimer = cdk.AddTimeout(time.Millisecond*50, func() cenums.EventFlag {
-			if l.processQueue() {
-				// _ = l.Emit(SignalChangedText, l)
-				l.Invalidate()
-			}
-			return cenums.EVENT_PASS
-		})
-	}
-	l.qLock.Unlock()
 	return cenums.EVENT_PASS
 }
 
