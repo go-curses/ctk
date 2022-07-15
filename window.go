@@ -1663,9 +1663,11 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				w.receivingPaste = true
 				w.Unlock()
 			} else {
-				clipboard := GetDefaultClipboard()
 				w.Lock()
-				clipboard.Paste(*w.pasteBuffer)
+				if w.display != nil {
+					clipboard := w.display.GetClipboard()
+					clipboard.Paste(*w.pasteBuffer)
+				}
 				w.receivingPaste = false
 				w.pasteBuffer = nil
 				w.Unlock()
