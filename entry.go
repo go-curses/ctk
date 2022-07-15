@@ -841,11 +841,10 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 
 		if tBuffer := l.tBuffer.Clone(); tBuffer != nil {
 			tBuffer.SetStyle(theme.Content.Normal)
-			l.RLock()
 			if l.selection != nil {
-				tBuffer.Select(l.selection.X, l.selection.Y)
+				crop := l.tProfile.GetCropSelect(*l.selection, *l.offset)
+				tBuffer.Select(crop.Start, crop.End)
 			}
-			l.RUnlock()
 
 			if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 				l.LogErr(err)
