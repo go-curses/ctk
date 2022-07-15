@@ -128,7 +128,7 @@ type CEntry struct {
 
 	offset    *ptypes.Region
 	cursor    *ptypes.Point2I
-	selection *ptypes.Point2I
+	selection *ptypes.Range
 	position  int
 
 	tProfile *memphis.TextProfile
@@ -368,7 +368,7 @@ func (l *CEntry) GetText() (value string) {
 func (l *CEntry) SelectRegion(startOffset int, endOffset int) {
 	if l.GetSelectable() {
 		l.Lock()
-		l.selection = ptypes.NewPoint2I(startOffset, endOffset)
+		l.selection = ptypes.NewRange(startOffset, endOffset)
 		l.Unlock()
 	}
 }
@@ -510,8 +510,8 @@ func (l *CEntry) GetSelectionBounds() (startPos, endPos int, ok bool) {
 	l.RLock()
 	defer l.RUnlock()
 	if l.selection != nil {
-		startPos = l.selection.X
-		endPos = l.selection.Y
+		startPos = l.selection.Start
+		endPos = l.selection.End
 		ok = true
 	}
 	return
@@ -584,10 +584,10 @@ func (l *CEntry) CutClipboard() {
 	l.RLock()
 	if l.selection != nil && l.tProfile != nil {
 		if l.tProfile.Len() > 0 {
-			value = l.tProfile.Select(l.selection.X, l.selection.Y)
+			value = l.tProfile.Select(l.selection.Start, l.selection.End)
 		}
 		l.RUnlock()
-		l.deleteTextAndSetPosition(l.selection.X, l.selection.Y, l.selection.X)
+		l.deleteTextAndSetPosition(l.selection.Start, l.selection.End, l.selection.Start)
 	} else {
 		l.RUnlock()
 	}
@@ -601,7 +601,7 @@ func (l *CEntry) CopyClipboard() {
 	l.RLock()
 	if l.selection != nil && l.tProfile != nil {
 		if l.tProfile.Len() > 0 {
-			value = l.tProfile.Select(l.selection.X, l.selection.Y)
+			value = l.tProfile.Select(l.selection.Start, l.selection.End)
 		}
 	}
 	l.RUnlock()
@@ -615,11 +615,14 @@ func (l *CEntry) PasteClipboard() {
 	value := clipboard.GetText()
 	pos := l.GetPosition()
 	l.RLock()
-	selection := l.selection
+	var selection *ptypes.Range
+	if l.selection != nil {
+		selection = l.selection.NewClone()
+	}
 	l.RUnlock()
 	if selection != nil {
-		l.deleteTextAndSetPosition(selection.X, selection.Y, selection.X)
-		pos = selection.X
+		l.deleteTextAndSetPosition(selection.Start, selection.End, selection.Start)
+		pos = selection.Start
 	}
 	l.insertTextAndSetPosition(value, pos, pos+len(value))
 	l.LogDebug("pasted clipboard: %v", value)
@@ -631,7 +634,7 @@ func (l *CEntry) DeleteSelection() {
 	selection := l.selection
 	l.RUnlock()
 	if selection != nil {
-		l.deleteTextAndSetPosition(l.selection.X, l.selection.Y, l.selection.X)
+		l.deleteTextAndSetPosition(l.selection.Start, l.selection.End, l.selection.Start)
 		l.LogDebug("selection deleted")
 	}
 	l.clearSelection()
@@ -868,33 +871,33 @@ func (l *CEntry) updateSelection(oldPos, newPos int) (note string) {
 			// moving selection end backwards
 			// moving selection end forwards
 
-			isMovingStart := newPos <= l.selection.X
-			isFlipping := l.selection.X >= l.selection.Y
+			isMovingStart := newPos <= l.selection.Start
+			isFlipping := l.selection.Start >= l.selection.End
 
 			if isFlipping {
 				if isMovingBackwards {
-					l.selection.Y = l.selection.X
-					l.selection.X = newPos
+					l.selection.End = l.selection.Start
+					l.selection.Start = newPos
 					note = fmt.Sprintf("moving selection flip backwards: %v [%v,%v]", l.selection, oldPos, newPos)
 				} else {
-					l.selection.X = l.selection.Y
-					l.selection.Y = newPos
+					l.selection.Start = l.selection.End
+					l.selection.End = newPos
 					note = fmt.Sprintf("moving selection flip forwards: %v [%v,%v]", l.selection, oldPos, newPos)
 				}
 			} else if isMovingStart {
 				if isMovingBackwards {
-					l.selection.X = newPos + 1
+					l.selection.Start = newPos + 1
 					note = fmt.Sprintf("moving selection start backwards: %v [%v,%v]", l.selection, oldPos, newPos)
 				} else {
-					l.selection.X = newPos + 1
+					l.selection.Start = newPos + 1
 					note = fmt.Sprintf("moving selection start forwards: %v [%v,%v]", l.selection, oldPos, newPos)
 				}
 			} else {
 				if isMovingBackwards {
-					l.selection.Y = newPos - 1
+					l.selection.End = newPos - 1
 					note = fmt.Sprintf("moving selection end backwards: %v [%v,%v]", l.selection, oldPos, newPos)
 				} else {
-					l.selection.Y = newPos - 1
+					l.selection.End = newPos - 1
 					note = fmt.Sprintf("moving selection end forwards: %v [%v,%v]", l.selection, oldPos, newPos)
 				}
 			}
@@ -902,10 +905,10 @@ func (l *CEntry) updateSelection(oldPos, newPos int) (note string) {
 		} else {
 
 			if isMovingBackwards {
-				l.selection = ptypes.NewPoint2I(newPos+1, oldPos)
+				l.selection = ptypes.NewRange(newPos+1, oldPos)
 				note = fmt.Sprintf("started new selection backwards: %v [%v,%v]", l.selection, oldPos, newPos)
 			} else {
-				l.selection = ptypes.NewPoint2I(oldPos, newPos-1)
+				l.selection = ptypes.NewRange(oldPos, newPos-1)
 				note = fmt.Sprintf("started new selection forwards: %v [%v,%v]", l.selection, oldPos, newPos)
 			}
 
@@ -1017,7 +1020,7 @@ func (l *CEntry) moveRight(characters int, shift bool) {
 func (l *CEntry) deleteForwards() {
 	pos := l.GetPosition()
 	l.RLock()
-	var selection *ptypes.Point2I
+	var selection *ptypes.Range
 	if l.selection != nil {
 		selection = l.selection.NewClone()
 	}
@@ -1025,7 +1028,7 @@ func (l *CEntry) deleteForwards() {
 	if tLen := l.tProfile.Len(); tLen > 0 {
 		if selection != nil {
 			l.LogDebug("deleting selection")
-			l.deleteTextAndSetPosition(selection.X, selection.Y, selection.X)
+			l.deleteTextAndSetPosition(selection.Start, selection.End, selection.Start-1)
 			l.clearSelection()
 		} else {
 			if pos < tLen {
@@ -1044,7 +1047,7 @@ func (l *CEntry) deleteForwards() {
 func (l *CEntry) deleteBackwards() {
 	pos := l.GetPosition()
 	l.RLock()
-	var selection *ptypes.Point2I
+	var selection *ptypes.Range
 	if l.selection != nil {
 		selection = l.selection.NewClone()
 	}
@@ -1052,7 +1055,7 @@ func (l *CEntry) deleteBackwards() {
 	if tLen := l.tProfile.Len(); tLen > 0 {
 		if selection != nil {
 			l.LogDebug("deleting selection")
-			l.deleteTextAndSetPosition(selection.X, selection.Y, selection.X)
+			l.deleteTextAndSetPosition(selection.Start, selection.End, selection.Start)
 			l.clearSelection()
 		} else if pos > 0 {
 			l.LogDebug("deleting backwards")
@@ -1187,15 +1190,15 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			if k := e.Key(); k == cdk.KeyRune {
 				pk := string(r)
 				// TODO: keypress deletes selection and then inserts at selection start
-				var selection *ptypes.Point2I
 				l.RLock()
+				var selection *ptypes.Range
 				if l.selection != nil {
 					selection = l.selection.NewClone()
 				}
 				l.RUnlock()
 				if selection != nil {
-					pos = l.selection.X
-					l.deleteText(l.selection.X, l.selection.Y)
+					pos = l.selection.Start
+					l.deleteText(l.selection.Start, l.selection.End)
 					l.clearSelection()
 					l.LogDebug("replacing selection with printable key...")
 				}
