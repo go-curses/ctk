@@ -591,8 +591,11 @@ func (l *CEntry) CutClipboard() {
 	} else {
 		l.RUnlock()
 	}
-	clipboard := GetDefaultClipboard()
-	clipboard.Copy(value)
+	if d := l.GetDisplay(); d != nil {
+		clipboard := d.GetClipboard()
+		clipboard.Copy(value)
+	}
+	l.LogDebug("cut to clipboard: \"%v\"", value)
 	l.clearSelection()
 }
 
@@ -605,14 +608,20 @@ func (l *CEntry) CopyClipboard() {
 		}
 	}
 	l.RUnlock()
-	clipboard := GetDefaultClipboard()
-	clipboard.Copy(value)
+	if d := l.GetDisplay(); d != nil {
+		clipboard := d.GetClipboard()
+		clipboard.Copy(value)
+	}
+	l.LogDebug("copied to clipboard: \"%v\"", value)
 	l.clearSelection()
 }
 
 func (l *CEntry) PasteClipboard() {
-	clipboard := GetDefaultClipboard()
-	value := clipboard.GetText()
+	var value string
+	if d := l.GetDisplay(); d != nil {
+		clipboard := d.GetClipboard()
+		value = clipboard.GetText()
+	}
 	pos := l.GetPosition()
 	l.RLock()
 	var selection *ptypes.Range
@@ -625,7 +634,7 @@ func (l *CEntry) PasteClipboard() {
 		pos = selection.Start
 	}
 	l.insertTextAndSetPosition(value, pos, pos+len(value))
-	l.LogDebug("pasted clipboard: %v", value)
+	l.LogDebug("pasted from clipboard: \"%v\"", value)
 	l.clearSelection()
 }
 
