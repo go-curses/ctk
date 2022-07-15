@@ -283,7 +283,7 @@ func (b *CBox) Remove(w Widget) {
 //
 // Locking: write
 func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
-	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
+	// b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackStart, b, child, expand, fill, padding); f == cenums.EVENT_PASS {
 		child.Map()
 		child.SetParent(b)
@@ -320,7 +320,7 @@ func (b *CBox) PackStart(child Widget, expand, fill bool, padding int) {
 //
 // Locking: write
 func (b *CBox) PackEnd(child Widget, expand, fill bool, padding int) {
-	b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
+	// b.LogDebug("expand=%v, fill=%v, padding=%v, child=%v", expand, fill, padding, child.ObjectName())
 	if f := b.Emit(SignalPackEnd, b, child, expand, fill, padding); f == cenums.EVENT_PASS {
 		child.Map()
 		child.SetParent(b)
