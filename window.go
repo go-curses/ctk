@@ -167,6 +167,8 @@ type CWindow struct {
 	mnemonics      []*mnemonicEntry
 	mnemonicMod    cdk.ModMask
 	mnemonicLock   *sync.RWMutex
+	receivingPaste bool
+	pasteBuffer    *string
 
 	styleSheet *cStyleSheet
 }
@@ -222,6 +224,8 @@ func (w *CWindow) Init() (already bool) {
 	w.mnemonicLock = &sync.RWMutex{}
 	w.hoverFocus = nil
 	w.hoverFocused = new(WidgetSlice)
+	w.receivingPaste = false
+	w.pasteBuffer = nil
 
 	_ = w.InstallProperty(PropertyWindowType, cdk.StructProperty, true, cenums.WINDOW_TOPLEVEL)
 	_ = w.InstallProperty(PropertyAcceptFocus, cdk.BoolProperty, true, true)
@@ -1646,21 +1650,46 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
 
-		case *cdk.EventPaste:
-			if fi := w.GetFocus(); fi != nil {
-				if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
-					if f := sw.ProcessEvent(evt); f == cenums.EVENT_STOP {
-						return cenums.EVENT_STOP
-					}
-				}
-			}
-
 		case *cdk.EventError:
 			if f := w.Emit(SignalError, w, e); f == cenums.EVENT_PASS {
 				w.LogError(e.Error())
 			}
 
+		case *cdk.EventPaste:
+			starting := e.Start()
+			if starting {
+				w.Lock()
+				w.pasteBuffer = new(string)
+				w.receivingPaste = true
+				w.Unlock()
+			} else {
+				clipboard := GetDefaultClipboard()
+				w.Lock()
+				clipboard.Paste(*w.pasteBuffer)
+				w.receivingPaste = false
+				w.pasteBuffer = nil
+				w.Unlock()
+				if fi := w.GetFocus(); fi != nil {
+					if sw, ok := fi.Self().(Sensitive); ok && sw.IsSensitive() && sw.IsVisible() {
+						if f := sw.ProcessEvent(evt); f == cenums.EVENT_STOP {
+							return cenums.EVENT_STOP
+						}
+					}
+				}
+			}
+			return cenums.EVENT_STOP
+
 		case *cdk.EventKey:
+			w.RLock()
+			if w.receivingPaste {
+				w.RUnlock()
+				w.Lock()
+				*w.pasteBuffer += string(e.Rune())
+				w.Unlock()
+				return cenums.EVENT_STOP
+			}
+			w.RUnlock()
+
 			if f := w.Emit(SignalEventKey, w, e); f == cenums.EVENT_PASS {
 				// check for mnemonics
 				if w.ActivateMnemonic(e.Rune(), e.Modifiers()) {
