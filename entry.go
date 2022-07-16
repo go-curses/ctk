@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
+	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	cstrings "github.com/go-curses/cdk/lib/strings"
@@ -130,6 +131,8 @@ type CEntry struct {
 	cursor    *ptypes.Point2I
 	selection *ptypes.Range
 	position  int
+
+	selectionMovingStart bool
 
 	tProfile *memphis.TextProfile
 	tBuffer  memphis.TextBuffer
@@ -633,6 +636,7 @@ func (l *CEntry) PasteClipboard() {
 		l.deleteTextAndSetPosition(selection.Start, selection.End, selection.Start)
 		pos = selection.Start
 	}
+	pos = cmath.FloorI(pos, 0)
 	l.insertTextAndSetPosition(value, pos, pos+len(value))
 	l.LogDebug("pasted from clipboard: \"%v\"", value)
 	l.clearSelection()
@@ -868,56 +872,54 @@ func (l *CEntry) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 
 func (l *CEntry) updateSelection(oldPos, newPos int) (note string) {
 	l.Lock()
-	if l.tProfile != nil && l.tProfile.Len() > 0 {
+	profileLen := l.tProfile.Len()
+	if l.tProfile != nil && profileLen > 0 {
 
+		// wasMovingBackwards := l.selectionOldPos > selectionOldPos
 		isMovingBackwards := oldPos > newPos
 
-		if l.selection != nil {
+		if l.selection == nil {
 
-			// moving selection start backwards
-			// moving selection start forwards
-			// moving selection end backwards
-			// moving selection end forwards
-
-			isMovingStart := newPos <= l.selection.Start
-			isFlipping := l.selection.Start >= l.selection.End
-
-			if isFlipping {
-				if isMovingBackwards {
-					l.selection.End = l.selection.Start
-					l.selection.Start = newPos
-					note = fmt.Sprintf("moving selection flip backwards: %v [%v,%v]", l.selection, oldPos, newPos)
-				} else {
-					l.selection.Start = l.selection.End
-					l.selection.End = newPos
-					note = fmt.Sprintf("moving selection flip forwards: %v [%v,%v]", l.selection, oldPos, newPos)
-				}
-			} else if isMovingStart {
-				if isMovingBackwards {
-					l.selection.Start = newPos + 1
-					note = fmt.Sprintf("moving selection start backwards: %v [%v,%v]", l.selection, oldPos, newPos)
-				} else {
-					l.selection.Start = newPos + 1
-					note = fmt.Sprintf("moving selection start forwards: %v [%v,%v]", l.selection, oldPos, newPos)
-				}
+			if isMovingBackwards {
+				l.selectionMovingStart = true
+				l.selection = ptypes.NewRange(newPos, oldPos-1)
+				note = fmt.Sprintf("started new selection backwards: %v [%v,%v]", l.selection, oldPos, newPos)
 			} else {
-				if isMovingBackwards {
-					l.selection.End = newPos - 1
-					note = fmt.Sprintf("moving selection end backwards: %v [%v,%v]", l.selection, oldPos, newPos)
-				} else {
-					l.selection.End = newPos - 1
-					note = fmt.Sprintf("moving selection end forwards: %v [%v,%v]", l.selection, oldPos, newPos)
-				}
+				l.selectionMovingStart = false
+				l.selection = ptypes.NewRange(oldPos, newPos-1)
+				note = fmt.Sprintf("started new selection forwards: %v [%v,%v]", l.selection, oldPos, newPos)
 			}
 
 		} else {
 
-			if isMovingBackwards {
-				l.selection = ptypes.NewRange(newPos+1, oldPos)
-				note = fmt.Sprintf("started new selection backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+			if newPos >= profileLen {
+				newPos = profileLen - 1
+			}
+
+			if l.selectionMovingStart && newPos > l.selection.End {
+				l.selection.Start = newPos
+				l.selectionMovingStart = false
+			} else if !l.selectionMovingStart && newPos < l.selection.Start {
+				l.selection.End = newPos
+				l.selectionMovingStart = true
+			}
+
+			if l.selectionMovingStart {
+				if isMovingBackwards {
+					l.selection.Start = newPos
+					note = fmt.Sprintf("moving selection start backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				} else {
+					l.selection.Start = newPos
+					note = fmt.Sprintf("moving selection start forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				}
 			} else {
-				l.selection = ptypes.NewRange(oldPos, newPos-1)
-				note = fmt.Sprintf("started new selection forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				if isMovingBackwards {
+					l.selection.End = newPos
+					note = fmt.Sprintf("moving selection end backwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				} else {
+					l.selection.End = newPos
+					note = fmt.Sprintf("moving selection end forwards: %v [%v,%v]", l.selection, oldPos, newPos)
+				}
 			}
 
 		}
