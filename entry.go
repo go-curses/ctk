@@ -929,6 +929,38 @@ func (l *CEntry) updateSelection(oldPos, newPos int) (note string) {
 	return
 }
 
+func (l *CEntry) unselectAll() {
+	if l.selectedAll() {
+		l.clearSelection()
+		l.setPosition(0)
+	}
+}
+
+func (l *CEntry) selectAll() {
+	l.Lock()
+	end := l.tProfile.Len() - 1
+	if l.selection == nil {
+		l.selection = ptypes.NewRange(0, end)
+		l.LogDebug("new select all (ctrl+a): %v", l.selection)
+	} else {
+		l.selection.Start = 0
+		l.selection.End = end
+		l.LogDebug("rpl select all (ctrl+a): %v", l.selection)
+	}
+	l.Unlock()
+	l.setPosition(end + 1)
+}
+
+func (l *CEntry) selectedAll() bool {
+	l.RLock()
+	defer l.RUnlock()
+	if l.selection == nil {
+		return false
+	}
+	end := l.tProfile.Len() - 1
+	return l.selection.Start == 0 && l.selection.End == end
+}
+
 func (l *CEntry) clearSelection() {
 	l.Lock()
 	if l.selection != nil {
@@ -1118,8 +1150,11 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			case 1: // 'a':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + a
-					l.LogDebug("move home (ctrl+a)")
-					l.moveHome(m.Has(cdk.ModShift))
+					if l.selectedAll() {
+						l.unselectAll()
+					} else {
+						l.selectAll()
+					}
 					return cenums.EVENT_STOP
 				}
 
@@ -1197,7 +1232,6 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 
 			if k := e.Key(); k == cdk.KeyRune {
 				pk := string(r)
-				// TODO: keypress deletes selection and then inserts at selection start
 				l.RLock()
 				var selection *ptypes.Range
 				if l.selection != nil {
