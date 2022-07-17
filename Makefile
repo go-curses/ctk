@@ -3,7 +3,7 @@
 BUILD_CMD := go-ctk
 DEV_EXAMPLE := demo-app
 CDK_PATH := ../cdk
-CTK_PATH := ../../ctk
+CTK_PATH := ../ctk
 
 .PHONY: all build build-all clean clean-logs dev examples fmt help profile.cpu profile.mem run tidy
 
@@ -84,25 +84,20 @@ clean: clean-logs clean-examples clean-cmd
 	@echo "# cleaning goland builds"
 	@rm -rfv go_* || true
 
-build: clean-cmd
+build:
 	@echo -n "# building command ${BUILD_CMD}... "
 	@cd cmd/${BUILD_CMD}; \
 		( go build -v \
 				-trimpath \
-				-gcflags=all="-N -l" \
-				-ldflags="\
--X 'main.IncludeProfiling=true' \
--X 'main.IncludeLogFile=true'   \
--X 'main.IncludeLogLevel=true'  \
-" \
 				-o ../../${BUILD_CMD} \
 			2>&1 ) > ../../${BUILD_CMD}.build.log; \
+		rv="$$?"; \
 		cd - > /dev/null; \
-		if [ -f ${BUILD_CMD} ]; \
-		then \
+		if [ $$rv = "0" -a -f ${BUILD_CMD} ]; then \
 			echo "done."; \
 		else \
-			echo "fail.\n#\tsee ./${BUILD_CMD}.build.log"; \
+			echo "failed.\n>\tsee ./${BUILD_CMD}.build.log for errors"; \
+			false; \
 		fi
 
 build-all: clean-cmd
@@ -224,13 +219,12 @@ unlocal: depends-on-cdk-path
 	@echo "# running go mod tidy"
 	@go mod tidy
 
-dev: clean
+dev:
 	@if [ -d examples/${DEV_EXAMPLE} ]; \
 	then \
 		echo -n "# building: ${DEV_EXAMPLE} [dev]... "; \
 		cd examples/${DEV_EXAMPLE}; \
 		( go build -v \
-				-trimpath \
 				-gcflags=all="-N -l" \
 				-ldflags="\
 -X 'main.IncludeProfiling=true' \
@@ -239,10 +233,15 @@ dev: clean
 " \
 				-o ../../${DEV_EXAMPLE} \
 			2>&1 ) > ../../${DEV_EXAMPLE}.build.log; \
+		rv="$$?"; \
 		cd - > /dev/null; \
-		[ -f ${DEV_EXAMPLE} ] \
-			&& echo "done." \
-			|| echo "failed.\n>\tsee ./${DEV_EXAMPLE}.build.log for errors"; \
+		if [ $$rv = "0" -a -f ${DEV_EXAMPLE} ]; then \
+			echo "done."; \
+		else \
+			echo "failed.\n>\tsee ./${DEV_EXAMPLE}.build.log errors below:"; \
+			cat ./${DEV_EXAMPLE}.build.log; \
+			false; \
+		fi; \
 	else \
 		echo "# dev example not found: ${DEV_EXAMPLE}"; \
 	fi
@@ -253,8 +252,8 @@ run: export GO_CDK_LOG_FULL_PATHS=true
 run:
 	@if [ -f ${DEV_EXAMPLE} ]; \
 	then \
-		echo "# starting ${DEV_EXAMPLE}..."; \
-		./${DEV_EXAMPLE}; \
+		echo "# running: ${DEV_EXAMPLE}"; \
+		( ./${DEV_EXAMPLE} ) 2>> ${GO_CDK_LOG_FILE}; \
 		if [ $$? -ne 0 ]; \
 		then \
 			stty sane; echo ""; \
@@ -404,3 +403,15 @@ profile.mem: dev
 	else \
 		echo "not a command or example: $@"; \
 	fi
+
+#
+# Cross-Compilation Targets
+#
+
+dev-linux-mips64: export GOOS=linux
+dev-linux-mips64: export GOARCH=mips64
+dev-linux-mips64: dev
+
+dev-darwin-amd64: export GOOS=darwin
+dev-darwin-amd64: export GOARCH=amd64
+dev-darwin-amd64: dev
