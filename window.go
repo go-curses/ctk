@@ -763,10 +763,10 @@ func (w *CWindow) GetFocus() (focus Widget) {
 // Parameters:
 // 	focus	widget to be the new focus widget, or NULL to unset
 func (w *CWindow) SetFocus(focus Widget) {
-	if transient := w.GetTransientFor(); transient != nil && w.ObjectID() != transient.ObjectID() {
-		transient.SetFocus(focus)
-		return
-	}
+	// if transient := w.GetTransientFor(); transient != nil && w.ObjectID() != transient.ObjectID() {
+	// 	transient.SetFocus(focus)
+	// 	return
+	// }
 
 	if focus == nil {
 		if err := w.SetStructProperty(PropertyFocusedWidget, nil); err != nil {
