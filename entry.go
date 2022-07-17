@@ -1288,45 +1288,102 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 			}
 
 			switch e.State() {
-			// case cdk.BUTTON_PRESS, cdk.DRAG_START:
-			// 	if l.HasPoint(pos) && !l.HasEventFocus() {
-			// 		l.GrabEventFocus()
-			// 		return cenums.EVENT_STOP
-			// 	}
-			// case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
-			// 	if l.HasEventFocus() {
-			// 		if !l.HasPoint(pos) {
-			// 			l.LogDebug("moved out of bounds")
-			// 			l.CancelEvent()
-			// 			return cenums.EVENT_STOP
-			// 		}
-			// 	}
-			// 	return cenums.EVENT_PASS
-			// case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
-			// 	if l.HasEventFocus() {
-			// 		if !l.HasPoint(pos) {
-			// 			l.LogDebug("released out of bounds")
-			// 			l.CancelEvent()
-			// 			return cenums.EVENT_STOP
-			// 		}
-			// 		l.ReleaseEventFocus()
-			// 		l.GrabFocus()
-			// 		l.LogDebug("released")
-			// 		return cenums.EVENT_STOP
-			// 	}
-			// }
-			case cdk.BUTTON_RELEASE:
+			case cdk.BUTTON_PRESS, cdk.DRAG_START:
 				if l.HasPoint(pos) {
+					local := pos.NewClone()
+					local.SubPoint(l.GetOrigin())
+					l.RLock()
+					local.AddPoint(l.offset.Origin())
+					mousePos := l.tProfile.GetPositionFromPoint(*local)
+					var selection *ptypes.Range
+					if l.selection != nil {
+						selection = l.selection.NewClone()
+					}
+					l.RUnlock()
+					cursorPos := l.GetPosition()
 					if !l.HasFocus() {
 						l.GrabFocus()
 					}
-					local := pos.NewClone()
-					local.SubPoint(l.GetOrigin())
-					local.AddPoint(l.offset.Origin())
-					l.clearSelection()
-					l.SetPosition(l.tProfile.GetPositionFromPoint(*local))
+					if l.HasEventFocus() {
+						// dragging sometimes results in presses that are really
+						// movements
+						var start, end int
+						if mousePos > cursorPos {
+							start = cursorPos
+							end = mousePos
+						} else {
+							start = mousePos
+							end = cursorPos
+						}
+						if selection == nil {
+							selection = ptypes.NewRange(start, end)
+						} else {
+							selection.Start = start
+							selection.End = end
+						}
+						l.Lock()
+						l.selection = selection
+						l.Unlock()
+						l.LogDebug("button press / drag start (moving?): mouse=%v, selection=%v", mousePos, selection)
+					} else {
+						l.GrabEventFocus()
+						l.clearSelection()
+						l.LogDebug("button press / drag start: mouse=%v, selection=%v", mousePos, selection)
+					}
+					l.SetPosition(mousePos)
+					l.Invalidate()
 					return cenums.EVENT_STOP
 				}
+				return cenums.EVENT_PASS
+
+			case cdk.MOUSE_MOVE, cdk.DRAG_MOVE:
+				if l.HasEventFocus() {
+					local := pos.NewClone()
+					local.SubPoint(l.GetOrigin())
+					l.RLock()
+					local.AddPoint(l.offset.Origin())
+					mousePos := l.tProfile.GetPositionFromPoint(*local)
+					var selection *ptypes.Range
+					if l.selection != nil {
+						selection = l.selection.NewClone()
+					}
+					l.RUnlock()
+					cursorPos := l.GetPosition()
+					if selection == nil {
+						var start, end int
+						if mousePos > cursorPos {
+							start = cursorPos
+							end = mousePos
+						} else {
+							start = mousePos
+							end = cursorPos
+						}
+						selection = ptypes.NewRange(start, end)
+						l.LogDebug("mouse move / drag move: mouse=%v, [new] selection=%v", mousePos, selection)
+					} else {
+						if mousePos <= selection.Start {
+							selection.Start = mousePos
+						} else {
+							selection.End = mousePos
+						}
+						l.LogDebug("mouse move / drag move: mouse=%v, selection=%v", mousePos, selection)
+					}
+					l.Lock()
+					l.selection = selection.NewClone()
+					l.Unlock()
+					l.SetPosition(mousePos)
+					l.refresh()
+					return cenums.EVENT_STOP
+				}
+				return cenums.EVENT_PASS
+
+			case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
+				if l.HasEventFocus() {
+					l.ReleaseEventFocus()
+				}
+				l.Invalidate()
+				l.LogDebug("button release / drag stopped")
+				return cenums.EVENT_PASS
 			}
 		}
 	}
