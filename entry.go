@@ -1206,6 +1206,14 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				l.insertTextAndSetPosition(pk, pos, pos+1)
 				l.LogDebug("printable key: %v, at pos: %v", pk, pos)
 				return cenums.EVENT_STOP
+			} else if k == cdk.KeyEsc {
+				if l.HasEventFocus() {
+					l.ReleaseEventFocus()
+				}
+				l.clearSelection()
+				l.Invalidate()
+				l.LogDebug("escape key")
+				return cenums.EVENT_STOP
 			}
 
 			alloc := l.GetAllocation()
