@@ -1160,13 +1160,6 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 					return cenums.EVENT_STOP
 				}
 
-			case 2: // 'b':
-				if m.Has(cdk.ModCtrl) {
-					// ctrl + b
-					l.moveLeft(1, m.Has(cdk.ModShift))
-					return cenums.EVENT_STOP
-				}
-
 			case 3: // 'c':
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + c
@@ -1178,42 +1171,6 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 				if m.Has(cdk.ModCtrl) {
 					// ctrl + d
 					l.deleteForwards()
-					return cenums.EVENT_STOP
-				}
-
-			case 5: // 'e':
-				if m.Has(cdk.ModCtrl) {
-					// ctrl + e
-					l.LogDebug("move end (ctrl+e)")
-					l.moveEnd(m.Has(cdk.ModShift))
-					return cenums.EVENT_STOP
-				}
-
-			case 6: // 'f':
-				if m.Has(cdk.ModCtrl) {
-					// ctrl + f
-					l.moveRight(1, m.Has(cdk.ModShift))
-					return cenums.EVENT_STOP
-				}
-
-			case 8: // 'h':
-				if m.Has(cdk.ModCtrl) {
-					// ctrl + h
-					l.deleteBackwards()
-					return cenums.EVENT_STOP
-				}
-
-			case 14: // 'n':
-				if m.Has(cdk.ModCtrl) {
-					// ctrl + n
-					l.moveDown(1, m.Has(cdk.ModShift))
-					return cenums.EVENT_STOP
-				}
-
-			case 16: // 'p':
-				if m.Has(cdk.ModCtrl) {
-					// ctrl + p
-					l.moveUp(1, m.Has(cdk.ModShift))
 					return cenums.EVENT_STOP
 				}
 
