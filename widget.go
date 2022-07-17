@@ -2463,7 +2463,7 @@ func (w *CWidget) enter(_ []interface{}, argv ...interface{}) cenums.EventFlag {
 			}
 		}
 		w.Invalidate()
-		w.LogDebug("mouse enter - %v", w.ObjectInfo())
+		w.LogTrace("mouse enter - %v", w.ObjectInfo())
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
@@ -2476,7 +2476,7 @@ func (w *CWidget) leave(_ []interface{}, _ ...interface{}) cenums.EventFlag {
 		}
 		w.closeTooltip()
 		w.Invalidate()
-		w.LogDebug("mouse leave - %v", w.ObjectInfo())
+		w.LogTrace("mouse leave - %v", w.ObjectInfo())
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
