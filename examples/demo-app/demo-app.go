@@ -93,7 +93,7 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 			Debug = true
 		}
 		// note that screen is captured at this time!
-		d.CaptureCtrlC()
+		// d.CaptureCtrlC()
 		accelMap := ctk.GetAccelMap()
 		accelMap.LoadFromString(demoAppAccelMap)
 		w := ctk.NewWindowWithTitle(APP_TITLE)
