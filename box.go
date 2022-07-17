@@ -505,7 +505,9 @@ func (b *CBox) GetFocusChain() (focusableWidgets []Widget, explicitlySet bool) {
 		if cc, ok := child.Self().(Container); ok {
 			fc, _ := cc.GetFocusChain()
 			for _, cChild := range fc {
-				focusableWidgets = append(focusableWidgets, cChild)
+				if cChild.CanFocus() && cChild.IsVisible() && cChild.IsSensitive() {
+					focusableWidgets = append(focusableWidgets, cChild)
+				}
 			}
 		} else {
 			if child.CanFocus() && child.IsVisible() && child.IsSensitive() {
