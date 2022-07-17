@@ -1424,6 +1424,10 @@ func (l *CEntry) updateCursor() {
 
 func (l *CEntry) lostFocus([]interface{}, ...interface{}) cenums.EventFlag {
 	l.UnsetState(enums.StateSelected)
+	if l.HasEventFocus() {
+		l.ReleaseEventFocus()
+	}
+	l.clearSelection()
 	l.refresh()
 	return cenums.EVENT_PASS
 }
