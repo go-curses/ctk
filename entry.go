@@ -1271,6 +1271,22 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 
 		case *cdk.EventMouse:
 			pos := ptypes.NewPoint2I(e.Position())
+
+			eb := e.Button()
+			if !eb.Has(cdk.Button1) {
+				switch e.State() {
+				case cdk.BUTTON_PRESS, cdk.DRAG_START:
+					l.LogDebug("ignoring button press: %v", eb)
+				case cdk.BUTTON_RELEASE, cdk.DRAG_STOP:
+					if l.HasEventFocus() {
+						l.ReleaseEventFocus()
+					}
+					l.Invalidate()
+					l.LogDebug("ignoring button release: %v (released event focus)", eb)
+				}
+				return cenums.EVENT_PASS
+			}
+
 			switch e.State() {
 			// case cdk.BUTTON_PRESS, cdk.DRAG_START:
 			// 	if l.HasPoint(pos) && !l.HasEventFocus() {
