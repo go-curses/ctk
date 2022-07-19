@@ -1645,6 +1645,10 @@ func (w *CWindow) SetEventFocus(o cdk.Object) {
 	}
 }
 
+func (w *CWindow) Draw() cenums.EventFlag {
+	return w.CWidget.Draw()
+}
+
 func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if evt, ok := argv[1].(cdk.Event); ok {
 		switch e := evt.(type) {
