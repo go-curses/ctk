@@ -89,7 +89,6 @@ func (s *CScrolledViewport) Init() (already bool) {
 	s.CViewport.Init()
 	s.flags = enums.NULL_WIDGET_FLAG
 	s.SetFlags(enums.SENSITIVE | enums.CAN_FOCUS | enums.APP_PAINTABLE)
-	s.SetTheme(paint.DefaultColorTheme)
 
 	_ = s.InstallProperty(PropertyHScrollbarPolicy, cdk.StructProperty, true, enums.PolicyAlways)
 	_ = s.InstallProperty(PropertyScrolledViewportShadowType, cdk.StructProperty, true, enums.SHADOW_NONE)

@@ -13,33 +13,41 @@ import (
 	"github.com/go-curses/ctk/lib/enums"
 )
 
-const TypeWidget cdk.CTypeTag = "ctk-widget"
+const (
+	TypeWidget        cdk.CTypeTag    = "ctk-widget"
+	TooltipColorStyle paint.StyleName = "tooltip-color"
+	TooltipColorTheme paint.ThemeName = "tooltip-color"
+)
 
 func init() {
 	_ = cdk.TypesManager.AddType(TypeWidget, nil)
-}
 
-var (
-	DefaultTooltipStyle = paint.StyleDefault.Normal().
+	style := paint.StyleDefault.Normal().
 		Background(paint.ColorYellow).
 		Foreground(paint.ColorDarkSlateBlue).
 		Dim(false)
-	DefaultTooltipThemeAspect = paint.ThemeAspect{
-		Normal:      DefaultTooltipStyle,
-		Selected:    DefaultTooltipStyle,
-		Active:      DefaultTooltipStyle,
-		Prelight:    DefaultTooltipStyle,
-		Insensitive: DefaultTooltipStyle,
-		FillRune:    rune(' '),
-		BorderRunes: paint.DefaultBorderRune,
-		ArrowRunes:  paint.DefaultArrowRune,
+	paint.SetDefaultStyle(TooltipColorStyle, style)
+
+	borders, _ := paint.GetDefaultBorder(paint.StockBorder)
+	arrows, _ := paint.GetDefaultArrow(paint.StockArrow)
+
+	tooltipThemeAspect := paint.ThemeAspect{
+		Normal:      style,
+		Selected:    style,
+		Active:      style,
+		Prelight:    style,
+		Insensitive: style,
+		FillRune:    paint.DefaultFillRune,
+		BorderRunes: borders,
+		ArrowRunes:  arrows,
 		Overlay:     false,
 	}
-	DefaultTooltipTheme = paint.Theme{
-		Content: DefaultTooltipThemeAspect,
-		Border:  DefaultTooltipThemeAspect,
-	}
-)
+
+	paint.SetDefaultTheme(TooltipColorTheme, paint.Theme{
+		Content: tooltipThemeAspect,
+		Border:  tooltipThemeAspect,
+	})
+}
 
 // Widget Hierarchy:
 //	Object
@@ -163,9 +171,7 @@ type Widget interface {
 	GetRealized() (value bool)
 	SetMapped(mapped bool)
 	GetMapped() (value bool)
-	GetTheme() (theme paint.Theme)
 	GetThemeRequest() (theme paint.Theme)
-	SetTheme(theme paint.Theme)
 	GetState() (value enums.StateType)
 	SetState(state enums.StateType)
 	HasState(s enums.StateType) bool
@@ -248,36 +254,40 @@ func (w *CWidget) Init() (already bool) {
 	_ = w.InstallProperty(PropertyVisible, cdk.BoolProperty, true, false)
 	_ = w.InstallProperty(PropertyWidthRequest, cdk.IntProperty, true, -1)
 	_ = w.InstallProperty(PropertyWindow, cdk.StructProperty, true, nil)
+
+	theme := paint.GetDefaultColorTheme()
+
 	getDefContentColors := func(state enums.StateType) (fg, bg paint.Color) {
 		switch state {
 		case enums.StateNormal:
-			fg, bg, _ = paint.DefaultColorTheme.Content.Normal.Decompose()
+			fg, bg, _ = theme.Content.Normal.Decompose()
 		case enums.StateActive:
-			fg, bg, _ = paint.DefaultColorTheme.Content.Active.Decompose()
+			fg, bg, _ = theme.Content.Active.Decompose()
 		case enums.StatePrelight:
-			fg, bg, _ = paint.DefaultColorTheme.Content.Prelight.Decompose()
+			fg, bg, _ = theme.Content.Prelight.Decompose()
 		case enums.StateSelected:
-			fg, bg, _ = paint.DefaultColorTheme.Content.Selected.Decompose()
+			fg, bg, _ = theme.Content.Selected.Decompose()
 		case enums.StateInsensitive:
-			fg, bg, _ = paint.DefaultColorTheme.Content.Insensitive.Decompose()
+			fg, bg, _ = theme.Content.Insensitive.Decompose()
 		}
 		return
 	}
 	getDefBorderColors := func(state enums.StateType) (fg, bg paint.Color) {
 		switch state {
 		case enums.StateNormal:
-			fg, bg, _ = paint.DefaultColorTheme.Border.Normal.Decompose()
+			fg, bg, _ = theme.Border.Normal.Decompose()
 		case enums.StateActive:
-			fg, bg, _ = paint.DefaultColorTheme.Border.Active.Decompose()
+			fg, bg, _ = theme.Border.Active.Decompose()
 		case enums.StatePrelight:
-			fg, bg, _ = paint.DefaultColorTheme.Border.Prelight.Decompose()
+			fg, bg, _ = theme.Border.Prelight.Decompose()
 		case enums.StateSelected:
-			fg, bg, _ = paint.DefaultColorTheme.Border.Selected.Decompose()
+			fg, bg, _ = theme.Border.Selected.Decompose()
 		case enums.StateInsensitive:
-			fg, bg, _ = paint.DefaultColorTheme.Border.Insensitive.Decompose()
+			fg, bg, _ = theme.Border.Insensitive.Decompose()
 		}
 		return
 	}
+
 	for _, state := range []enums.StateType{enums.StateNormal, enums.StateActive, enums.StatePrelight, enums.StateSelected, enums.StateInsensitive} {
 		_ = w.InstallCssProperty(CssPropertyClass, state, cdk.StringProperty, true, "")
 		_ = w.InstallCssProperty(CssPropertyWidth, state, cdk.IntProperty, true, -1)
@@ -296,6 +306,7 @@ func (w *CWidget) Init() (already bool) {
 		_ = w.InstallCssProperty(CssPropertyItalic, state, cdk.BoolProperty, true, false)
 		_ = w.InstallCssProperty(CssPropertyStrike, state, cdk.BoolProperty, true, false)
 	}
+
 	w.renderFrozen = 0
 	w.composites = make([]Widget, 0)
 	w.flagsLock = &sync.RWMutex{}
@@ -305,6 +316,8 @@ func (w *CWidget) Init() (already bool) {
 	w.flags = enums.NULL_WIDGET_FLAG
 	w.tooltipWindow = nil
 	w.tooltipTimer = uuid.Nil
+	w.SetTheme(theme)
+
 	w.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
 	w.Connect(SignalGainedFocus, WidgetGainedFocusHandle, w.gainedFocus)
 	w.Connect(SignalEnter, WidgetEnterHandle, w.enter)
@@ -398,12 +411,8 @@ func (w *CWidget) newTooltipWindow() (tooltipWindow Window) {
 	tooltipWindow.SetWindowType(cenums.WINDOW_POPUP)
 	tooltipWindow.SetFlags(enums.TOPLEVEL)
 	tooltipWindow.SetDecorated(false)
-	tooltipWindow.SetTheme(DefaultTooltipTheme)
-	// if window := w.GetWindow(); window != nil {
-	// 	if err := tooltipWindow.ImportStylesFromString(window.ExportStylesToString()); err != nil {
-	// 		w.LogErr(err)
-	// 	}
-	// }
+	theme, _ := paint.GetDefaultTheme(TooltipColorTheme)
+	tooltipWindow.SetTheme(theme)
 	tooltipWindow.Connect(SignalCdkEvent, "widget-tooltip-window-resize-handler", w.tooltipEvent)
 	tooltipWindow.Connect(SignalResize, "widget-tooltip-window-resize-handler", w.tooltipResize)
 	tooltipWindow.Connect(SignalDraw, "widget-tooltip-window-draw-handler", w.tooltipDraw)
@@ -1304,7 +1313,8 @@ func (w *CWidget) Draw() cenums.EventFlag {
 		w.LockDraw()
 		defer w.UnlockDraw()
 		oid := w.ObjectID()
-		if err := memphis.MakeConfigureSurface(oid, w.GetOrigin(), w.GetAllocation(), w.GetThemeRequest().Content.Normal); err != nil {
+		theme := w.GetThemeRequest()
+		if err := memphis.MakeConfigureSurface(oid, w.GetOrigin(), w.GetAllocation(), theme.Content.Normal); err != nil {
 			w.LogErr(err)
 		} else {
 			if surface, err := memphis.GetSurface(oid); err != nil {
@@ -2101,81 +2111,81 @@ func (w *CWidget) GetThemeRequest() (theme paint.Theme) {
 // this method emits a set-theme signal and if the listeners return EVENT_PASS,
 // the changes are applied and the Widget.Invalidate() method is called
 func (w *CWidget) SetTheme(theme paint.Theme) {
-	if theme.String() != w.GetTheme().String() {
-		if f := w.Emit(SignalSetTheme, w, theme); f == cenums.EVENT_PASS {
+	// if theme.String() != w.GetTheme().String() {
+	if f := w.Emit(SignalSetTheme, w, theme); f == cenums.EVENT_PASS {
 
-			apply := func(state enums.StateType, cs, bs paint.Style) {
-				fg, bg, attr := cs.Decompose()
-				if prop := w.GetCssProperty(CssPropertyColor, state); prop != nil {
-					if err := prop.Set(fg); err != nil {
-						w.LogErr(err)
-					}
+		apply := func(state enums.StateType, cs, bs paint.Style) {
+			fg, bg, attr := cs.Decompose()
+			if prop := w.GetCssProperty(CssPropertyColor, state); prop != nil {
+				if err := prop.Set(fg); err != nil {
+					w.LogErr(err)
 				}
-				if prop := w.GetCssProperty(CssPropertyBackgroundColor, state); prop != nil {
-					if err := prop.Set(bg); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyBold, state); prop != nil {
-					if err := prop.Set(attr.IsBold()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyBlink, state); prop != nil {
-					if err := prop.Set(attr.IsBlink()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyReverse, state); prop != nil {
-					if err := prop.Set(attr.IsReverse()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyUnderline, state); prop != nil {
-					if err := prop.Set(attr.IsUnderline()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyDim, state); prop != nil {
-					if err := prop.Set(attr.IsDim()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyItalic, state); prop != nil {
-					if err := prop.Set(attr.IsItalic()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyStrike, state); prop != nil {
-					if err := prop.Set(attr.IsStrike()); err != nil {
-						w.LogErr(err)
-					}
-				}
-				fg, bg, _ = bs.Decompose()
-				if prop := w.GetCssProperty(CssPropertyBorderColor, state); prop != nil {
-					if err := prop.Set(fg); err != nil {
-						w.LogErr(err)
-					}
-				}
-				if prop := w.GetCssProperty(CssPropertyBorderBackgroundColor, state); prop != nil {
-					if err := prop.Set(bg); err != nil {
-						w.LogErr(err)
-					}
-				}
-				return
 			}
-
-			w.CObject.SetTheme(theme)
-
-			apply(enums.StateNormal, theme.Content.Normal, theme.Border.Normal)
-			apply(enums.StateActive, theme.Content.Active, theme.Border.Active)
-			apply(enums.StateSelected, theme.Content.Selected, theme.Border.Selected)
-			apply(enums.StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
-			apply(enums.StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
-
-			w.Invalidate()
+			if prop := w.GetCssProperty(CssPropertyBackgroundColor, state); prop != nil {
+				if err := prop.Set(bg); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyBold, state); prop != nil {
+				if err := prop.Set(attr.IsBold()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyBlink, state); prop != nil {
+				if err := prop.Set(attr.IsBlink()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyReverse, state); prop != nil {
+				if err := prop.Set(attr.IsReverse()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyUnderline, state); prop != nil {
+				if err := prop.Set(attr.IsUnderline()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyDim, state); prop != nil {
+				if err := prop.Set(attr.IsDim()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyItalic, state); prop != nil {
+				if err := prop.Set(attr.IsItalic()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyStrike, state); prop != nil {
+				if err := prop.Set(attr.IsStrike()); err != nil {
+					w.LogErr(err)
+				}
+			}
+			fg, bg, _ = bs.Decompose()
+			if prop := w.GetCssProperty(CssPropertyBorderColor, state); prop != nil {
+				if err := prop.Set(fg); err != nil {
+					w.LogErr(err)
+				}
+			}
+			if prop := w.GetCssProperty(CssPropertyBorderBackgroundColor, state); prop != nil {
+				if err := prop.Set(bg); err != nil {
+					w.LogErr(err)
+				}
+			}
+			return
 		}
+
+		w.CObject.SetTheme(theme)
+
+		apply(enums.StateNormal, theme.Content.Normal, theme.Border.Normal)
+		apply(enums.StateActive, theme.Content.Active, theme.Border.Active)
+		apply(enums.StateSelected, theme.Content.Selected, theme.Border.Selected)
+		apply(enums.StatePrelight, theme.Content.Prelight, theme.Border.Prelight)
+		apply(enums.StateInsensitive, theme.Content.Insensitive, theme.Border.Insensitive)
+
+		w.Invalidate()
 	}
+	// }
 }
 
 // Returns the widget's state. See SetState.

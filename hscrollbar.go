@@ -41,6 +41,5 @@ func (s *CHScrollbar) Init() (already bool) {
 	}
 	s.CScrollbar.Init()
 	s.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_FOCUS | enums.APP_PAINTABLE)
-	s.SetTheme(DefaultScrollbarTheme)
 	return false
 }

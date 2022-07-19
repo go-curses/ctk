@@ -14,38 +14,82 @@ import (
 
 const TypeScrollbar cdk.CTypeTag = "ctk-scrollbar"
 
+var (
+	ScrollbarMonoTheme  paint.ThemeName = "scrollbar-mono"
+	ScrollbarColorTheme paint.ThemeName = "scrollbar-color"
+)
+
 func init() {
 	_ = cdk.TypesManager.AddType(TypeScrollbar, nil)
-}
 
-var (
-	DefaultScrollbarTheme = paint.Theme{
+	borders, _ := paint.GetDefaultBorder(paint.RoundedBorder)
+	arrows, _ := paint.GetDefaultArrow(paint.WideArrow)
+
+	style := paint.GetDefaultColorStyle()
+	styleNormal := style.Foreground(paint.ColorBlack).Background(paint.ColorSilver)
+	styleBorderNormal := style.Foreground(paint.ColorBlack).Background(paint.ColorDarkSlateGray)
+	styleActive := style.Foreground(paint.ColorBlack).Background(paint.ColorWhite)
+	styleInsensitive := style.Foreground(paint.ColorBlack).Background(paint.ColorDarkSlateGray)
+
+	paint.SetDefaultTheme(ScrollbarColorTheme, paint.Theme{
 		// slider
 		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorSilver).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false).Bold(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorWhite).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(true),
+			Normal:      styleNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
 			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
 			Overlay:     false,
 		},
 		// trough
 		Border: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false).Bold(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorGray).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray).Dim(true),
+			Normal:      styleBorderNormal.Dim(true).Bold(false),
+			Selected:    styleBorderNormal.Dim(false).Bold(true),
+			Active:      styleBorderNormal.Dim(false).Bold(true),
+			Prelight:    styleBorderNormal.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
 			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
 			Overlay:     false,
 		},
-	}
-)
+	})
+
+	style = paint.GetDefaultMonoStyle()
+	styleBorderNormal = style.Foreground(paint.ColorBlack).Background(paint.ColorSilver)
+	styleActive = style.Foreground(paint.ColorBlack).Background(paint.ColorWhite)
+	styleInsensitive = style.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray)
+
+	paint.SetDefaultTheme(ScrollbarMonoTheme, paint.Theme{
+		// slider
+		Content: paint.ThemeAspect{
+			Normal:      styleBorderNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+		// trough
+		Border: paint.ThemeAspect{
+			Normal:      styleBorderNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+	})
+}
 
 // Scrollbar Hierarchy:
 //	Object
@@ -126,7 +170,6 @@ func (s *CScrollbar) Init() (already bool) {
 	if s.orientation == cenums.ORIENTATION_NONE {
 		s.orientation = cenums.ORIENTATION_VERTICAL
 	}
-	s.SetTheme(DefaultScrollbarTheme)
 
 	s.focusedButton = nil
 	s.hasBackwardStepper = true
@@ -137,6 +180,10 @@ func (s *CScrollbar) Init() (already bool) {
 	s.forwardStepper = s.makeStepperButton(enums.ArrowDown, true)
 	s.secondaryForwardStepper = s.makeStepperButton(enums.ArrowDown, true)
 	s.secondaryBackwardStepper = s.makeStepperButton(enums.ArrowUp, false)
+
+	theme, _ := paint.GetDefaultTheme(ScrollbarColorTheme)
+	s.SetTheme(theme)
+
 	l := NewLabel("*")
 	l.Show()
 	l.SetSingleLineMode(true)
@@ -871,7 +918,8 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 	a.Show()
 	a.SetOrigin(0, 0)
 	a.SetAllocation(ptypes.MakeRectangle(1, 1))
-	a.SetTheme(DefaultButtonTheme)
+	theme, _ := paint.GetDefaultTheme(ButtonColorTheme)
+	a.SetTheme(theme)
 	a.UnsetFlags(enums.CAN_FOCUS)
 	b := NewButtonWithWidget(a)
 	s.PushCompositeChild(b)

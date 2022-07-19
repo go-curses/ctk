@@ -16,38 +16,77 @@ import (
 	"github.com/go-curses/ctk/lib/enums"
 )
 
-const TypeButton cdk.CTypeTag = "ctk-button"
-
-var (
-	// DefaultButtonTheme enables customized theming of default stock buttons.
-	DefaultButtonTheme = paint.Theme{
-		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true).Reverse(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorDarkSlateGray).Background(paint.ColorRosyBrown).Dim(true),
-			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
-			Overlay:     false,
-		},
-		Border: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false).Bold(true).Reverse(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorDarkSlateGray).Background(paint.ColorRosyBrown).Dim(true),
-			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
-			Overlay:     false,
-		},
-	}
+const (
+	TypeButton       cdk.CTypeTag    = "ctk-button"
+	ButtonMonoTheme  paint.ThemeName = "button-mono"
+	ButtonColorTheme paint.ThemeName = "button-color"
 )
 
 func init() {
 	_ = cdk.TypesManager.AddType(TypeButton, func() interface{} { return MakeButton() })
+
+	borders, _ := paint.GetDefaultBorder(paint.StockBorder)
+	arrows, _ := paint.GetDefaultArrow(paint.StockArrow)
+
+	style := paint.GetDefaultColorStyle()
+	styleNormal := style.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick)
+	styleActive := style.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed)
+	styleInsensitive := style.Foreground(paint.ColorDarkSlateGray).Background(paint.ColorRosyBrown)
+
+	paint.SetDefaultTheme(ButtonColorTheme, paint.Theme{
+		Content: paint.ThemeAspect{
+			Normal:      styleNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+		Border: paint.ThemeAspect{
+			Normal:      styleNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+	})
+
+	style = paint.GetDefaultMonoStyle()
+	styleNormal = style.Foreground(paint.ColorWhite).Background(paint.ColorBlack)
+	styleActive = style.Foreground(paint.ColorBlack).Background(paint.ColorWhite)
+	styleInsensitive = style.Foreground(paint.ColorLightGray).Background(paint.ColorDarkGray)
+
+	paint.SetDefaultTheme(ButtonMonoTheme, paint.Theme{
+		Content: paint.ThemeAspect{
+			Normal:      styleNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+		Border: paint.ThemeAspect{
+			Normal:      styleNormal.Dim(true).Bold(false),
+			Selected:    styleActive.Dim(false).Bold(true),
+			Active:      styleActive.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleActive.Dim(false),
+			Insensitive: styleInsensitive.Dim(true),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+	})
 }
 
 // Button Hierarchy:
@@ -200,8 +239,6 @@ func (b *CButton) Init() (already bool) {
 	b.CBin.Init()
 	b.flags = enums.NULL_WIDGET_FLAG
 	b.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.RECEIVES_DEFAULT | enums.CAN_FOCUS | enums.APP_PAINTABLE | enums.COMPOSITE_PARENT)
-	b.SetTheme(DefaultButtonTheme)
-	b.pressed = false
 
 	_ = b.InstallBuildableProperty(PropertyFocusOnClick, cdk.BoolProperty, true, true)
 	_ = b.InstallBuildableProperty(PropertyButtonLabel, cdk.StringProperty, true, nil)
@@ -210,6 +247,11 @@ func (b *CButton) Init() (already bool) {
 	_ = b.InstallBuildableProperty(PropertyUseUnderline, cdk.BoolProperty, true, false)
 	_ = b.InstallBuildableProperty(PropertyXAlign, cdk.FloatProperty, true, 0.5)
 	_ = b.InstallBuildableProperty(PropertyYAlign, cdk.FloatProperty, true, 0.5)
+
+	b.pressed = false
+
+	theme, _ := paint.GetDefaultTheme(ButtonColorTheme)
+	b.SetTheme(theme)
 
 	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)
 	b.Connect(SignalCdkEvent, ButtonCdkEventHandle, b.event)

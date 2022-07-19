@@ -20,7 +20,8 @@ func (f *CFakeWindow) Init() (already bool) {
 		return true
 	}
 	f.SetAllocation(ptypes.MakeRectangle(80, 24))
-	f.SetTheme(paint.DefaultNilTheme)
+	theme, _ := paint.GetDefaultTheme(paint.NilTheme)
+	f.SetTheme(theme)
 	f.Connect(SignalDraw, "fake-window-draw-handler", f.draw)
 	return false
 }
@@ -32,7 +33,7 @@ func (f *CFakeWindow) draw(data []interface{}, argv ...interface{}) enums.EventF
 func WithFakeWindow(fn WithFakeWindowFn) func() {
 	fakeWindow := new(CFakeWindow)
 	fakeWindow.Init()
-	fakeWindow.SetTheme(paint.DefaultMonoTheme)
+	fakeWindow.SetTheme(paint.GetDefaultMonoTheme())
 	return func() {
 		fn(fakeWindow)
 	}

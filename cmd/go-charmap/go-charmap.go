@@ -84,7 +84,7 @@ func main() {
 }
 
 func setup(d cdk.Display) error {
-	theme := paint.DefaultColorTheme
+	theme := paint.GetDefaultColorTheme()
 	theme.Content.Normal = theme.Content.Selected.Dim(false)
 	theme.Border.Normal = theme.Border.Selected.Dim(false)
 	d.CaptureCtrlC()

@@ -19,6 +19,11 @@ import (
 
 const TypeEntry cdk.CTypeTag = "ctk-entry"
 
+var (
+	EntryMonoTheme  paint.ThemeName = "entry-mono"
+	EntryColorTheme paint.ThemeName = "entry-color"
+)
+
 func init() {
 	_ = cdk.TypesManager.AddType(TypeEntry, func() interface{} { return MakeEntry() })
 	ctkBuilderTranslators[TypeEntry] = func(builder Builder, widget Widget, name, value string) error {
@@ -43,34 +48,68 @@ func init() {
 		}
 		return ErrFallthrough
 	}
-}
 
-var (
-	DefaultEntryTheme = paint.Theme{
+	borders, _ := paint.GetDefaultBorder(paint.StockBorder)
+	arrows, _ := paint.GetDefaultArrow(paint.WideArrow)
+
+	style := paint.GetDefaultColorStyle()
+	styleLight := style.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray)
+	styleDark := style.Foreground(paint.ColorSilver).Background(paint.ColorGray)
+
+	paint.SetDefaultTheme(EntryColorTheme, paint.Theme{
 		Content: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(true).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true).Reverse(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(false),
+			Normal:      styleDark.Dim(true).Bold(false),
+			Selected:    styleLight.Dim(false).Bold(true),
+			Active:      styleLight.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleLight.Dim(false).Bold(false),
+			Insensitive: styleDark.Dim(false).Bold(false),
 			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
 			Overlay:     false,
 		},
 		Border: paint.ThemeAspect{
-			Normal:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(false),
-			Selected:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true),
-			Active:      paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false).Bold(true).Reverse(true),
-			Prelight:    paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray).Dim(false),
-			Insensitive: paint.DefaultColorStyle.Foreground(paint.ColorWhite).Background(paint.ColorGray).Dim(false),
+			Normal:      styleDark.Dim(false).Bold(false),
+			Selected:    styleLight.Dim(false).Bold(true),
+			Active:      styleLight.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleLight.Dim(false),
+			Insensitive: styleDark.Dim(false),
 			FillRune:    paint.DefaultFillRune,
-			BorderRunes: paint.DefaultBorderRune,
-			ArrowRunes:  paint.DefaultArrowRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
 			Overlay:     false,
 		},
-	}
-)
+	})
+
+	style = paint.GetDefaultMonoStyle()
+	styleLight = style.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray)
+	styleDark = style.Foreground(paint.ColorSilver).Background(paint.ColorGray)
+
+	paint.SetDefaultTheme(EntryMonoTheme, paint.Theme{
+		Content: paint.ThemeAspect{
+			Normal:      styleDark.Dim(true).Bold(false),
+			Selected:    styleLight.Dim(false).Bold(true),
+			Active:      styleLight.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleLight.Dim(false).Bold(false),
+			Insensitive: styleDark.Dim(false).Bold(false),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+		Border: paint.ThemeAspect{
+			Normal:      styleDark.Dim(false).Bold(false),
+			Selected:    styleLight.Dim(false).Bold(true),
+			Active:      styleLight.Dim(false).Bold(true).Reverse(true),
+			Prelight:    styleLight.Dim(false),
+			Insensitive: styleDark.Dim(false),
+			FillRune:    paint.DefaultFillRune,
+			BorderRunes: borders,
+			ArrowRunes:  arrows,
+			Overlay:     false,
+		},
+	})
+}
 
 // Entry Hierarchy:
 //	Object
@@ -165,19 +204,6 @@ func (l *CEntry) Init() (already bool) {
 	l.CMisc.Init()
 	l.flags = enums.NULL_WIDGET_FLAG
 	l.SetFlags(enums.SENSITIVE | enums.PARENT_SENSITIVE | enums.CAN_DEFAULT | enums.APP_PAINTABLE | enums.CAN_FOCUS)
-	l.SetTheme(DefaultEntryTheme)
-
-	l.selection = nil
-	l.position = 0
-	l.offset = ptypes.NewRegion(0, 0, 0, 0)
-	l.cursor = ptypes.NewPoint2I(0, 0)
-	l.tProfile = memphis.NewTextProfile("")
-	l.tBuffer = nil
-	l.tid, _ = uuid.NewV4()
-	l.tRegion = ptypes.MakeRegion(0, 0, 0, 0)
-	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
-		l.LogErr(err)
-	}
 
 	_ = l.InstallProperty(PropertyAttributes, cdk.StructProperty, true, nil)
 	_ = l.InstallProperty(PropertyJustify, cdk.StructProperty, true, cenums.JUSTIFY_NONE)
@@ -189,6 +215,20 @@ func (l *CEntry) Init() (already bool) {
 	_ = l.InstallProperty(PropertyWrap, cdk.BoolProperty, true, false)
 	_ = l.InstallProperty(PropertyWrapMode, cdk.StructProperty, true, cenums.WRAP_NONE)
 	_ = l.InstallProperty(PropertyEditable, cdk.BoolProperty, true, true)
+
+	l.selection = nil
+	l.position = 0
+	l.offset = ptypes.NewRegion(0, 0, 0, 0)
+	l.cursor = ptypes.NewPoint2I(0, 0)
+	l.tProfile = memphis.NewTextProfile("")
+	l.tBuffer = nil
+	l.tid, _ = uuid.NewV4()
+	l.tRegion = ptypes.MakeRegion(0, 0, 0, 0)
+	theme, _ := paint.GetDefaultTheme(EntryColorTheme)
+	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
+		l.LogErr(err)
+	}
+	l.SetTheme(theme)
 
 	l.Connect(SignalCdkEvent, TextFieldEventHandle, l.event)
 	l.Connect(SignalLostFocus, TextFieldLostFocusHandle, l.lostFocus)

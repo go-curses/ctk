@@ -186,7 +186,7 @@ func (l *CLabel) Init() (already bool) {
 	l.tBuffer = nil
 	l.tid, _ = uuid.NewV4()
 	l.tRegion = ptypes.NewRegion(0, 0, 0, 0)
-	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.DefaultColorStyle); err != nil {
+	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), paint.GetDefaultColorStyle()); err != nil {
 		l.LogErr(err)
 	}
 

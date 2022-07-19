@@ -217,7 +217,6 @@ func (w *CWindow) Init() (already bool) {
 	w.display = cdk.GetDefaultDisplay()
 	w.origin.X = 0
 	w.origin.Y = 0
-	w.SetTheme(paint.DefaultColorTheme)
 	w.accelGroups = NewAccelGroups()
 	w.mnemonics = make([]*mnemonicEntry, 0)
 	w.mnemonicMod = cdk.ModAlt
@@ -1833,13 +1832,6 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 	if w.GetWindowType() != cenums.WINDOW_POPUP {
 		w.SetOrigin(origin.X, origin.Y)
 		w.SetAllocation(alloc)
-	}
-
-	theme := w.GetThemeRequest()
-	if err := memphis.MakeConfigureSurface(w.ObjectID(), w.GetOrigin(), w.GetAllocation(), theme.Content.Normal); err != nil {
-		w.LogErr(err)
-	} else if err := memphis.FillSurface(w.ObjectID(), theme); err != nil {
-		w.LogErr(err)
 	}
 
 	if child := w.GetChild(); child != nil {
