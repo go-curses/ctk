@@ -127,6 +127,7 @@ type Widget interface {
 	FreezeChildNotify()
 	GetChildVisible() (value bool)
 	GetParent() (value Widget)
+	GetAllParents() (parents []Widget)
 	GetDisplay() (value cdk.Display)
 	GetRootWindow() (value Window)
 	GetScreen() (value cdk.Display)
@@ -1437,6 +1438,20 @@ func (w *CWidget) GetParent() (value Widget) {
 		if value, ok = v.(Widget); !ok && v != nil {
 			w.LogError("value stored as %v property is not of Widget type: %v (%T)", PropertyParent, v, v)
 			value = nil
+		}
+	}
+	return
+}
+
+func (w *CWidget) GetAllParents() (parents []Widget) {
+	parent := w.GetParent()
+	for parent != nil {
+		parents = append(parents, parent)
+		next := parent.GetParent()
+		if next.ObjectID() != parent.ObjectID() {
+			parent = next
+		} else {
+			break
 		}
 	}
 	return
