@@ -2440,7 +2440,6 @@ func (w *CWidget) Invalidate() cenums.EventFlag {
 				parent = nil
 			}
 		}
-		w.RequestDrawAndShow()
 		return cenums.EVENT_STOP
 	}
 	return cenums.EVENT_PASS
