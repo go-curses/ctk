@@ -521,9 +521,11 @@ func (f *CFrame) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 
 		if child != nil {
 			child.Draw()
+			child.LockDraw()
 			if err := surface.Composite(child.ObjectID()); err != nil {
 				f.LogError("composite error: %v", err)
 			}
+			child.UnlockDraw()
 		}
 
 		if debug, _ := f.GetBoolProperty(cdk.PropertyDebug); debug {
