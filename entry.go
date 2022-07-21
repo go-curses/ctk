@@ -1244,7 +1244,7 @@ func (l *CEntry) event(data []interface{}, argv ...interface{}) cenums.EventFlag
 					l.LogDebug("replacing selection with printable key...")
 				}
 				l.insertTextAndSetPosition(pk, pos, pos+1)
-				l.LogDebug("printable key: %v, at pos: %v", pk, pos)
+				l.LogTrace("printable key: %v, at pos: %v", pk, pos)
 				return cenums.EVENT_STOP
 			} else if k == cdk.KeyEsc {
 				if l.HasEventFocus() {
