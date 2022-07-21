@@ -721,8 +721,7 @@ func (c *CContainer) GetWidgetAt(p *ptypes.Point2I) Widget {
 
 func (c *CContainer) FindAllWidgetsAt(p *ptypes.Point2I) (found []Widget) {
 	track := new(WidgetSlice)
-	first := c.FindWidgetAt(p)
-	if first != nil {
+	if first := c.FindWidgetAt(p); first != nil {
 		track.Append(first)
 		parent := first.GetParent()
 		for parent != nil {
