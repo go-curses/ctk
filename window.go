@@ -1787,10 +1787,17 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 				if mw := w.GetWidgetAt(mousePosition); mw != nil {
 					if ms, ok := mw.Self().(Sensitive); ok {
 						if ms.IsSensitive() && ms.IsVisible() {
-							return ms.ProcessEvent(e)
+							if f := ms.ProcessEvent(e); f == cenums.EVENT_STOP {
+								if d := w.GetDisplay(); d != nil {
+									d.RequestDraw()
+									d.RequestSync()
+								}
+								return cenums.EVENT_STOP
+							}
 						}
 					}
 				}
+				return cenums.EVENT_PASS
 			}
 
 		case *cdk.EventResize:
