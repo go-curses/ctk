@@ -210,6 +210,8 @@ func (l *CLabel) Init() (already bool) {
 
 	l.Connect(SignalResize, LabelResizeHandle, l.resize)
 	l.Connect(SignalDraw, LabelDrawHandle, l.draw)
+	l.Connect(SignalEnter, LabelEnterHandle, l.enter)
+	l.Connect(SignalLeave, LabelLeaveHandle, l.leave)
 
 	// _ = l.SetBoolProperty(PropertyDebug, true)
 	return false
@@ -1057,6 +1059,46 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 	return cenums.EVENT_PASS
 }
 
+func (l *CLabel) enter(_ []interface{}, argv ...interface{}) cenums.EventFlag {
+	if l.IsVisible() {
+		parents := l.GetAllParents()
+		for _, parent := range parents {
+			if parent.HasState(enums.StatePrelight) {
+				l.SetState(enums.StatePrelight)
+				break
+			}
+		}
+		if l.IsSensitive() {
+			if l.GetHasTooltip() {
+				l.openTooltip()
+			}
+		}
+		l.Invalidate()
+		l.LogTrace("mouse enter - %v", l.ObjectInfo())
+	}
+	return cenums.EVENT_STOP
+}
+
+func (l *CLabel) leave(_ []interface{}, _ ...interface{}) cenums.EventFlag {
+	if l.IsDrawable() && l.IsVisible() {
+		parents := l.GetAllParents()
+		prelight := false
+		for _, parent := range parents {
+			if parent.HasState(enums.StatePrelight) {
+				prelight = true
+			}
+		}
+		if !prelight && l.HasState(enums.StatePrelight) {
+			l.UnsetState(enums.StatePrelight)
+		}
+		l.closeTooltip()
+		l.Invalidate()
+		l.LogTrace("mouse leave - %v", l.ObjectInfo())
+		return cenums.EVENT_STOP
+	}
+	return cenums.EVENT_PASS
+}
+
 // A list of style attributes to apply to the text of the label.
 // Flags: Read / Write
 const PropertyAttributes cdk.Property = "attributes"
@@ -1207,3 +1249,7 @@ const LabelInvalidateHandle = "label-invalidate-handler"
 const LabelResizeHandle = "label-resize-handler"
 
 const LabelDrawHandle = "label-draw-handler"
+
+const LabelEnterHandle = "label-mouse-enter-handler"
+
+const LabelLeaveHandle = "label-mouse-leave-handler"
