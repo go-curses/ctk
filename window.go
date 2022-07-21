@@ -1763,7 +1763,9 @@ func (w *CWindow) event(data []interface{}, argv ...interface{}) cenums.EventFla
 					w.hoverFocus = fw
 					w.Unlock()
 
-					for _, aw := range w.FindAllWidgetsAt(mousePosition) {
+					found := w.FindAllWidgetsAt(mousePosition)
+					for i := len(found) - 1; i >= 0; i-- {
+						aw := found[i]
 						if idx := w.hoverFocused.IndexOf(aw); idx < 0 {
 							w.Lock()
 							w.hoverFocused.Append(aw)
