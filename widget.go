@@ -1309,7 +1309,7 @@ func (w *CWidget) SetScrollAdjustments(hadjustment Adjustment, vadjustment Adjus
 //
 // Emits: SignalDraw, Argv=[Object instance, canvas]
 func (w *CWidget) Draw() cenums.EventFlag {
-	if w.IsDrawable() && w.GetInvalidated() {
+	if !w.IsFrozen() && w.IsDrawable() && w.GetInvalidated() {
 		w.SetInvalidated(false)
 		w.LockDraw()
 		defer w.UnlockDraw()
