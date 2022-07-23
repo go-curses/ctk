@@ -1843,18 +1843,39 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 		w.SetAllocation(alloc)
 	}
 
-	if child := w.GetChild(); child != nil {
-		local := ptypes.NewPoint2I(origin.X+1, origin.Y+1)
-		size := ptypes.MakeRectangle(alloc.W, alloc.H)
-		if size.W < 1 && size.H < 1 {
-			size.Set(0, 0)
-		} else if size.W >= 3 && size.H >= 3 {
-			size.Sub(2, 2) // borders
-		}
+	title := w.GetTitle()
+	decorated := w.GetDecorated()
 
-		// child.LockDraw()
-		child.SetOrigin(local.X, local.Y)
-		child.SetAllocation(size)
+	childAlloc := alloc.Clone()
+	childOrigin := origin.Clone()
+
+	if title != "" {
+		if decorated {
+			// standard desktop layout, full border, title row, hline row
+			childAlloc.W -= 2
+			childAlloc.H -= 4
+			childOrigin.X += 1
+			childOrigin.Y += 3
+		} else {
+			// border with title inline and centred on top edge
+			childAlloc.W -= 2
+			childAlloc.H -= 2
+			childOrigin.X += 1
+			childOrigin.Y += 1
+		}
+	} else if decorated {
+		// border
+		childAlloc.W -= 2
+		childAlloc.H -= 2
+		childOrigin.X += 1
+		childOrigin.Y += 1
+	} else {
+		// fullscreen child (vbox)
+	}
+
+	if child := w.GetChild(); child != nil {
+		child.SetOrigin(childOrigin.X, childOrigin.Y)
+		child.SetAllocation(childAlloc)
 		child.Resize()
 	}
 
@@ -1882,14 +1903,34 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		}
 
 		title := w.GetTitle()
-		child := w.GetChild()
+		decorated := w.GetDecorated()
+
+		_, _, attr := theme.Content.Normal.Decompose()
+		dim := attr.IsDim()
 
 		if title != "" {
-			surface.FillBorderTitle(false, title, cenums.JUSTIFY_CENTER, theme)
+			if decorated {
+				// standard desktop layout
+				surface.FillBorder(dim, true, theme) // outer border
+				titleOrigin := origin.Clone()
+				titleOrigin.X += 2
+				titleOrigin.Y += 1
+				surface.DrawSingleLineText(titleOrigin, alloc.W-4, false, cenums.JUSTIFY_LEFT, theme.Content.Normal, false, false, title)
+				lineOrigin := origin.Clone()
+				lineOrigin.X += 1
+				lineOrigin.Y += 2
+				surface.DrawHorizontalLine(lineOrigin, alloc.W-2, theme.Content.Normal, paint.RuneUpperOneEighthBlock)
+			} else {
+				// border with title inline and centred on top edge
+				surface.FillBorderTitle(dim, title, cenums.JUSTIFY_CENTER, theme)
+			}
+		} else if decorated {
+			surface.FillBorder(dim, true, theme)
 		} else {
-			surface.FillBorder(false, true, theme)
+			// fullscreen child (vbox)
 		}
 
+		child := w.GetChild()
 		if child != nil && child.IsVisible() {
 			child.Draw()
 			child.LockDraw()
