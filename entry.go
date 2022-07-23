@@ -49,14 +49,14 @@ func init() {
 		return ErrFallthrough
 	}
 
-	borders, _ := paint.GetDefaultBorder(paint.StockBorder)
-	arrows, _ := paint.GetDefaultArrow(paint.WideArrow)
+	borders, _ := paint.GetDefaultBorderRunes(paint.StockBorder)
+	arrows, _ := paint.GetArrows(paint.WideArrow)
 
 	style := paint.GetDefaultColorStyle()
 	styleLight := style.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray)
 	styleDark := style.Foreground(paint.ColorSilver).Background(paint.ColorGray)
 
-	paint.SetDefaultTheme(EntryColorTheme, paint.Theme{
+	paint.RegisterTheme(EntryColorTheme, paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      styleDark.Dim(true).Bold(false),
 			Selected:    styleLight.Dim(false).Bold(true),
@@ -85,7 +85,7 @@ func init() {
 	styleLight = style.Foreground(paint.ColorWhite).Background(paint.ColorDarkSlateGray)
 	styleDark = style.Foreground(paint.ColorSilver).Background(paint.ColorGray)
 
-	paint.SetDefaultTheme(EntryMonoTheme, paint.Theme{
+	paint.RegisterTheme(EntryMonoTheme, paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      styleDark.Dim(true).Bold(false),
 			Selected:    styleLight.Dim(false).Bold(true),
@@ -224,7 +224,7 @@ func (l *CEntry) Init() (already bool) {
 	l.tBuffer = nil
 	l.tid, _ = uuid.NewV4()
 	l.tRegion = ptypes.MakeRegion(0, 0, 0, 0)
-	theme, _ := paint.GetDefaultTheme(EntryColorTheme)
+	theme, _ := paint.GetTheme(EntryColorTheme)
 	if err := memphis.MakeSurface(l.tid, l.tRegion.Origin(), l.tRegion.Size(), theme.Content.Normal); err != nil {
 		l.LogErr(err)
 	}

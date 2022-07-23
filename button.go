@@ -25,15 +25,15 @@ const (
 func init() {
 	_ = cdk.TypesManager.AddType(TypeButton, func() interface{} { return MakeButton() })
 
-	borders, _ := paint.GetDefaultBorder(paint.StockBorder)
-	arrows, _ := paint.GetDefaultArrow(paint.StockArrow)
+	borders, _ := paint.GetDefaultBorderRunes(paint.StockBorder)
+	arrows, _ := paint.GetArrows(paint.StockArrow)
 
 	style := paint.GetDefaultColorStyle()
 	styleNormal := style.Foreground(paint.ColorWhite).Background(paint.ColorFireBrick)
 	styleActive := style.Foreground(paint.ColorWhite).Background(paint.ColorDarkRed)
 	styleInsensitive := style.Foreground(paint.ColorDarkSlateGray).Background(paint.ColorRosyBrown)
 
-	paint.SetDefaultTheme(ButtonColorTheme, paint.Theme{
+	paint.RegisterTheme(ButtonColorTheme, paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      styleNormal.Dim(true).Bold(false),
 			Selected:    styleActive.Dim(false).Bold(true),
@@ -63,7 +63,7 @@ func init() {
 	styleActive = style.Foreground(paint.ColorBlack).Background(paint.ColorWhite)
 	styleInsensitive = style.Foreground(paint.ColorLightGray).Background(paint.ColorDarkGray)
 
-	paint.SetDefaultTheme(ButtonMonoTheme, paint.Theme{
+	paint.RegisterTheme(ButtonMonoTheme, paint.Theme{
 		Content: paint.ThemeAspect{
 			Normal:      styleNormal.Dim(true).Bold(false),
 			Selected:    styleActive.Dim(false).Bold(true),
@@ -250,7 +250,7 @@ func (b *CButton) Init() (already bool) {
 
 	b.pressed = false
 
-	theme, _ := paint.GetDefaultTheme(ButtonColorTheme)
+	theme, _ := paint.GetTheme(ButtonColorTheme)
 	b.SetTheme(theme)
 
 	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)

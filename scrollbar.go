@@ -22,8 +22,8 @@ var (
 func init() {
 	_ = cdk.TypesManager.AddType(TypeScrollbar, nil)
 
-	borders, _ := paint.GetDefaultBorder(paint.RoundedBorder)
-	arrows, _ := paint.GetDefaultArrow(paint.WideArrow)
+	borders, _ := paint.GetDefaultBorderRunes(paint.RoundedBorder)
+	arrows, _ := paint.GetArrows(paint.WideArrow)
 
 	style := paint.GetDefaultColorStyle()
 	styleNormal := style.Foreground(paint.ColorBlack).Background(paint.ColorSilver)
@@ -31,7 +31,7 @@ func init() {
 	styleActive := style.Foreground(paint.ColorBlack).Background(paint.ColorWhite)
 	styleInsensitive := style.Foreground(paint.ColorBlack).Background(paint.ColorDarkSlateGray)
 
-	paint.SetDefaultTheme(ScrollbarColorTheme, paint.Theme{
+	paint.RegisterTheme(ScrollbarColorTheme, paint.Theme{
 		// slider
 		Content: paint.ThemeAspect{
 			Normal:      styleNormal.Dim(true).Bold(false),
@@ -63,7 +63,7 @@ func init() {
 	styleActive = style.Foreground(paint.ColorBlack).Background(paint.ColorWhite)
 	styleInsensitive = style.Foreground(paint.ColorBlack).Background(paint.ColorDarkGray)
 
-	paint.SetDefaultTheme(ScrollbarMonoTheme, paint.Theme{
+	paint.RegisterTheme(ScrollbarMonoTheme, paint.Theme{
 		// slider
 		Content: paint.ThemeAspect{
 			Normal:      styleBorderNormal.Dim(true).Bold(false),
@@ -181,7 +181,7 @@ func (s *CScrollbar) Init() (already bool) {
 	s.secondaryForwardStepper = s.makeStepperButton(enums.ArrowDown, true)
 	s.secondaryBackwardStepper = s.makeStepperButton(enums.ArrowUp, false)
 
-	theme, _ := paint.GetDefaultTheme(ScrollbarColorTheme)
+	theme, _ := paint.GetTheme(ScrollbarColorTheme)
 	s.SetTheme(theme)
 
 	l := NewLabel("*")
@@ -918,7 +918,7 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 	a.Show()
 	a.SetOrigin(0, 0)
 	a.SetAllocation(ptypes.MakeRectangle(1, 1))
-	theme, _ := paint.GetDefaultTheme(ButtonColorTheme)
+	theme, _ := paint.GetTheme(ButtonColorTheme)
 	a.SetTheme(theme)
 	a.UnsetFlags(enums.CAN_FOCUS)
 	b := NewButtonWithWidget(a)

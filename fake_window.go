@@ -20,7 +20,7 @@ func (f *CFakeWindow) Init() (already bool) {
 		return true
 	}
 	f.SetAllocation(ptypes.MakeRectangle(80, 24))
-	theme, _ := paint.GetDefaultTheme(paint.NilTheme)
+	theme, _ := paint.GetTheme(paint.NilTheme)
 	f.SetTheme(theme)
 	f.Connect(SignalDraw, "fake-window-draw-handler", f.draw)
 	return false

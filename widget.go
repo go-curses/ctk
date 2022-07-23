@@ -26,10 +26,10 @@ func init() {
 		Background(paint.ColorYellow).
 		Foreground(paint.ColorDarkSlateBlue).
 		Dim(false)
-	paint.SetDefaultStyle(TooltipColorStyle, style)
+	paint.RegisterStyle(TooltipColorStyle, style)
 
-	borders, _ := paint.GetDefaultBorder(paint.StockBorder)
-	arrows, _ := paint.GetDefaultArrow(paint.StockArrow)
+	borders, _ := paint.GetDefaultBorderRunes(paint.StockBorder)
+	arrows, _ := paint.GetArrows(paint.StockArrow)
 
 	tooltipThemeAspect := paint.ThemeAspect{
 		Normal:      style,
@@ -43,7 +43,7 @@ func init() {
 		Overlay:     false,
 	}
 
-	paint.SetDefaultTheme(TooltipColorTheme, paint.Theme{
+	paint.RegisterTheme(TooltipColorTheme, paint.Theme{
 		Content: tooltipThemeAspect,
 		Border:  tooltipThemeAspect,
 	})
@@ -412,7 +412,7 @@ func (w *CWidget) newTooltipWindow() (tooltipWindow Window) {
 	tooltipWindow.SetWindowType(cenums.WINDOW_POPUP)
 	tooltipWindow.SetFlags(enums.TOPLEVEL)
 	tooltipWindow.SetDecorated(false)
-	theme, _ := paint.GetDefaultTheme(TooltipColorTheme)
+	theme, _ := paint.GetTheme(TooltipColorTheme)
 	tooltipWindow.SetTheme(theme)
 	tooltipWindow.Connect(SignalCdkEvent, "widget-tooltip-window-resize-handler", w.tooltipEvent)
 	tooltipWindow.Connect(SignalResize, "widget-tooltip-window-resize-handler", w.tooltipResize)
