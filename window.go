@@ -1424,9 +1424,10 @@ func (w *CWindow) Move(x int, y int) {
 		if surface, err := memphis.GetSurface(w.ObjectID()); err != nil {
 			w.LogErr(err)
 		} else {
-			surface.SetOrigin(ptypes.MakePoint2I(x, y))
+			surface.SetOrigin(w.GetOrigin())
 		}
 	}
+	w.Invalidate()
 }
 
 // Parses a standard X Window System geometry string - see the manual page
