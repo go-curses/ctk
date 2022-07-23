@@ -1257,13 +1257,8 @@ func (w *CWindow) GetRole() (value string) {
 // 	width	return location for width, or NULL.
 // 	height	return location for height, or NULL.
 func (w *CWindow) GetSize() (width, height int) {
-	w.RLock()
-	if w.display != nil {
-		if screen := w.display.Screen(); screen != nil {
-			width, height = screen.Size()
-		}
-	}
-	w.RUnlock()
+	alloc := w.GetAllocation()
+	width, height = alloc.W, alloc.H
 	return
 }
 
