@@ -433,16 +433,12 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 	d.SetRegion(d.getDialogRegion())
 	d.Resize()
 	d.Show()
-	display.RequestDraw()
-	display.RequestSync()
 	cdk.Go(func() {
 		// wait for the response event
 		select {
 		case <-d.done:
 		}
 		response <- d.response
-		display.RequestDraw()
-		display.RequestShow()
 	})
 	return
 }
