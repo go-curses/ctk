@@ -347,7 +347,7 @@ func (b *CButtonBox) SetSpacing(spacing int) {
 
 func (b *CButtonBox) getPrimary() (box Box) {
 	children := b.CBox.GetChildren()
-	if len(children) > 0 {
+	if len(children) >= 2 {
 		var ok bool
 		if box, ok = children[0].(Box); !ok {
 			box = nil
@@ -361,7 +361,7 @@ func (b *CButtonBox) getPrimary() (box Box) {
 
 func (b *CButtonBox) getSecondary() (box Box) {
 	children := b.CBox.GetChildren()
-	if len(children) > 1 {
+	if len(children) >= 2 {
 		var ok bool
 		if box, ok = children[1].(Box); !ok {
 			box = nil
