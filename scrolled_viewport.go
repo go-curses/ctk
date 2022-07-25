@@ -61,6 +61,8 @@ type ScrolledViewport interface {
 	GetVScrollbar() VScrollbar
 	CancelEvent()
 	GetRegions() (c, h, v ptypes.Region)
+	ScrollTop()
+	ScrollBottom()
 	ScrollTo(child Widget)
 }
 
@@ -546,6 +548,26 @@ func (s *CScrolledViewport) SetWindow(w Window) {
 	s.CBin.SetWindow(w)
 	if w != nil {
 		w.Connect(SignalFocusChanged, ScrolledViewportWindowFocusHandle, s.windowFocusSet)
+	}
+}
+
+func (s *CScrolledViewport) ScrollTop() {
+	if s.VerticalShowByPolicy() {
+		vertical := s.GetVAdjustment()
+		lower := vertical.GetLower()
+		vertical.SetValue(lower)
+		s.LogDebug("set vertical top: %v", lower)
+		s.Resize()
+	}
+}
+
+func (s *CScrolledViewport) ScrollBottom() {
+	if s.VerticalShowByPolicy() {
+		vertical := s.GetVAdjustment()
+		upper := vertical.GetUpper()
+		vertical.SetValue(upper)
+		s.LogDebug("set vertical top: %v", upper)
+		s.Resize()
 	}
 }
 
