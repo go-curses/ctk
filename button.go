@@ -320,10 +320,7 @@ func (b *CButton) UnsetState(state enums.StateType) {
 
 // Activate emits a SignalActivate, returning TRUE if the event was handled
 func (b *CButton) Activate() (value bool) {
-	if b.IsSensitive() {
-		return b.Emit(SignalActivate, b) == cenums.EVENT_STOP
-	}
-	return false
+	return b.CWidget.Activate()
 }
 
 // Clicked emits a SignalClicked
