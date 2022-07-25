@@ -17,9 +17,8 @@ import (
 	"github.com/go-curses/ctk/lib/enums"
 )
 
-const TypeEntry cdk.CTypeTag = "ctk-entry"
-
-var (
+const (
+	TypeEntry       cdk.CTypeTag    = "ctk-entry"
 	EntryMonoTheme  paint.ThemeName = "entry-mono"
 	EntryColorTheme paint.ThemeName = "entry-color"
 )
