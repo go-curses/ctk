@@ -402,7 +402,7 @@ func (d *CDialog) Build(builder Builder, element *CBuilderElement) error {
 // After Run returns, you are responsible for hiding or destroying the dialog if
 // you wish to do so.
 func (d *CDialog) Run() (response chan enums.ResponseType) {
-	response = make(chan enums.ResponseType, 1)
+	response = make(chan enums.ResponseType)
 	display := d.GetDisplay()
 	if display == nil {
 		d.LogError("display not found")
