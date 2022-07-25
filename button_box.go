@@ -210,6 +210,7 @@ func (b *CButtonBox) GetChildren() (children []Widget) {
 // Add is a convenience method for adding the given Widget to the primary group
 // with default PackStart configuration of: expand=true, fill=true and padding=0
 func (b *CButtonBox) Add(w Widget) {
+	defer b.Invalidate()
 	if primary := b.getPrimary(); primary != nil {
 		primary.PackStart(w, true, true, 0)
 	}
@@ -217,6 +218,7 @@ func (b *CButtonBox) Add(w Widget) {
 
 // Remove the given Widget from the ButtonBox
 func (b *CButtonBox) Remove(w Widget) {
+	defer b.Invalidate()
 	if b.GetChildSecondary(w) {
 		if secondary := b.getSecondary(); secondary != nil {
 			secondary.Remove(w)
@@ -231,6 +233,7 @@ func (b *CButtonBox) Remove(w Widget) {
 // PackStart will add the given Widget to the primary group with the given Box
 // packing configuration.
 func (b *CButtonBox) PackStart(w Widget, expand, fill bool, padding int) {
+	defer b.Invalidate()
 	if primary := b.getPrimary(); primary != nil {
 		primary.PackStart(w, expand, fill, padding)
 	}
@@ -239,6 +242,7 @@ func (b *CButtonBox) PackStart(w Widget, expand, fill bool, padding int) {
 // PackEnd will add the given Widget to the secondary group with the given Box
 // packing configuration.
 func (b *CButtonBox) PackEnd(w Widget, expand, fill bool, padding int) {
+	defer b.Invalidate()
 	if secondary := b.getSecondary(); secondary != nil {
 		secondary.PackEnd(w, expand, fill, padding)
 	}
@@ -320,6 +324,7 @@ func (b *CButtonBox) SetChildSecondary(child Widget, isSecondary bool) {
 // 	padding	the new value of the padding child property
 // 	packType	the new value of the pack-type child property
 func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, padding int, packType enums.PackType) {
+	defer b.Invalidate()
 	if b.GetChildPrimary(child) {
 		if primary := b.getPrimary(); primary != nil {
 			primary.SetChildPacking(child, expand, fill, padding, packType)
@@ -334,6 +339,7 @@ func (b *CButtonBox) SetChildPacking(child Widget, expand bool, fill bool, paddi
 }
 
 func (b *CButtonBox) SetSpacing(spacing int) {
+	defer b.Invalidate()
 	b.CBox.SetSpacing(spacing)
 	b.getPrimary().SetSpacing(spacing)
 	b.getSecondary().SetSpacing(spacing)
