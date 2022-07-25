@@ -782,6 +782,22 @@ func (b *CBox) resizeDynamicAlloc(isVertical bool, spacing, numChildren int, ori
 			} else {
 				tracking[idx].rw = increment
 			}
+		} else {
+			if isVertical {
+				if tracking[idx].rh == -1 {
+					if firstExpanding == -1 {
+						firstExpanding = idx
+					}
+					tracking[idx].rh = increment
+				}
+			} else {
+				if tracking[idx].rw == -1 {
+					if firstExpanding == -1 {
+						firstExpanding = idx
+					}
+					tracking[idx].rw = increment
+				}
+			}
 		}
 	}
 
