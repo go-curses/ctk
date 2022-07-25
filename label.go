@@ -16,7 +16,11 @@ import (
 	"github.com/go-curses/ctk/lib/enums"
 )
 
-const TypeLabel cdk.CTypeTag = "ctk-label"
+const (
+	TypeLabel       cdk.CTypeTag    = "ctk-label"
+	LabelMonoTheme  paint.ThemeName = "label-mono"
+	LabelColorTheme paint.ThemeName = "label-color"
+)
 
 var (
 	rxLabelPlainText = regexp.MustCompile(`(?msi)(_)([A-Za-z0-9])`)
@@ -47,6 +51,19 @@ func init() {
 		}
 		return ErrFallthrough
 	}
+
+	theme := paint.GetDefaultColorTheme()
+	theme.Content.Normal = theme.Content.Normal.Dim(false)
+	theme.Content.Active = theme.Content.Active.Dim(false)
+	theme.Content.Selected = theme.Content.Selected.Dim(false)
+	theme.Content.Prelight = theme.Content.Prelight.Dim(false)
+	theme.Content.Insensitive = theme.Content.Insensitive.Dim(false)
+	theme.Border.Normal = theme.Border.Normal.Dim(false)
+	theme.Border.Active = theme.Border.Active.Dim(false)
+	theme.Border.Selected = theme.Border.Selected.Dim(false)
+	theme.Border.Prelight = theme.Border.Prelight.Dim(false)
+	theme.Border.Insensitive = theme.Border.Insensitive.Dim(false)
+	paint.RegisterTheme(LabelColorTheme, theme)
 }
 
 // Label Hierarchy:
@@ -181,6 +198,8 @@ func (l *CLabel) Init() (already bool) {
 	l.CMisc.Init()
 	l.flags = enums.NULL_WIDGET_FLAG
 	l.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE)
+	theme, _ := paint.GetTheme(LabelColorTheme)
+	l.SetTheme(theme)
 
 	l.text = ""
 	l.tBuffer = nil
