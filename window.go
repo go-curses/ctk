@@ -362,6 +362,8 @@ func (w *CWindow) Show() {
 		w.Map()
 		display.MapWindowWithRegion(w, w.GetRegion())
 	}
+	w.SetState(enums.StatePrelight)
+	w.InvalidateAllChildren()
 }
 
 func (w *CWindow) ShowAll() {
