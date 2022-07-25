@@ -818,6 +818,37 @@ func (c *CContainer) Destroy() {
 	}
 }
 
+func (c *CContainer) InvalidateChildren() {
+	var descend func(cc Container)
+	descend = func(cc Container) {
+		children := cc.GetChildren()
+		for _, child := range children {
+			// child.SetInvalidated(true)
+			if cChild, ok := child.Self().(Container); ok {
+				descend(cChild)
+			}
+			child.Invalidate()
+		}
+	}
+	descend(c)
+}
+
+func (c *CContainer) InvalidateAllChildren() {
+	var descend func(cc Container)
+	descend = func(cc Container) {
+		allChildren := append([]Widget{}, cc.GetCompositeChildren()...)
+		allChildren = append(allChildren, cc.GetChildren()...)
+		for _, child := range allChildren {
+			// child.SetInvalidated(true)
+			if cChild, ok := child.Self().(Container); ok {
+				descend(cChild)
+			}
+			child.Invalidate()
+		}
+	}
+	descend(c)
+}
+
 func (c *CContainer) childShow(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	c.Resize()
 	return cenums.EVENT_PASS
