@@ -196,16 +196,16 @@ func (b *CButtonBox) SetLayout(layoutStyle enums.ButtonBoxStyle) {
 	}
 }
 
-// GetChildren returns the children of the primary and secondary groupings.
-func (b *CButtonBox) GetChildren() (children []Widget) {
-	for _, child := range b.getPrimary().GetChildren() {
-		children = append(children, child)
-	}
-	for _, child := range b.getSecondary().GetChildren() {
-		children = append(children, child)
-	}
-	return
-}
+// // GetChildren returns the children of the primary and secondary groupings.
+// func (b *CButtonBox) GetChildren() (children []Widget) {
+// 	for _, child := range b.getPrimary().GetChildren() {
+// 		children = append(children, child)
+// 	}
+// 	for _, child := range b.getSecondary().GetChildren() {
+// 		children = append(children, child)
+// 	}
+// 	return
+// }
 
 // Add is a convenience method for adding the given Widget to the primary group
 // with default PackStart configuration of: expand=true, fill=true and padding=0
