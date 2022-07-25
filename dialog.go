@@ -51,6 +51,7 @@ type Dialog interface {
 	Buildable
 
 	Run() (response chan enums.ResponseType)
+	RunFunc(fn func(response enums.ResponseType))
 	Response(responseId enums.ResponseType)
 	GetDialogFlags() (flags enums.DialogFlags)
 	SetDialogFlags(flags enums.DialogFlags)
@@ -438,6 +439,16 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 		display.RequestShow()
 	})
 	return
+}
+
+func (d *CDialog) RunFunc(fn func(response enums.ResponseType)) {
+	r := d.Run()
+	cdk.Go(func() {
+		response := <-r
+		d.Destroy()
+		fn(response)
+		d.RequestDrawAndSync()
+	})
 }
 
 // Response emits the response signal with the given response ID. Used to
