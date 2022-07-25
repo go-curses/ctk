@@ -211,17 +211,18 @@ var _ Widget = (*CWidget)(nil)
 type CWidget struct {
 	CObject
 
-	renderFrozen  int
-	composites    []Widget
-	parent        Widget
-	state         enums.StateType
-	flags         enums.WidgetFlags
-	flagsLock     *sync.RWMutex
-	drawLock      *sync.Mutex
-	eventLock     *sync.Mutex
-	tooltipWindow Window
-	tooltipTimer  uuid.UUID
-	// tooltipPoint  ptypes.Point2I
+	renderFrozen int
+	composites   []Widget
+	parent       Widget
+	state        enums.StateType
+	flags        enums.WidgetFlags
+	flagsLock    *sync.RWMutex
+	drawLock     *sync.Mutex
+	eventLock    *sync.Mutex
+
+	tooltipWindow      Window
+	tooltipTimer       uuid.UUID
+	tooltipBrowseTimer uuid.UUID
 }
 
 // Init initializes a Widget object. This must be called at least once to
@@ -317,6 +318,7 @@ func (w *CWidget) Init() (already bool) {
 	w.flags = enums.NULL_WIDGET_FLAG
 	w.tooltipWindow = nil
 	w.tooltipTimer = uuid.Nil
+	w.tooltipBrowseTimer = uuid.Nil
 	w.SetTheme(theme)
 
 	w.Connect(SignalLostFocus, WidgetLostFocusHandle, w.lostFocus)
@@ -330,6 +332,10 @@ func (w *CWidget) openTooltip() {
 	settings := GetDefaultSettings()
 	if settings.GetEnableTooltips() {
 		if w.GetHasTooltip() {
+			if w.tooltipBrowseTimer != uuid.Nil {
+				cdk.StopTimeout(w.tooltipBrowseTimer)
+				w.tooltipBrowseTimer = uuid.Nil
+			}
 			timeout := settings.GetTooltipTimeout()
 			w.Lock()
 			w.tooltipTimer = cdk.AddTimeout(
@@ -343,10 +349,13 @@ func (w *CWidget) openTooltip() {
 }
 
 func (w *CWidget) openTooltipHandler() cenums.EventFlag {
-	w.LogDebug("opening tooltip")
 	if display := w.GetDisplay(); display != nil && w.GetHasTooltip() {
 		tooltipWindow := w.GetTooltipWindow()
 		if screen := display.Screen(); screen != nil {
+			if w.tooltipBrowseTimer != uuid.Nil {
+				cdk.StopTimeout(w.tooltipBrowseTimer)
+				w.tooltipBrowseTimer = uuid.Nil
+			}
 			position, _ := display.CursorPosition()
 			tw, th := w.tooltipTextBufferInfo()
 			if w.HasPoint(&position) {
@@ -368,27 +377,35 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 					}
 					tooltipWindow.Move(position.X, position.Y)
 					tooltipWindow.SetAllocation(ptypes.MakeRectangle(tw, th))
+					w.LogDebug("opening tooltip: %v", tooltipWindow.ObjectInfo())
 					settings := GetDefaultSettings()
 					browseModeTimeout := settings.GetTooltipBrowseModeTimeout()
 					if markup := w.GetTooltipMarkup(); markup != "" {
 						tooltipWindow.Resize()
 						tooltipWindow.Show()
-						cdk.AddTimeout(browseModeTimeout, func() cenums.EventFlag {
+						w.tooltipBrowseTimer = cdk.AddTimeout(browseModeTimeout, func() cenums.EventFlag {
 							w.closeTooltip()
 							return cenums.EVENT_STOP
 						})
+						if window := w.GetWindow(); window != nil {
+							window.Connect(SignalCdkEvent, WidgetTooltipWindowEventHandle, w.processTooltipWindowEvent)
+						}
 						return cenums.EVENT_STOP
 					}
 					if text := w.GetTooltipText(); text != "" {
 						tooltipWindow.Resize()
 						tooltipWindow.Show()
-						cdk.AddTimeout(browseModeTimeout, func() cenums.EventFlag {
+						w.tooltipBrowseTimer = cdk.AddTimeout(browseModeTimeout, func() cenums.EventFlag {
 							w.closeTooltip()
 							return cenums.EVENT_STOP
 						})
+						if window := w.GetWindow(); window != nil {
+							window.Connect(SignalCdkEvent, WidgetTooltipWindowEventHandle, w.processTooltipWindowEvent)
+						}
 						return cenums.EVENT_STOP
 					}
 				}
+
 			}
 		}
 		tooltipWindow.Hide()
@@ -396,7 +413,26 @@ func (w *CWidget) openTooltipHandler() cenums.EventFlag {
 	return cenums.EVENT_STOP
 }
 
+func (w *CWidget) processTooltipWindowEvent(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	if len(argv) >= 2 {
+		if evt, ok := argv[1].(cdk.Event); ok {
+			switch evt.(type) {
+			case *cdk.EventMouse, *cdk.EventKey:
+				w.closeTooltip()
+			}
+		}
+	}
+	return cenums.EVENT_PASS
+}
+
 func (w *CWidget) closeTooltip() {
+	if window := w.GetWindow(); window != nil {
+		_ = window.Disconnect(SignalCdkEvent, WidgetTooltipWindowEventHandle)
+	}
+	if w.tooltipBrowseTimer != uuid.Nil {
+		cdk.StopTimeout(w.tooltipBrowseTimer)
+		w.tooltipBrowseTimer = uuid.Nil
+	}
 	if w.tooltipTimer != uuid.Nil {
 		w.LogDebug("closing tooltip")
 		cdk.StopTimeout(w.tooltipTimer)
@@ -531,10 +567,10 @@ func (w *CWidget) tooltipDraw(data []interface{}, argv ...interface{}) cenums.Ev
 // (windows) require explicit destruction, because when you destroy a
 // toplevel its children will be destroyed as well.
 func (w *CWidget) Destroy() {
+	w.closeTooltip()
 	w.Emit(SignalDestroyEvent, w)
 	w.DisconnectAll()
 	w.Hide()
-	w.closeTooltip()
 	if w.tooltipWindow != nil {
 		w.tooltipWindow.Destroy()
 	}
@@ -609,11 +645,11 @@ func (w *CWidget) Show() {
 func (w *CWidget) Hide() {
 	if w.HasFlags(enums.APP_PAINTABLE) {
 		if w.HasFlags(enums.VISIBLE) {
+			w.closeTooltip()
 			w.Unmap()
 			w.UnsetFlags(enums.VISIBLE)
 			w.Emit(SignalHide, w)
 			w.Invalidate()
-			w.closeTooltip()
 		}
 	}
 }
@@ -755,6 +791,7 @@ func (w *CWidget) CanActivateAccel(signalId int) (value bool) {
 // Returns:
 // 	TRUE if the widget was activatable
 func (w *CWidget) Activate() (value bool) {
+	w.closeTooltip()
 	if w.IsVisible() && w.IsSensitive() {
 		if f := w.Emit(SignalActivate, w); f == cenums.EVENT_STOP {
 			value = true
@@ -3042,6 +3079,8 @@ const WidgetEnterHandle = "widget-enter-handler"
 const WidgetLeaveHandle = "widget-leave-handler"
 
 const WidgetActivateHandle = "widget-activate-handler"
+
+const WidgetTooltipWindowEventHandle = "widget-tooltip-window-event-handler"
 
 const CssPropertyClass cdk.Property = "class"
 
