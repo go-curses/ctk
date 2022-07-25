@@ -280,9 +280,15 @@ func NewButtonMenuDialog(title, message string, argv ...interface{}) (dialog Dia
 		button.Show()
 		button.SetSizeRequest(optionsWidth, 1)
 		button.Connect(SignalActivate, "dialog-button-menu-activate-handler", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
-			d.Response(option.response)
+			if len(data) == 1 {
+				if opt, ok := data[0].(buttonMenuOption); ok {
+					d.Response(opt.response)
+					return cenums.EVENT_STOP
+				}
+			}
+			d.LogError("button menu activate handler, invalid data: %v", data)
 			return cenums.EVENT_STOP
-		})
+		}, option)
 		buttonBox.PackStart(button, false, false, 0)
 	}
 
