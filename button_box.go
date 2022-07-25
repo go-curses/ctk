@@ -85,12 +85,16 @@ func (b *CButtonBox) Init() (already bool) {
 
 	orientation := b.GetOrientation()
 	spacing := b.GetSpacing()
+
 	primary := NewBox(orientation, false, spacing)
 	primary.Show()
-	b.CBox.PackStart(primary, true, true, 0)
+	primary.SetSizeRequest(-1, 1)
+	b.CBox.PackStart(primary, false, false, 0)
+
 	secondary := NewBox(orientation, false, spacing)
 	secondary.Show()
-	b.CBox.PackEnd(secondary, true, true, 0)
+	secondary.SetSizeRequest(-1, 1)
+	b.CBox.PackEnd(secondary, false, false, 0)
 
 	_ = b.InstallProperty(PropertyLayoutStyle, cdk.StructProperty, true, enums.LayoutStart)
 
