@@ -8,7 +8,9 @@ import (
 
 	"github.com/go-curses/cdk"
 	cenums "github.com/go-curses/cdk/lib/enums"
+	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/ptypes"
+	"github.com/go-curses/cdk/log"
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -114,13 +116,12 @@ func NewDialog() (value Dialog) {
 // 	parent	Transient parent of the dialog, or `nil`
 // 	flags	from DialogFlags
 // 	argv	response ID with label pairs
-func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, argv ...interface{}) (value Dialog) {
+func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, argv ...interface{}) (dialog Dialog) {
 	d := new(CDialog)
 	d.dialogFlags = flags
 	d.Init()
 	d.SetTitle(title)
 	if parent != nil {
-		parent.SetTransientFor(d)
 		d.SetTransientFor(parent)
 		d.SetParent(parent)
 		if err := d.ImportStylesFromString(parent.ExportStylesToString()); err != nil {
@@ -131,6 +132,160 @@ func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, 
 	if len(argv) > 0 {
 		d.AddButtons(argv...)
 	}
+	return d
+}
+
+func NewMessageDialog(title, message string) (dialog Dialog) {
+	d := new(CDialog)
+	d.Init()
+	d.SetTitle(title)
+	d.SetWindow(d)
+	d.AddButton(string(StockClose), enums.ResponseClose)
+	d.SetDefaultResponse(enums.ResponseClose)
+	var label Label
+	var err error
+	if label, err = NewLabelWithMarkup(message); err != nil {
+		log.Error(err)
+		label = NewLabel(message)
+	}
+	label.Show()
+	label.SetSingleLineMode(false)
+	label.SetLineWrap(true)
+	label.SetLineWrapMode(cenums.WRAP_WORD)
+	d.GetContentArea().PackStart(label, true, true, 0)
+	w, h := label.GetSizeRequest()
+	d.SetSizeRequest(w+4, h+4)
+	return d
+}
+
+func NewYesNoDialog(title, message string, defaultNo bool) (dialog Dialog) {
+	d := new(CDialog)
+	d.Init()
+	d.SetTitle(title)
+	d.SetWindow(d)
+	d.AddButton(string(StockYes), enums.ResponseYes)
+	d.AddButton(string(StockNo), enums.ResponseNo)
+	if defaultNo {
+		d.SetDefaultResponse(enums.ResponseNo)
+	} else {
+		d.SetDefaultResponse(enums.ResponseYes)
+	}
+	var label Label
+	var err error
+	if label, err = NewLabelWithMarkup(message); err != nil {
+		log.Error(err)
+		label = NewLabel(message)
+	}
+	label.Show()
+	label.SetSingleLineMode(false)
+	label.SetLineWrap(true)
+	label.SetLineWrapMode(cenums.WRAP_WORD)
+	d.GetContentArea().PackStart(label, true, true, 0)
+	w, h := label.GetSizeRequest()
+	d.SetSizeRequest(w+4, h+4)
+	return d
+}
+
+type buttonMenuOption struct {
+	label    string
+	response enums.ResponseType
+}
+
+func NewButtonMenuDialog(title, message string, argv ...interface{}) (dialog Dialog) {
+	d := new(CDialog)
+	d.Init()
+	d.SetTitle(title)
+	d.SetWindow(d)
+	d.AddButton(string(StockCancel), enums.ResponseCancel)
+	d.SetDefaultResponse(enums.ResponseCancel)
+
+	contentArea := d.GetContentArea()
+
+	var options []buttonMenuOption
+	optionsWidth := 0
+
+	argc := len(argv)
+
+	if argc%2 != 0 {
+		d.LogError("invalid button menu arguments: %v", argv)
+		return nil
+	}
+
+	for i := 0; i < argc; i += 2 {
+		bmo := buttonMenuOption{}
+		if stock, ok := argv[i].(StockID); ok {
+			bmo.label = string(stock)
+		} else if label, ok := argv[i].(string); ok {
+			bmo.label = label
+		} else {
+			d.LogError("invalid button menu label argument: %v (%T)", argv[i], argv[i])
+			continue
+		}
+
+		if response, ok := argv[i+1].(enums.ResponseType); ok {
+			bmo.response = response
+		} else if response, ok := argv[i+1].(int); ok {
+			bmo.response = enums.ResponseType(response)
+		} else {
+			d.LogError("invalid button menu response argument: %v (%T)", argv[i], argv[i])
+			continue
+		}
+
+		labelLen := len(bmo.label)
+		if labelLen > optionsWidth {
+			optionsWidth = labelLen
+		}
+		options = append(options, bmo)
+	}
+	numOptions := len(options)
+
+	var label Label
+	var err error
+	if label, err = NewLabelWithMarkup(message); err != nil {
+		log.Error(err)
+		label = NewLabel(message)
+	}
+	label.Show()
+	label.SetSingleLineMode(false)
+	label.SetLineWrap(true)
+	label.SetLineWrapMode(cenums.WRAP_WORD)
+	contentArea.PackStart(label, false, false, 0)
+
+	w, h := label.GetSizeRequest()
+	if optionsWidth+2 > w {
+		w = optionsWidth + 2
+	} else {
+		optionsWidth = w - 2
+	}
+	h += cmath.CeilI(numOptions, 5)
+
+	buttonScroll := NewScrolledViewport()
+	buttonScroll.Show()
+	if numOptions > 5 {
+		buttonScroll.SetPolicy(enums.PolicyAutomatic, enums.PolicyAutomatic)
+		optionsWidth -= 2
+	} else {
+		buttonScroll.SetPolicy(enums.PolicyNever, enums.PolicyNever)
+	}
+	contentArea.PackStart(buttonScroll, true, true, 0)
+
+	buttonBox := NewVBox(false, 0)
+	buttonBox.Show()
+	buttonBox.SetSizeRequest(w, numOptions)
+	buttonScroll.Add(buttonBox)
+
+	for _, option := range options {
+		button := NewButtonWithLabel(option.label)
+		button.Show()
+		button.SetSizeRequest(optionsWidth, 1)
+		button.Connect(SignalActivate, "dialog-button-menu-activate-handler", func(data []interface{}, argv ...interface{}) cenums.EventFlag {
+			d.Response(option.response)
+			return cenums.EVENT_STOP
+		})
+		buttonBox.PackStart(button, false, false, 0)
+	}
+
+	d.SetSizeRequest(w+2, h+4)
 	return d
 }
 
@@ -488,7 +643,6 @@ func (d *CDialog) Show() {
 func (d *CDialog) ShowAll() {
 	d.Show()
 	d.CWindow.ShowAll()
-
 }
 
 // Destroy hides the Dialog, removes it from any transient Window associations,
