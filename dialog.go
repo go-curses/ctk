@@ -307,17 +307,23 @@ func (d *CDialog) Init() (already bool) {
 	d.SetFlags(enums.PARENT_SENSITIVE | enums.APP_PAINTABLE | enums.TOPLEVEL)
 	d.SetParent(d)
 	d.SetWindow(d)
+	d.SetDecorated(false)
 	d.defResponse = enums.ResponseNone
-	vbox := d.GetVBox()
-	d.content = NewVBox(false, 0)
-	d.content.Show()
-	vbox.PackStart(d.content, true, true, 0)
-	d.action = NewHButtonBox(false, 0)
-	d.action.Show()
-	vbox.PackEnd(d.action, false, true, 0)
 	d.done = make(chan bool, 1)
 	d.response = enums.ResponseNone
 	d.widgets = make(map[enums.ResponseType][]Widget)
+
+	vbox := d.GetVBox()
+	vbox.SetSpacing(1)
+
+	d.content = NewVBox(false, 0)
+	d.content.Show()
+	vbox.PackStart(d.content, true, true, 0)
+
+	d.action = NewHButtonBox(false, 1)
+	d.action.Show()
+	vbox.PackEnd(d.action, false, true, 1)
+
 	d.Connect(SignalResponse, DialogResponseHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		if len(argv) == 1 {
 			if value, ok := argv[0].(enums.ResponseType); ok {
@@ -330,7 +336,7 @@ func (d *CDialog) Init() (already bool) {
 			d.response = d.defResponse
 		}
 		d.done <- true
-		return cenums.EVENT_PASS
+		return cenums.EVENT_STOP
 	})
 	d.Connect(SignalCdkEvent, DialogEventHandle, d.event)
 	return false
@@ -420,6 +426,8 @@ func (d *CDialog) Run() (response chan enums.ResponseType) {
 	d.SetRegion(d.getDialogRegion())
 	d.Resize()
 	d.Show()
+	display.RequestDraw()
+	display.RequestSync()
 	cdk.Go(func() {
 		// wait for the response event
 		select {
