@@ -189,7 +189,7 @@ func (s *CSettings) Init() (already bool) {
 	_ = s.InstallProperty(PropertyCtkToolbarStyle, cdk.StructProperty, true, nil)
 	_ = s.InstallProperty(PropertyCtkTooltipBrowseModeTimeout, cdk.TimeProperty, true, 10*time.Second)
 	_ = s.InstallProperty(PropertyCtkTooltipBrowseTimeout, cdk.TimeProperty, true, 60*time.Millisecond)
-	_ = s.InstallProperty(PropertyCtkTooltipTimeout, cdk.TimeProperty, true, 500*time.Millisecond)
+	_ = s.InstallProperty(PropertyCtkTooltipTimeout, cdk.TimeProperty, true, 2*time.Second)
 	_ = s.InstallProperty(PropertyCtkTouchscreenMode, cdk.BoolProperty, true, false)
 	return false
 }
