@@ -6,6 +6,7 @@ import (
 	"github.com/go-curses/cdk/lib/paint"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -270,10 +271,10 @@ func (a *CAlignment) resize(data []interface{}, argv ...interface{}) cenums.Even
 			yDeltaValue := yAlign * float64(yDelta)
 			origin.Y += int(yDeltaValue)
 		}
+		a.Unlock()
 		child.SetOrigin(origin.X, origin.Y)
 		child.SetAllocation(*size)
 		child.Resize()
-		a.Unlock()
 	}
 	a.Invalidate()
 	return cenums.EVENT_PASS
