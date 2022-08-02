@@ -1485,7 +1485,7 @@ func (w *CWidget) GetAllParents() (parents []Widget) {
 	for parent != nil {
 		parents = append(parents, parent)
 		next := parent.GetParent()
-		if next.ObjectID() != parent.ObjectID() {
+		if next != nil && next.ObjectID() != parent.ObjectID() {
 			parent = next
 		} else {
 			break
