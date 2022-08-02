@@ -90,8 +90,8 @@ github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4
 github.com/gdamore/encoding v1.0.0 h1:+7OoQ1Bc6eTm5niUzBa0Ctsh6JbMW6Ra+YNuAtDBdko=
 github.com/gdamore/encoding v1.0.0/go.mod h1:alR0ol34c49FCSBLjhosxzcPHQbf2trDkoo5dl+VrEg=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
-github.com/go-curses/cdk v0.5.11 h1:og8VWlPNhbA0AAjl4D0Qf8kS2p0/sa7P/CCMVHJCitQ=
-github.com/go-curses/cdk v0.5.11/go.mod h1:XHzib+vIgVRsBvpK3zeGbjxSXr3VNyqtfS+5o2jSBK0=
+github.com/go-curses/cdk v0.5.12 h1:k9/h4LwEpflJW6Pw9b/73H6UZ9lkp+xI6z7DNMfbDo0=
+github.com/go-curses/cdk v0.5.12/go.mod h1:XHzib+vIgVRsBvpK3zeGbjxSXr3VNyqtfS+5o2jSBK0=
 github.com/go-curses/term v1.2.2-gocurses.1 h1:wUi7qtaZQO9q7+YpX8nGBDoFJd7aWZeo25UrbyPsgPg=
 github.com/go-curses/term v1.2.2-gocurses.1/go.mod h1:ZuwRe9U+iLY2qTuhzg/kg0Pc9bZdfcJCtfHrjGvZtVA=
 github.com/go-curses/terminfo v1.0.0 h1:vU1G+oYsvSwmywZe6ZsoRQ8a8XDrzlM3rPeejUmpzc4=
