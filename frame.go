@@ -68,6 +68,10 @@ func NewFrame(text string) Frame {
 	label.SetLineWrapMode(cenums.WRAP_NONE)
 	label.SetJustify(cenums.JUSTIFY_LEFT)
 	label.Show()
+	theme := label.GetTheme()
+	theme.Content.FillRune = paint.DefaultNilRune
+	theme.Border.FillRune = paint.DefaultNilRune
+	label.SetTheme(theme)
 	f.SetLabelWidget(label)
 	return f
 }
