@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/go-curses/cdk v0.5.10
+	github.com/go-curses/cdk v0.5.11
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/iancoleman/strcase v0.2.0
