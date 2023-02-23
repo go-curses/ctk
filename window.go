@@ -10,6 +10,7 @@ import (
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/lib/sync"
 	"github.com/go-curses/cdk/memphis"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -37,6 +38,7 @@ func init() {
 var DefaultStyles string
 
 // Window Hierarchy:
+//
 //	Object
 //	  +- Widget
 //	    +- Container
@@ -388,7 +390,8 @@ func (w *CWindow) Hide() {
 // for example.
 //
 // Parameters:
-// 	title	text for the title of the window
+//
+//	title	text for the title of the window
 func (w *CWindow) SetTitle(title string) {
 	if err := w.SetStringProperty(PropertyTitle, title); err != nil {
 		w.LogErr(err)
@@ -399,7 +402,8 @@ func (w *CWindow) SetTitle(title string) {
 // resizable by default.
 //
 // Parameters:
-// 	resizable	TRUE if the user can resize this window
+//
+//	resizable	TRUE if the user can resize this window
 func (w *CWindow) SetResizable(resizable bool) {
 	if err := w.SetBoolProperty(PropertyResizable, resizable); err != nil {
 		w.LogErr(err)
@@ -420,7 +424,8 @@ func (w *CWindow) GetResizable() (value bool) {
 // accel_group.
 //
 // Parameters:
-// 	accelGroup	a AccelGroup
+//
+//	accelGroup	a AccelGroup
 func (w *CWindow) AddAccelGroup(accelGroup AccelGroup) {
 	w.Lock()
 	w.accelGroups.AddAccelGroup(w, accelGroup)
@@ -430,7 +435,8 @@ func (w *CWindow) AddAccelGroup(accelGroup AccelGroup) {
 // RemoveAccelGroup reverses the effects of AddAccelGroup.
 //
 // Parameters:
-// 	accelGroup	a AccelGroup
+//
+//	accelGroup	a AccelGroup
 func (w *CWindow) RemoveAccelGroup(accelGroup AccelGroup) {
 	w.Lock()
 	w.accelGroups.RemoveAccelGroup(w, accelGroup)
@@ -439,7 +445,8 @@ func (w *CWindow) RemoveAccelGroup(accelGroup AccelGroup) {
 
 // Activates the current focused widget within the window.
 // Returns:
-// 	TRUE if a widget got activated.
+//
+//	TRUE if a widget got activated.
 func (w *CWindow) ActivateFocus() (value bool) {
 	if focused := w.GetFocus(); focused != nil {
 		if activatable, ok := focused.Self().(Activatable); ok {
@@ -455,7 +462,8 @@ func (w *CWindow) ActivateFocus() (value bool) {
 // WidgetSetReceivesDefault), in which case the focused widget is
 // activated.
 // Returns:
-// 	TRUE if a widget got activated.
+//
+//	TRUE if a widget got activated.
 func (w *CWindow) ActivateDefault() (value bool) {
 	return false
 }
@@ -466,7 +474,8 @@ func (w *CWindow) ActivateDefault() (value bool) {
 // dialog transient for the parent; most window managers will then disallow
 // lowering the dialog below the parent.
 // Parameters:
-// 	modal	whether the window is modal
+//
+//	modal	whether the window is modal
 func (w *CWindow) SetModal(modal bool) {
 	if err := w.SetBoolProperty(PropertyModal, modal); err != nil {
 		w.LogErr(err)
@@ -511,7 +520,8 @@ func (w *CWindow) SetModal(modal bool) {
 // is GTK_WIN_POS_CENTER_ALWAYS, this will also cause the window to be
 // repositioned to satisfy the new constraint.
 // Parameters:
-// 	position	a position constraint.
+//
+//	position	a position constraint.
 func (w *CWindow) SetPosition(position enums.WindowPosition) {}
 
 // Dialog windows should be set transient for the main application window
@@ -523,7 +533,8 @@ func (w *CWindow) SetPosition(position enums.WindowPosition) {}
 // this function puts the child window on top of the parent, much as the
 // window manager would have done on X.
 // Parameters:
-// 	parent	parent window, or NULL.
+//
+//	parent	parent window, or NULL.
 func (w *CWindow) SetTransientFor(parent Window) {
 	if err := w.SetStructProperty(PropertyTransientFor, parent); err != nil {
 		w.LogErr(err)
@@ -535,7 +546,9 @@ func (w *CWindow) SetTransientFor(parent Window) {
 // persist beyond the lifetime of the main window they're associated with,
 // for example.
 // Parameters:
-// 	setting	whether to destroy window
+//
+//	setting	whether to destroy window
+//
 // with its transient parent
 func (w *CWindow) SetDestroyWithParent(setting bool) {
 	if err := w.SetBoolProperty(PropertyDestroyWithParent, setting); err != nil {
@@ -572,7 +585,8 @@ func (w *CWindow) SetDestroyWithParent(setting bool) {
 // to draw a widget differently in an active window from a widget in an
 // inactive window. See HasToplevelFocus
 // Returns:
-// 	TRUE if the window part of the current active window.
+//
+//	TRUE if the window part of the current active window.
 func (w *CWindow) IsActive() (active bool) {
 	if focused := w.display.FocusedWindow(); focused != nil {
 		if focused.ObjectID() == w.ObjectID() {
@@ -586,7 +600,8 @@ func (w *CWindow) IsActive() (active bool) {
 // toplevel windows, this is identical to IsActive, but for
 // embedded windows, like Plug, the results will differ.
 // Returns:
-// 	TRUE if the input focus is within this Window
+//
+//	TRUE if the input focus is within this Window
 func (w *CWindow) HasToplevelFocus() (focused bool) {
 	return
 }
@@ -597,8 +612,9 @@ func (w *CWindow) HasToplevelFocus() (focused bool) {
 // you must call g_list_foreach (result, (GFunc)g_object_ref, NULL) first,
 // and then unref all the widgets afterwards.
 // Returns:
-// 	list of toplevel widgets.
-// 	[element-type Widget][transfer container]
+//
+//	list of toplevel widgets.
+//	[element-type Widget][transfer container]
 func (w *CWindow) ListTopLevels() (value []Window) {
 	w.LogError("method unimplemented")
 	return []Window{w}
@@ -606,8 +622,9 @@ func (w *CWindow) ListTopLevels() (value []Window) {
 
 // Adds a mnemonic to this window.
 // Parameters:
-// 	keyval	the mnemonic
-// 	target	the widget that gets activated by the mnemonic
+//
+//	keyval	the mnemonic
+//	target	the widget that gets activated by the mnemonic
 func (w *CWindow) AddMnemonic(keyval rune, target Widget) {
 	w.mnemonicLock.Lock()
 	for _, entry := range w.mnemonics {
@@ -635,8 +652,9 @@ func (w *CWindow) AddMnemonic(keyval rune, target Widget) {
 
 // Removes a mnemonic from this window.
 // Parameters:
-// 	keyval	the mnemonic
-// 	target	the widget that gets activated by the mnemonic
+//
+//	keyval	the mnemonic
+//	target	the widget that gets activated by the mnemonic
 func (w *CWindow) RemoveMnemonic(keyval rune, target Widget) {
 	w.mnemonicLock.Lock()
 	if tw, ok := target.Self().(Sensitive); ok {
@@ -659,7 +677,8 @@ func (w *CWindow) RemoveMnemonic(keyval rune, target Widget) {
 
 // Removes all mnemonics from this window for the target Widget.
 // Parameters:
-// 	target	the widget that gets activated by the mnemonic
+//
+//	target	the widget that gets activated by the mnemonic
 func (w *CWindow) RemoveWidgetMnemonics(target Widget) {
 	w.mnemonicLock.Lock()
 	if tw, ok := target.Self().(Widget); ok {
@@ -680,9 +699,10 @@ func (w *CWindow) RemoveWidgetMnemonics(target Widget) {
 
 // Activates the targets associated with the mnemonic.
 // Parameters:
-// 	keyval	the mnemonic
-// 	modifier	the modifiers
-// 	returns	TRUE if the activation is done.
+//
+//	keyval	the mnemonic
+//	modifier	the modifiers
+//	returns	TRUE if the activation is done.
 func (w *CWindow) ActivateMnemonic(keyval rune, modifier cdk.ModMask) (activated bool) {
 	if !GetDefaultSettings().GetEnableMnemonics() {
 		return false
@@ -709,9 +729,12 @@ func (w *CWindow) ActivateMnemonic(keyval rune, modifier cdk.ModMask) (activated
 // however in some cases it may be useful to call this directly when
 // overriding the standard key handling for a toplevel window.
 // Parameters:
-// 	event	a EventKey
+//
+//	event	a EventKey
+//
 // Returns:
-// 	TRUE if a mnemonic or accelerator was found and activated.
+//
+//	TRUE if a mnemonic or accelerator was found and activated.
 func (w *CWindow) ActivateKey(event cdk.EventKey) (value bool) {
 	return false
 }
@@ -722,9 +745,12 @@ func (w *CWindow) ActivateKey(event cdk.EventKey) (value bool) {
 // for toplevel windows, however in some cases it may be useful to call this
 // directly when overriding the standard key handling for a toplevel window.
 // Parameters:
-// 	event	a EventKey
+//
+//	event	a EventKey
+//
 // Returns:
-// 	TRUE if a widget in the focus chain handled the event.
+//
+//	TRUE if a widget in the focus chain handled the event.
 func (w *CWindow) PropagateKeyEvent(event cdk.EventKey) (value bool) {
 	return false
 }
@@ -734,8 +760,9 @@ func (w *CWindow) PropagateKeyEvent(event cdk.EventKey) (value bool) {
 // the toplevel window is not focused then WidgetHasFocus (widget) will
 // not be TRUE for the widget.
 // Returns:
-// 	the currently focused widget, or NULL if there is none.
-// 	[transfer none]
+//
+//	the currently focused widget, or NULL if there is none.
+//	[transfer none]
 func (w *CWindow) GetFocus() (focus Widget) {
 	var err error
 	var ok bool
@@ -762,7 +789,8 @@ func (w *CWindow) GetFocus() (focus Widget) {
 // function.
 //
 // Parameters:
-// 	focus	widget to be the new focus widget, or NULL to unset
+//
+//	focus	widget to be the new focus widget, or NULL to unset
 func (w *CWindow) SetFocus(focus Widget) {
 	// if transient := w.GetTransientFor(); transient != nil && w.ObjectID() != transient.ObjectID() {
 	// 	transient.SetFocus(focus)
@@ -796,8 +824,9 @@ func (w *CWindow) SetFocus(focus Widget) {
 // Returns the default widget for window . See SetDefault for
 // more details.
 // Returns:
-// 	the default widget, or NULL if there is none.
-// 	[transfer none]
+//
+//	the default widget, or NULL if there is none.
+//	[transfer none]
 func (w *CWindow) GetDefaultWidget() (value Widget) {
 	return nil
 }
@@ -810,7 +839,9 @@ func (w *CWindow) GetDefaultWidget() (value Widget) {
 // GTK_CAN_DEFAULT flag on the widget you'd like to make the default using
 // GTK_WIDGET_SET_FLAGS.
 // Parameters:
-// 	defaultWidget	widget to be the default, or NULL to unset the
+//
+//	defaultWidget	widget to be the default, or NULL to unset the
+//
 // default widget for the toplevel.
 func (w *CWindow) SetDefault(defaultWidget Widget) {}
 
@@ -831,7 +862,9 @@ func (w *CWindow) Present() {}
 // need to present a window without a timestamp, use Present.
 // See Present for details.
 // Parameters:
-// 	timestamp	the timestamp of the user interaction (typically a
+//
+//	timestamp	the timestamp of the user interaction (typically a
+//
 // button or key press event) which triggered this call
 func (w *CWindow) PresentWithTime(timestamp int) {}
 
@@ -920,7 +953,9 @@ func (w *CWindow) Unfullscreen() {}
 // should not be used by applications e.g. for drawing attention to their
 // dialogs.
 // Parameters:
-// 	setting	whether to keep window
+//
+//	setting	whether to keep window
+//
 // above other windows
 func (w *CWindow) SetKeepAbove(setting bool) {}
 
@@ -936,7 +971,9 @@ func (w *CWindow) SetKeepAbove(setting bool) {}
 // the above state is mainly meant for user preferences and should not be
 // used by applications e.g. for drawing attention to their dialogs.
 // Parameters:
-// 	setting	whether to keep window
+//
+//	setting	whether to keep window
+//
 // below other windows
 func (w *CWindow) SetKeepBelow(setting bool) {}
 
@@ -974,7 +1011,8 @@ func (w *CWindow) SetKeepBelow(setting bool) {}
 // call it before calling Show. On Windows, this function always
 // works, since there's no window manager policy involved.
 // Parameters:
-// 	setting	TRUE to decorate the window
+//
+//	setting	TRUE to decorate the window
 func (w *CWindow) SetDecorated(setting bool) {
 	if err := w.SetBoolProperty(PropertyDecorated, setting); err != nil {
 		w.LogErr(err)
@@ -989,7 +1027,8 @@ func (w *CWindow) SetDecorated(setting bool) {
 // it before calling Show. On Windows, this function always
 // works, since there's no window manager policy involved.
 // Parameters:
-// 	setting	TRUE to decorate the window as deletable
+//
+//	setting	TRUE to decorate the window as deletable
 func (w *CWindow) SetDeletable(setting bool) {
 	if err := w.SetBoolProperty(PropertyDeletable, setting); err != nil {
 		w.LogErr(err)
@@ -998,7 +1037,9 @@ func (w *CWindow) SetDeletable(setting bool) {
 
 // Sets the mnemonic modifier for this window.
 // Parameters:
-// 	modifier	the modifier mask used to activate
+//
+//	modifier	the modifier mask used to activate
+//
 // mnemonics on this window.
 func (w *CWindow) SetMnemonicModifier(modifier cdk.ModMask) {
 	w.mnemonicLock.Lock()
@@ -1021,7 +1062,8 @@ func (w *CWindow) SetWindowType(hint cenums.WindowType) {
 // convenience functions in CTK will sometimes call
 // SetTypeHint on your behalf.
 // Parameters:
-// 	hint	the window type
+//
+//	hint	the window type
 func (w *CWindow) SetTypeHint(hint enums.WindowTypeHint) {
 	if err := w.SetStructProperty(PropertyTypeHint, hint); err != nil {
 		w.LogErr(err)
@@ -1031,7 +1073,8 @@ func (w *CWindow) SetTypeHint(hint enums.WindowTypeHint) {
 // Windows may set a hint asking the desktop environment not to display the
 // window in the task bar. This function sets this hint.
 // Parameters:
-// 	setting	TRUE to keep this window from appearing in the task bar
+//
+//	setting	TRUE to keep this window from appearing in the task bar
 func (w *CWindow) SetSkipTaskbarHint(setting bool) {
 	if err := w.SetBoolProperty(PropertySkipTaskbarHint, setting); err != nil {
 		w.LogErr(err)
@@ -1043,7 +1086,8 @@ func (w *CWindow) SetSkipTaskbarHint(setting bool) {
 // desktop navigation tool such as a workspace switcher that displays a
 // thumbnail representation of the windows on the screen.)
 // Parameters:
-// 	setting	TRUE to keep this window from appearing in the pager
+//
+//	setting	TRUE to keep this window from appearing in the pager
 func (w *CWindow) SetSkipPagerHint(setting bool) {
 	if err := w.SetBoolProperty(PropertySkipPagerHint, setting); err != nil {
 		w.LogErr(err)
@@ -1053,7 +1097,8 @@ func (w *CWindow) SetSkipPagerHint(setting bool) {
 // Windows may set a hint asking the desktop environment to draw the users
 // attention to the window. This function sets this hint.
 // Parameters:
-// 	setting	TRUE to mark this window as urgent
+//
+//	setting	TRUE to mark this window as urgent
 func (w *CWindow) SetUrgencyHint(setting bool) {
 	if err := w.SetBoolProperty(PropertyUrgencyHint, setting); err != nil {
 		w.LogErr(err)
@@ -1063,7 +1108,8 @@ func (w *CWindow) SetUrgencyHint(setting bool) {
 // Windows may set a hint asking the desktop environment not to receive the
 // input focus. This function sets this hint.
 // Parameters:
-// 	setting	TRUE to let this window receive input focus
+//
+//	setting	TRUE to let this window receive input focus
 func (w *CWindow) SetAcceptFocus(setting bool) {
 	if err := w.SetBoolProperty(PropertyAcceptFocus, setting); err != nil {
 		w.LogErr(err)
@@ -1073,7 +1119,8 @@ func (w *CWindow) SetAcceptFocus(setting bool) {
 // Windows may set a hint asking the desktop environment not to receive the
 // input focus when the window is mapped. This function sets this hint.
 // Parameters:
-// 	setting	TRUE to let this window receive input focus on map
+//
+//	setting	TRUE to let this window receive input focus on map
 func (w *CWindow) SetFocusOnMap(setting bool) {
 	if err := w.SetBoolProperty(PropertyFocusOnMap, setting); err != nil {
 		w.LogErr(err)
@@ -1089,7 +1136,8 @@ func (w *CWindow) SetFocusOnMap(setting bool) {
 // Present or any equivalent function generating a window map
 // event. This function is only useful on X11, not with other CTK targets.
 // Parameters:
-// 	startupId	a string with startup-notification identifier
+//
+//	startupId	a string with startup-notification identifier
 func (w *CWindow) SetStartupId(startupId string) {
 	if err := w.SetStringProperty(PropertyStartupId, startupId); err != nil {
 		w.LogErr(err)
@@ -1105,7 +1153,8 @@ func (w *CWindow) SetStartupId(startupId string) {
 // the role, since the WM can use the title to identify the window when
 // restoring the session.
 // Parameters:
-// 	role	unique identifier for the window to be used when restoring a session
+//
+//	role	unique identifier for the window to be used when restoring a session
 func (w *CWindow) SetRole(role string) {
 	if err := w.SetStringProperty(PropertyRole, role); err != nil {
 		w.LogErr(err)
@@ -1115,7 +1164,8 @@ func (w *CWindow) SetRole(role string) {
 // Returns whether the window has been set to have decorations such as a
 // title bar via SetDecorated.
 // Returns:
-// 	TRUE if the window has been set to have decorations
+//
+//	TRUE if the window has been set to have decorations
 func (w *CWindow) GetDecorated() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyDecorated); err != nil {
@@ -1127,7 +1177,8 @@ func (w *CWindow) GetDecorated() (value bool) {
 // Returns whether the window has been set to have a close button via
 // SetDeletable.
 // Returns:
-// 	TRUE if the window has been set to have a close button
+//
+//	TRUE if the window has been set to have a close button
 func (w *CWindow) GetDeletable() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyDeletable); err != nil {
@@ -1140,14 +1191,16 @@ func (w *CWindow) GetDeletable() (value bool) {
 // indicates that a default size has not been explicitly set for that
 // dimension, so the "natural" size of the window will be used.
 // Parameters:
-// 	width	location to store the default width, or NULL.
-// 	height	location to store the default height, or NULL.
+//
+//	width	location to store the default width, or NULL.
+//	height	location to store the default height, or NULL.
 func (w *CWindow) GetDefaultSize(width int, height int) {}
 
 // Returns whether the window will be destroyed with its transient parent.
 // See SetDestroyWithParent.
 // Returns:
-// 	TRUE if the window will be destroyed with its transient parent.
+//
+//	TRUE if the window will be destroyed with its transient parent.
 func (w *CWindow) GetDestroyWithParent() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyDestroyWithParent); err != nil {
@@ -1159,7 +1212,8 @@ func (w *CWindow) GetDestroyWithParent() (value bool) {
 // Returns the mnemonic modifier for this window. See
 // SetMnemonicModifier.
 // Returns:
-// 	the modifier mask used to activate mnemonics on this window.
+//
+//	the modifier mask used to activate mnemonics on this window.
 func (w *CWindow) GetMnemonicModifier() (value cdk.ModMask) {
 	w.mnemonicLock.RLock()
 	value = w.mnemonicMod
@@ -1169,8 +1223,9 @@ func (w *CWindow) GetMnemonicModifier() (value cdk.ModMask) {
 
 // Returns whether the window is modal. See SetModal.
 // Returns:
-// 	TRUE if the window is set to be modal and establishes a grab
-// 	when shown
+//
+//	TRUE if the window is set to be modal and establishes a grab
+//	when shown
 func (w *CWindow) GetModal() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyModal); err != nil {
@@ -1206,15 +1261,17 @@ func (w *CWindow) GetModal() (value bool) {
 // the GNOME libraries for example) and allow the window manager to save your
 // window sizes and positions.
 // Parameters:
-// 	rootX	return location for X coordinate of gravity-determined reference point.
-// 	rootY	return location for Y coordinate of gravity-determined reference point.
+//
+//	rootX	return location for X coordinate of gravity-determined reference point.
+//	rootY	return location for Y coordinate of gravity-determined reference point.
 func (w *CWindow) GetPosition(rootX int, rootY int) {}
 
 // Returns the role of the window. See SetRole for further
 // explanation.
 // Returns:
-// 	the role of the window if set, or NULL. The returned is owned
-// 	by the widget and must not be modified or freed.
+//
+//	the role of the window if set, or NULL. The returned is owned
+//	by the widget and must not be modified or freed.
 func (w *CWindow) GetRole() (value string) {
 	var err error
 	if value, err = w.GetStringProperty(PropertyRole); err != nil {
@@ -1256,8 +1313,9 @@ func (w *CWindow) GetRole() (value string) {
 // there's still a better way than doing it yourself -
 // SetPosition will frequently handle the details for you.
 // Parameters:
-// 	width	return location for width, or NULL.
-// 	height	return location for height, or NULL.
+//
+//	width	return location for width, or NULL.
+//	height	return location for height, or NULL.
 func (w *CWindow) GetSize() (width, height int) {
 	alloc := w.GetAllocation()
 	width, height = alloc.W, alloc.H
@@ -1266,9 +1324,10 @@ func (w *CWindow) GetSize() (width, height int) {
 
 // Retrieves the title of the window. See SetTitle.
 // Returns:
-// 	the title of the window, or NULL if none has been set
-// 	explicitely. The returned string is owned by the widget and
-// 	must not be modified or freed.
+//
+//	the title of the window, or NULL if none has been set
+//	explicitely. The returned string is owned by the widget and
+//	must not be modified or freed.
 func (w *CWindow) GetTitle() (value string) {
 	var err error
 	if value, err = w.GetStringProperty(PropertyTitle); err != nil {
@@ -1280,9 +1339,10 @@ func (w *CWindow) GetTitle() (value string) {
 // Fetches the transient parent for this window. See
 // SetTransientFor.
 // Returns:
-// 	the transient parent for this window, or NULL if no transient
-// 	parent has been set.
-// 	[transfer none]
+//
+//	the transient parent for this window, or NULL if no transient
+//	parent has been set.
+//	[transfer none]
 func (w *CWindow) GetTransientFor() (value Window) {
 	var ok bool
 	if v, err := w.GetStructProperty(PropertyTransientFor); err != nil {
@@ -1308,7 +1368,8 @@ func (w *CWindow) GetWindowType() (value cenums.WindowType) {
 
 // Gets the type hint for this window. See SetTypeHint.
 // Returns:
-// 	the type hint for window .
+//
+//	the type hint for window .
 func (w *CWindow) GetTypeHint() (value enums.WindowTypeHint) {
 	var ok bool
 	if v, err := w.GetStructProperty(PropertyTypeHint); err != nil {
@@ -1321,7 +1382,8 @@ func (w *CWindow) GetTypeHint() (value enums.WindowTypeHint) {
 
 // Gets the value set by SetSkipTaskbarHint
 // Returns:
-// 	TRUE if window shouldn't be in taskbar
+//
+//	TRUE if window shouldn't be in taskbar
 func (w *CWindow) GetSkipTaskbarHint() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertySkipTaskbarHint); err != nil {
@@ -1332,7 +1394,8 @@ func (w *CWindow) GetSkipTaskbarHint() (value bool) {
 
 // Gets the value set by SetSkipPagerHint.
 // Returns:
-// 	TRUE if window shouldn't be in pager
+//
+//	TRUE if window shouldn't be in pager
 func (w *CWindow) GetSkipPagerHint() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertySkipPagerHint); err != nil {
@@ -1343,7 +1406,8 @@ func (w *CWindow) GetSkipPagerHint() (value bool) {
 
 // Gets the value set by SetUrgencyHint
 // Returns:
-// 	TRUE if window is urgent
+//
+//	TRUE if window is urgent
 func (w *CWindow) GetUrgencyHint() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyUrgencyHint); err != nil {
@@ -1354,7 +1418,8 @@ func (w *CWindow) GetUrgencyHint() (value bool) {
 
 // Gets the value set by SetAcceptFocus.
 // Returns:
-// 	TRUE if window should receive the input focus
+//
+//	TRUE if window should receive the input focus
 func (w *CWindow) GetAcceptFocus() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyAcceptFocus); err != nil {
@@ -1365,7 +1430,8 @@ func (w *CWindow) GetAcceptFocus() (value bool) {
 
 // Gets the value set by SetFocusOnMap.
 // Returns:
-// 	TRUE if window should receive the input focus when mapped.
+//
+//	TRUE if window should receive the input focus when mapped.
 func (w *CWindow) GetFocusOnMap() (value bool) {
 	var err error
 	if value, err = w.GetBoolProperty(PropertyFocusOnMap); err != nil {
@@ -1385,8 +1451,9 @@ func (w *CWindow) GetFocusOnMap() (value bool) {
 
 // Returns whether window has an explicit window group.
 // Returns:
-// 	TRUE if window has an explicit window group.
-// 	Since 2.22
+//
+//	TRUE if window has an explicit window group.
+//	Since 2.22
 func (w *CWindow) HasGroup() (value bool) {
 	return false
 }
@@ -1417,8 +1484,9 @@ func (w *CWindow) HasGroup() (value bool) {
 // in the "implementation notes" section. The GetPosition
 // documentation may also be relevant.
 // Parameters:
-// 	x	X coordinate to move window to
-// 	y	Y coordinate to move window to
+//
+//	x	X coordinate to move window to
+//	y	Y coordinate to move window to
 func (w *CWindow) Move(x int, y int) {
 	// update the origin and surface configuration?
 	w.SetOrigin(x, y)
@@ -1446,9 +1514,12 @@ func (w *CWindow) Move(x int, y int) {
 // the window has its "final" size, i.e. after calling WidgetShowAll
 // on the contents and SetGeometryHints on the window.
 // Parameters:
-// 	geometry	geometry string
+//
+//	geometry	geometry string
+//
 // Returns:
-// 	TRUE if string was parsed successfully
+//
+//	TRUE if string was parsed successfully
 func (w *CWindow) ParseGeometry(geometry string) (value bool) {
 	return false
 }
@@ -1466,13 +1537,15 @@ func (w *CWindow) ReshowWithInitialSize() {}
 // it so that showing the main window would automatically result in
 // notification.
 // Parameters:
-// 	setting	TRUE to automatically do startup notification
+//
+//	setting	TRUE to automatically do startup notification
 func (w *CWindow) SetAutoStartupNotification(setting bool) {}
 
 // Fetches the requested opacity for this window. See
 // SetOpacity.
 // Returns:
-// 	the requested opacity for this window.
+//
+//	the requested opacity for this window.
 func (w *CWindow) GetOpacity() (value float64) {
 	var err error
 	if value, err = w.GetFloatProperty(PropertyOpacity); err != nil {
@@ -1489,7 +1562,8 @@ func (w *CWindow) GetOpacity() (value float64) {
 // setting a window's opacity after the window has been shown causes it to
 // flicker once on Windows.
 // Parameters:
-// 	opacity	desired opacity, between 0 and 1
+//
+//	opacity	desired opacity, between 0 and 1
 func (w *CWindow) SetOpacity(opacity float64) {
 	if err := w.SetFloatProperty(PropertyOpacity, opacity); err != nil {
 		w.LogErr(err)
@@ -1506,7 +1580,8 @@ func (w *CWindow) GetMnemonicsVisible() (value bool) {
 
 // Sets the mnemonics-visible property.
 // Parameters:
-// 	setting	the new value
+//
+//	setting	the new value
 func (w *CWindow) SetMnemonicsVisible(setting bool) {
 	if err := w.SetBoolProperty(PropertyMnemonicsVisible, setting); err != nil {
 		w.LogErr(err)
@@ -2136,7 +2211,8 @@ const SignalFrameEvent cdk.Signal = "frame-event"
 const SignalKeysChanged cdk.Signal = "keys-changed"
 
 // Listener function arguments:
-// 	widget Widget
+//
+//	widget Widget
 const SignalFocusChanged cdk.Signal = "focus-changed"
 
 var ErrFallthrough = fmt.Errorf("fallthrough")
