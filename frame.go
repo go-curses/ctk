@@ -17,6 +17,7 @@ func init() {
 }
 
 // Frame Hierarchy:
+//
 //	Object
 //	  +- Widget
 //	    +- Container
@@ -124,8 +125,9 @@ func (f *CFrame) SetWindow(w Window) {
 // value of the Frame label property is returned.
 //
 // Returns:
-// 	the text in the label, or NULL if there was no label widget or
-// 	the label widget was not a Label. This string is owned by
+//
+//	the text in the label, or NULL if there was no label widget or
+//	the label widget was not a Label. This string is owned by
 //
 // Locking: read
 func (f *CFrame) GetLabel() (value string) {
@@ -149,7 +151,8 @@ func (f *CFrame) GetLabel() (value string) {
 // SetLabel updates the text of the Label.
 //
 // Parameters:
-// 	label	the text to use as the label of the frame.
+//
+//	label	the text to use as the label of the frame.
 //
 // Locking: write
 func (f *CFrame) SetLabel(label string) {
@@ -188,7 +191,8 @@ func (f *CFrame) GetLabelWidget() (value Widget) {
 // frame as a title.
 //
 // Parameters:
-// 	labelWidget	the new label widget
+//
+//	labelWidget	the new label widget
 //
 // Locking: write
 func (f *CFrame) SetLabelWidget(widget Widget) {
@@ -215,8 +219,9 @@ func (f *CFrame) SetLabelWidget(widget Widget) {
 // See: SetLabelAlign()
 //
 // Parameters:
-// 	xAlign	X alignment of frame's label
-// 	yAlign	Y alignment of frame's label
+//
+//	xAlign	X alignment of frame's label
+//	yAlign	Y alignment of frame's label
 //
 // Locking: read
 func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
@@ -242,12 +247,13 @@ func (f *CFrame) GetLabelAlign() (xAlign float64, yAlign float64) {
 // SetAlignment with the given x and y alignment values.
 //
 // Parameters:
-// 	xAlign	The position of the label along the top edge of the widget. A value
-// 	        of 0.0 represents left alignment; 1.0 represents right alignment.
-// 	yAlign	The y alignment of the label. A value of 0.0 aligns under the frame;
-// 	        1.0 aligns above the frame. If the values are exactly 0.0 or 1.0 the
-// 	        gap in the frame won't be painted because the label will be
-// 	        completely above or below the frame.
+//
+//	xAlign	The position of the label along the top edge of the widget. A value
+//	        of 0.0 represents left alignment; 1.0 represents right alignment.
+//	yAlign	The y alignment of the label. A value of 0.0 aligns under the frame;
+//	        1.0 aligns above the frame. If the values are exactly 0.0 or 1.0 the
+//	        gap in the frame won't be painted because the label will be
+//	        completely above or below the frame.
 //
 // Locking: write
 func (f *CFrame) SetLabelAlign(xAlign float64, yAlign float64) {
@@ -289,7 +295,8 @@ func (f *CFrame) GetShadowType() (value enums.ShadowType) {
 // SetShadowType updates the shadow-type property for the Frame.
 //
 // Parameters:
-// 	type	the new ShadowType
+//
+//	type	the new ShadowType
 //
 // Note that usage of this within CTK is unimplemented at this time
 func (f *CFrame) SetShadowType(shadowType enums.ShadowType) {
