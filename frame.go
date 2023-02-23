@@ -449,6 +449,7 @@ func (f *CFrame) resize(data []interface{}, argv ...interface{}) cenums.EventFla
 	if yAlign <= 0.0 {
 		yAlign = 0.0
 		childAlloc.H -= 1
+		labelOrigin.X -= 1
 		childOrigin.Y += 1
 	} else if yAlign >= 1.0 {
 		yAlign = 1.0
