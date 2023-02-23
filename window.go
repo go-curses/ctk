@@ -1859,11 +1859,11 @@ func (w *CWindow) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 			childOrigin.X += 1
 			childOrigin.Y += 3
 		} else {
-			// border with title inline and centred on top edge
-			childAlloc.W -= 2
-			childAlloc.H -= 2
-			childOrigin.X += 1
-			childOrigin.Y += 1
+			// no border with title inline and centred on top edge
+			// childAlloc.W -= 2
+			childAlloc.H -= 3
+			// childOrigin.X += 1
+			childOrigin.Y += 3
 		}
 	} else if decorated {
 		// border
@@ -1910,10 +1910,11 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 		_, _, attr := theme.Content.Normal.Decompose()
 		dim := attr.IsDim()
 
+		surface.FillBorder(dim, decorated, theme) // outer border
+
 		if title != "" {
 			if decorated {
 				// standard desktop layout
-				surface.FillBorder(dim, true, theme) // outer border
 				titleOrigin := origin.Clone()
 				titleOrigin.X += 2
 				titleOrigin.Y += 1
@@ -1921,15 +1922,21 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 				lineOrigin := origin.Clone()
 				lineOrigin.X += 1
 				lineOrigin.Y += 2
-				surface.DrawHorizontalLine(lineOrigin, alloc.W-2, theme.Content.Normal, paint.RuneUpperOneEighthBlock)
+				surface.DrawHorizontalLine(lineOrigin, alloc.W-2, theme.Content.Normal, paint.RuneHLine)
+				_ = surface.SetRune(0, 2, paint.RuneLTee, theme.Content.Normal)
+				_ = surface.SetRune(alloc.W-1, 2, paint.RuneRTee, theme.Content.Normal)
 			} else {
-				// border with title inline and centred on top edge
-				surface.FillBorderTitle(dim, title, cenums.JUSTIFY_CENTER, theme)
+				// no border with title inline and centred on top edge
+				surface.DrawHorizontalLine(origin, alloc.W, theme.Content.Normal, paint.RuneHLine)
+				titleOrigin := origin.Clone()
+				titleOrigin.X += 1
+				titleOrigin.Y += 1
+				surface.DrawSingleLineText(titleOrigin, alloc.W-2, false, cenums.JUSTIFY_LEFT, theme.Content.Normal, false, false, title)
+				lineOrigin := origin.Clone()
+				lineOrigin.X += 0
+				lineOrigin.Y += 2
+				surface.DrawHorizontalLine(lineOrigin, alloc.W, theme.Content.Normal, paint.RuneHLine)
 			}
-		} else if decorated {
-			surface.FillBorder(dim, true, theme)
-		} else {
-			// fullscreen child (vbox)
 		}
 
 		child := w.GetChild()
