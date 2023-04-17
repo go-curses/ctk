@@ -1,3 +1,17 @@
+// Copyright (c) 2023  The Go-Curses Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package enums
 
 import (
@@ -1353,4 +1367,3 @@ type GClosure = func(argv ...interface{}) (handled bool)
 
 //go:generate stringer -output enums_string.go -type AssistantPageType,BuilderError,CellRendererMode,CellRendererAccelMode,CellType,CListDragPos,CTreePos,CTreeLineStyle,CTreeExpanderStyle,CTreeExpansionType,EntryIconPosition,AnchorType,ArrowPlacement,ArrowType,ButtonBoxStyle,DeleteType,DirectionType,ExpanderStyle,SensitivityType,SideType,TextDirection,MatchType,MenuDirectionType,MessageType,MetricType,MovementStep,ScrollStep,CornerType,PackType,LayoutStyle,PathPriorityType,PathType,PolicyType,PositionType,ReliefStyle,ScrollType,SelectionMode,ShadowType,SubmenuDirection,SubmenuPlacement,ToolbarStyle,UpdateType,Visibility,WindowTypeHint,WindowEdge,Gravity,WindowPosition,SortType,IMPreeditStyle,IMStatusStyle,PackDirection,PrintPages,PageSet,NumberUpLayout,Unit,TreeViewGridLines,FileChooserAction,FileChooserConfirmation,FileChooserError,LoadState,ReloadState,LocationMode,OperationMode,StartupMode,FileChooserProp,IconThemeError,ButtonsType,NotebookTab,ArgFlags,ProgressBarStyle,ProgressBarOrientation,RcTokenType,RecentSortType,RecentChooserError,RecentChooserProp,RecentManagerError,SizeGroupMode,SpinButtonUpdatePolicy,SpinType,TextBufferTargetInfo,TextWindowType,ToolbarChildType,ToolbarSpaceStyle,TreeViewMode,TreeViewDropPosition,TreeViewColumnSizing,WidgetHelpType,ErrorType,TokenType,ExtensionMode
 //go:generate bitmasker -output enums_bitmask.go -kebab -type AccelFlags,CalendarDisplayOptions,CellRendererState,ButtonAction,DebugFlag,DialogFlags,AttachOptions,StateType,FileFilterFlags,PrivateFlags,RBNodeColor,RcFlags,RecentFilterFlags,TextSearchFlags,TreeModelFlags,TreeViewFlags,UIManagerItemType,WidgetFlags,ParamFlags
-
