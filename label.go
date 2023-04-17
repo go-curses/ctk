@@ -1058,14 +1058,10 @@ func (l *CLabel) draw(data []interface{}, argv ...interface{}) cenums.EventFlag 
 		} else if tSurface, err := memphis.GetSurface(l.tid); err != nil {
 			l.LogErr(err)
 		} else {
-			if f := l.tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, cenums.ALIGN_TOP); f == cenums.EVENT_STOP {
-				// surface.Fill(theme)
-
-				if err := surface.CompositeSurface(tSurface); err != nil {
-					l.LogErr(err)
-				}
-			} else {
-				l.LogError("TextBuffer draw failed, check prior log entries for warnings and/or errors")
+			l.tBuffer.Draw(tSurface, singleLineMode, lineWrapMode, ellipsize, justify, cenums.ALIGN_TOP)
+			// surface.Fill(theme)
+			if err := surface.CompositeSurface(tSurface); err != nil {
+				l.LogErr(err)
 			}
 		}
 
