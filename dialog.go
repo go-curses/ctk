@@ -11,6 +11,7 @@ import (
 	cmath "github.com/go-curses/cdk/lib/math"
 	"github.com/go-curses/cdk/lib/ptypes"
 	"github.com/go-curses/cdk/log"
+
 	"github.com/go-curses/ctk/lib/enums"
 )
 
@@ -27,6 +28,7 @@ func init() {
 }
 
 // Dialog Hierarchy:
+//
 //	Object
 //	  +- Widget
 //	    +- Container
@@ -113,15 +115,17 @@ func NewDialog() (value Dialog) {
 // Dialog.
 //
 // Parameters:
-// 	title	label for the dialog
-// 	parent	Transient parent of the dialog, or `nil`
-// 	flags	from DialogFlags
-// 	argv	response ID with label pairs
+//
+//	title	label for the dialog
+//	parent	Transient parent of the dialog, or `nil`
+//	flags	from DialogFlags
+//	argv	response ID with label pairs
 func NewDialogWithButtons(title string, parent Window, flags enums.DialogFlags, argv ...interface{}) (dialog Dialog) {
 	d := new(CDialog)
 	d.dialogFlags = flags
 	d.Init()
 	d.SetTitle(title)
+	d.SetDecorated(true)
 	if parent != nil {
 		d.SetTransientFor(parent)
 		d.SetParent(parent)
@@ -140,6 +144,7 @@ func NewMessageDialog(title, message string) (dialog Dialog) {
 	d := new(CDialog)
 	d.Init()
 	d.SetTitle(title)
+	d.SetDecorated(true)
 	d.SetWindow(d)
 	d.AddButton(string(StockClose), enums.ResponseClose)
 	d.SetDefaultResponse(enums.ResponseClose)
@@ -163,6 +168,7 @@ func NewYesNoDialog(title, message string, defaultNo bool) (dialog Dialog) {
 	d := new(CDialog)
 	d.Init()
 	d.SetTitle(title)
+	d.SetDecorated(true)
 	d.SetWindow(d)
 	d.AddButton(string(StockYes), enums.ResponseYes)
 	d.AddButton(string(StockNo), enums.ResponseNo)
@@ -196,6 +202,7 @@ func NewButtonMenuDialog(title, message string, argv ...interface{}) (dialog Dia
 	d := new(CDialog)
 	d.Init()
 	d.SetTitle(title)
+	d.SetDecorated(true)
 	d.SetWindow(d)
 	d.AddButton(string(StockCancel), enums.ResponseCancel)
 	d.SetDefaultResponse(enums.ResponseCancel)
@@ -459,7 +466,8 @@ func (d *CDialog) RunFunc(fn func(response enums.ResponseType, argv ...interface
 // appropriate action.
 //
 // Parameters:
-// 	responseId	ResponseType identifier
+//
+//	responseId	ResponseType identifier
 func (d *CDialog) Response(responseId enums.ResponseType) {
 	d.Emit(SignalResponse, responseId)
 }
@@ -493,8 +501,9 @@ func (d *CDialog) SetDialogFlags(flags enums.DialogFlags) {
 // area. The button widget is returned, but usually you don't need it.
 //
 // Parameters:
-// 	buttonText	text of button, or stock ID
-// 	responseId	response ID for the button
+//
+//	buttonText	text of button, or stock ID
+//	responseId	response ID for the button
 func (d *CDialog) AddButton(buttonText string, responseId enums.ResponseType) (button Button) {
 	if item := LookupStockItem(StockID(buttonText)); item != nil {
 		button = NewButtonFromStock(StockID(buttonText))
@@ -513,7 +522,8 @@ func (d *CDialog) AddButton(buttonText string, responseId enums.ResponseType) (b
 // ResponseType and label text provided.
 //
 // Parameters:
-// 	argv	response ID with label pairs
+//
+//	argv	response ID with label pairs
 func (d *CDialog) AddButtons(argv ...interface{}) {
 	if len(argv)%2 != 0 {
 		d.LogError("not an even number of arguments given")
@@ -546,8 +556,9 @@ func (d *CDialog) AddButtons(argv ...interface{}) {
 // pack it into the action_area field of the Dialog struct.
 //
 // Parameters:
-// 	child	an activatable widget
-// 	responseId	response ID for child
+//
+//	child	an activatable widget
+//	responseId	response ID for child
 func (d *CDialog) AddActionWidget(child Widget, responseId enums.ResponseType) {
 	child.Connect(SignalActivate, DialogActivateHandle, func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		d.LogDebug("responding with: %v", responseId)
@@ -577,7 +588,8 @@ func (d *CDialog) AddSecondaryActionWidget(child Widget, responseId enums.Respon
 // widget for the dialog.
 //
 // Parameters:
-// 	responseId	a response ID
+//
+//	responseId	a response ID
 func (d *CDialog) SetDefaultResponse(responseId enums.ResponseType) {
 	d.Lock()
 	d.defResponse = responseId
@@ -589,8 +601,9 @@ func (d *CDialog) SetDefaultResponse(responseId enums.ResponseType) {
 // sensitize/desensitize Dialog Buttons.
 //
 // Parameters:
-// 	responseId	a response ID
-// 	setting	TRUE for sensitive
+//
+//	responseId	a response ID
+//	setting	TRUE for sensitive
 func (d *CDialog) SetResponseSensitive(responseId enums.ResponseType, sensitive bool) {
 	if list, ok := d.widgets[responseId]; ok {
 		for _, w := range list {
@@ -604,7 +617,8 @@ func (d *CDialog) SetResponseSensitive(responseId enums.ResponseType, sensitive 
 // ResponseNone if the Widget is not found in the action area of the Dialog.
 //
 // Parameters:
-// 	widget	a widget in the action area of dialog
+//
+//	widget	a widget in the action area of dialog
 func (d *CDialog) GetResponseForWidget(widget Widget) (value enums.ResponseType) {
 	d.RLock()
 	dwidgets := d.widgets
@@ -623,7 +637,8 @@ func (d *CDialog) GetResponseForWidget(widget Widget) (value enums.ResponseType)
 // ResponseType in the action area of a Dialog.
 //
 // Parameters:
-// 	responseId	the response ID used by the dialog widget
+//
+//	responseId	the response ID used by the dialog widget
 func (d *CDialog) GetWidgetForResponse(responseId enums.ResponseType) (value Widget) {
 	d.RLock()
 	defer d.RUnlock()
@@ -751,7 +766,8 @@ const SignalClose cdk.Signal = "close"
 // delete event, the response ID is GTK_RESPONSE_DELETE_EVENT. Otherwise, it
 // depends on which action widget was clicked.
 // Listener function arguments:
-// 	responseId int	the response ID
+//
+//	responseId int	the response ID
 const SignalResponse cdk.Signal = "response"
 
 const DialogResponseHandle = "dialog-response-handler"
