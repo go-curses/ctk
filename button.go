@@ -253,6 +253,7 @@ func (b *CButton) Init() (already bool) {
 	theme, _ := paint.GetTheme(ButtonColorTheme)
 	b.SetTheme(theme)
 
+	b.Connect(SignalSetSensitive, ButtonSetSensitiveHandle, b.setSensitive)
 	b.Connect(SignalSetProperty, ButtonSetPropertyHandle, b.setProperty)
 	b.Connect(SignalCdkEvent, ButtonCdkEventHandle, b.event)
 	b.Connect(SignalLostFocus, ButtonLostFocusHandle, b.lostFocus)
@@ -715,6 +716,15 @@ func (b *CButton) getBorderRequest() (border bool) {
 	return
 }
 
+func (b *CButton) setSensitive(data []interface{}, argv ...interface{}) cenums.EventFlag {
+	if b.HasFocus() {
+		if w := b.GetWindow(); w != nil {
+			w.FocusPrevious()
+		}
+	}
+	return cenums.EVENT_PASS
+}
+
 func (b *CButton) setProperty(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if len(argv) == 3 {
 		if key, ok := argv[1].(cdk.Property); ok {
@@ -1019,6 +1029,8 @@ const SignalPressed cdk.Signal = "pressed"
 
 // Emitted when the button is released.
 const SignalReleased cdk.Signal = "released"
+
+const ButtonSetSensitiveHandle = "button-set-sensitive-handler"
 
 const ButtonSetPropertyHandle = "button-set-property-handler"
 
