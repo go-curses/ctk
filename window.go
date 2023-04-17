@@ -1997,9 +1997,12 @@ func (w *CWindow) draw(data []interface{}, argv ...interface{}) cenums.EventFlag
 				lineOrigin := origin.Clone()
 				lineOrigin.X += 1
 				lineOrigin.Y += 2
-				surface.DrawHorizontalLine(lineOrigin, alloc.W-2, theme.Content.Normal, paint.RuneHLine)
+				for idx := 1; idx < alloc.W-1; idx += 1 {
+					_ = surface.SetRune(idx, 2, paint.RuneHLine, theme.Content.Normal)
+				}
 				_ = surface.SetRune(0, 2, paint.RuneLTee, theme.Content.Normal)
 				_ = surface.SetRune(alloc.W-1, 2, paint.RuneRTee, theme.Content.Normal)
+				_ = surface.SetRune(alloc.W-1, alloc.H-1, theme.Border.BorderRunes.BottomRight, theme.Content.Normal)
 			} else {
 				// no border with title inline and centred on top edge
 				surface.DrawHorizontalLine(origin, alloc.W, theme.Content.Normal, paint.RuneHLine)
