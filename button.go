@@ -864,18 +864,20 @@ func (b *CButton) resize(data []interface{}, argv ...interface{}) cenums.EventFl
 			req = ptypes.MakeRectangle(label.GetSizeRequest())
 			req.Clamp(0, 0, size.W, size.H)
 			w, h := label.GetPlainTextInfoAtWidth(req.W)
-			xAlign := 0.5
-			yAlign := 0.5
-			if h >= size.H {
-				yAlign = 0.0
+			if label.GetJustify() == cenums.JUSTIFY_CENTER {
+				xAlign := 0.5
+				yAlign := 0.5
+				if h >= size.H {
+					yAlign = 0.0
+				}
+				if w >= size.W {
+					// label.SetJustify(cenums.JUSTIFY_LEFT)
+					xAlign = 0.0
+				} else {
+					// label.SetJustify(cenums.JUSTIFY_CENTER)
+				}
+				label.SetAlignment(xAlign, yAlign)
 			}
-			if w >= size.W {
-				label.SetJustify(cenums.JUSTIFY_LEFT)
-				xAlign = 0.0
-			} else {
-				label.SetJustify(cenums.JUSTIFY_CENTER)
-			}
-			label.SetAlignment(xAlign, yAlign)
 		}
 
 		child.SetOrigin(origin.X+local.X, origin.Y+local.Y)
