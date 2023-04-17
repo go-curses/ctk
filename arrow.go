@@ -18,6 +18,7 @@ func init() {
 }
 
 // Arrow Hierarchy:
+//
 //	Object
 //	  +- Widget
 //	    +- Misc
@@ -110,7 +111,8 @@ func (a *CArrow) GetArrowType() (arrow enums.ArrowType) {
 // SetArrowType is a convenience method for updating the ArrowType property
 //
 // Parameters:
-// 	arrowType	a valid ArrowType.
+//
+//	arrowType	a valid ArrowType.
 //
 // Locking: write
 func (a *CArrow) SetArrowType(arrow enums.ArrowType) {
@@ -130,14 +132,13 @@ func (a *CArrow) SetArrowType(arrow enums.ArrowType) {
 // Locking: read
 func (a *CArrow) GetArrowRune() (r rune, width int) {
 	arrowType := a.GetArrowType()
-	theme := a.GetTheme()
 
 	a.RLock()
 	defer a.RUnlock()
 
 	var ars paint.ArrowRuneSet
 	if a.arrowRuneSet == nil {
-		ars = theme.Content.ArrowRunes
+		ars, _ = paint.GetArrows(paint.WideArrow)
 	} else {
 		ars = *a.arrowRuneSet
 	}
