@@ -366,7 +366,7 @@ func (s *CScrolledViewport) GetShadowType() (value enums.ShadowType) {
 }
 
 func (s *CScrolledViewport) VerticalShowByPolicy() (show bool) {
-	vPolicy, _ := s.GetPolicy()
+	_, vPolicy := s.GetPolicy()
 	vertical := s.GetVAdjustment()
 	child := s.GetChild()
 	alloc := s.GetAllocation()
@@ -391,7 +391,7 @@ func (s *CScrolledViewport) VerticalShowByPolicy() (show bool) {
 }
 
 func (s *CScrolledViewport) HorizontalShowByPolicy() (show bool) {
-	_, hPolicy := s.GetPolicy()
+	hPolicy, _ := s.GetPolicy()
 	horizontal := s.GetHAdjustment()
 	child := s.GetChild()
 	alloc := s.GetAllocation()
