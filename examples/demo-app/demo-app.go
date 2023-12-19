@@ -286,6 +286,12 @@ func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 		// b3.SetSizeRequest(10, 3)
 		b3.Show()
 		hbox3.PackStart(b3, true, false, 0)
+
+		spinner := ctk.NewSpinner()
+		spinner.Show()
+		hbox3.PackStart(spinner, false, false, 0)
+		spinner.StartSpinning()
+
 		w.ShowAll()
 		app.NotifyStartupComplete()
 		return cenums.EVENT_PASS
