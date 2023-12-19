@@ -18,14 +18,15 @@ import (
 	"fmt"
 	"os"
 
-	enums2 "github.com/go-curses/ctk/lib/enums"
 	"github.com/urfave/cli/v2"
 
 	"github.com/go-curses/cdk"
-	"github.com/go-curses/cdk/lib/enums"
+	cenums "github.com/go-curses/cdk/lib/enums"
 	cstrings "github.com/go-curses/cdk/lib/strings"
 	"github.com/go-curses/cdk/log"
+
 	"github.com/go-curses/ctk"
+	"github.com/go-curses/ctk/lib/enums"
 )
 
 const (
@@ -90,7 +91,7 @@ var (
 	actionNote  ctk.Label
 )
 
-func setupUi(data []interface{}, argv ...interface{}) enums.EventFlag {
+func setupUi(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	if app, d, _, _, _, ok := ctk.ArgvApplicationSignalStartup(argv...); ok {
 		if d.App().GetContext().Bool("Debug") {
 			log.DebugF("enabling Debug")
@@ -102,25 +103,25 @@ func setupUi(data []interface{}, argv ...interface{}) enums.EventFlag {
 		w.Show()
 		if err := setupDruidUi(d, w); err != nil {
 			d.LogErr(err)
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 		if err := setupPage0(d); err != nil {
 			d.LogErr(err)
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 		if err := setupPage1(d); err != nil {
 			d.LogErr(err)
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 		if err := setupPage2(d); err != nil {
 			d.LogErr(err)
-			return enums.EVENT_STOP
+			return cenums.EVENT_STOP
 		}
 		switchPage(0)
 		app.NotifyStartupComplete()
-		return enums.EVENT_PASS
+		return cenums.EVENT_PASS
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
 func setupDruidUi(d cdk.Display, w ctk.Window) error {
@@ -156,7 +157,7 @@ func setupDruidUi(d cdk.Display, w ctk.Window) error {
 	actionNote.SetName("note")
 	actionNote.SetBoolProperty(cdk.PropertyDebug, Debug)
 	actionNote.SetAlignment(0.5, 0.5)
-	actionNote.SetJustify(enums.JUSTIFY_RIGHT)
+	actionNote.SetJustify(cenums.JUSTIFY_RIGHT)
 	actionNote.Show()
 	actionBox.PackEnd(actionNote, true, true, 0)
 	// forward button
@@ -204,7 +205,7 @@ func switchPage(id int) {
 	}
 }
 
-func handleNext(data []interface{}, argv ...interface{}) enums.EventFlag {
+func handleNext(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	log.InfoF("pressed next")
 	numKnownPages := len(knownPages)
 	if currentPage+1 < numKnownPages {
@@ -213,17 +214,17 @@ func handleNext(data []interface{}, argv ...interface{}) enums.EventFlag {
 		log.InfoF("end of known pages, quitting")
 		cdk.GetDefaultDisplay().RequestQuit()
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
-func handlePrevious(data []interface{}, argv ...interface{}) enums.EventFlag {
+func handlePrevious(data []interface{}, argv ...interface{}) cenums.EventFlag {
 	log.InfoF("pressed previous")
 	if currentPage-1 > -1 {
 		switchPage(currentPage - 1)
 	} else {
 		log.InfoF("start of known pages")
 	}
-	return enums.EVENT_STOP
+	return cenums.EVENT_STOP
 }
 
 const (
@@ -246,8 +247,8 @@ func setupPage0(d cdk.Display) error {
 		} else {
 			welcome.SetName("pg0welcome")
 			welcome.SetSizeRequest(20, -1)
-			welcome.SetLineWrapMode(enums.WRAP_WORD)
-			welcome.SetJustify(enums.JUSTIFY_CENTER)
+			welcome.SetLineWrapMode(cenums.WRAP_WORD)
+			welcome.SetJustify(cenums.JUSTIFY_CENTER)
 			welcome.SetAlignment(0.5, 0.5)
 			welcome.SetBoolProperty(cdk.PropertyDebug, Debug)
 			welcome.Show()
@@ -273,14 +274,14 @@ func setupPage1(d cdk.Display) error {
 		} else {
 			content.SetName("pg1content")
 			// content.SetSizeRequest(30, -1)
-			content.SetLineWrapMode(enums.WRAP_WORD)
-			content.SetJustify(enums.JUSTIFY_LEFT)
+			content.SetLineWrapMode(cenums.WRAP_WORD)
+			content.SetJustify(cenums.JUSTIFY_LEFT)
 			content.SetAlignment(0.5, 0.5)
 			content.SetBoolProperty(cdk.PropertyDebug, Debug)
 			contentBox.Connect(
 				ctk.SignalResize,
 				fmt.Sprintf("%s.resize", content.ObjectName()),
-				func(data []interface{}, argv ...interface{}) enums.EventFlag {
+				func(data []interface{}, argv ...interface{}) cenums.EventFlag {
 					if len(argv) > 0 {
 						if localBox, ok := argv[0].(ctk.HBox); ok {
 							alloc := localBox.GetAllocation()
@@ -290,7 +291,7 @@ func setupPage1(d cdk.Display) error {
 							}
 						}
 					}
-					return enums.EVENT_PASS
+					return cenums.EVENT_PASS
 				},
 			)
 			content.Show()
@@ -314,32 +315,14 @@ func setupPage2(d cdk.Display) error {
 			return err
 		} else {
 			scroll := ctk.NewScrolledViewport()
-			scroll.SetPolicy(enums2.PolicyAutomatic, enums2.PolicyAutomatic)
+			scroll.SetPolicy(enums.PolicyAutomatic, enums.PolicyAutomatic)
 			scroll.SetSizeRequest(40, 10)
 			content.SetSizeRequest(50, -1)
 			content.SetName("pg2content")
-			content.SetLineWrapMode(enums.WRAP_WORD)
-			content.SetJustify(enums.JUSTIFY_LEFT)
+			content.SetLineWrapMode(cenums.WRAP_WORD)
+			content.SetJustify(cenums.JUSTIFY_LEFT)
 			content.SetAlignment(0.5, 0.5)
 			content.SetBoolProperty(cdk.PropertyDebug, Debug)
-			// scroll.Connect(
-			// 	ctk.SignalResize,
-			// 	cdk.Signal(fmt.Sprintf("%s.resize", content.ObjectName())),
-			// 	func(data []interface{}, argv ...interface{}) enums.EventFlag {
-			// 		if len(argv) > 0 {
-			// 			if localBox, ok := argv[0].(ctk.ScrolledViewport); ok {
-			// 				alloc := localBox.GetSizeRequest()
-			// 				if alloc.H > 0 && alloc.W > 0 {
-			// 					content.SetMaxWidthChars(alloc.W)
-			// 					content.LogInfo("updating max chars")
-			// 				}
-			// 			}
-			// 		}
-			// 		// size := scroll.GetAllocation()
-			// 		// content.SetMaxWidthChars(size.W)
-			// 		return enums.EVENT_PASS
-			// 	},
-			// )
 			content.Show()
 
 			scroll.Add(content)
@@ -350,11 +333,6 @@ func setupPage2(d cdk.Display) error {
 	}
 	return nil
 }
-
-// var (
-// IPSUM_LONG_PLAIN = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum tincidunt orci a quam dignissim mattis. Nulla volutpat egestas nibh vitae facilisis. Nam dictum risus a nisl suscipit, in luctus felis facilisis. Sed et ante pellentesque, vehicula dui vel, dictum eros. Duis convallis sem vitae tellus feugiat rhoncus. Curabitur risus lectus, elementum id molestie vel, gravida fermentum libero. In aliquet massa eu tellus pulvinar, in scelerisque ipsum ultricies. Quisque elementum nulla vitae condimentum venenatis. Vestibulum vitae lectus sit amet ipsum congue semper ornare tempus magna. Aliquam varius, eros eget ultrices auctor, lacus nibh blandit purus, sed rhoncus erat ex sed enim."
-// IPSUM_LONG_MARKUP = "Lorem <i>ipsum</i> dolor sit amet, consectetur adipiscing elit. Vestibulum tincidunt orci a quam dignissim mattis. Nulla volutpat egestas nibh vitae facilisis. Nam dictum risus a nisl suscipit, in luctus felis facilisis. Sed et ante pellentesque, vehicula dui vel, dictum eros. Duis convallis sem vitae tellus feugiat rhoncus. Curabitur risus lectus, elementum id molestie vel, gravida fermentum libero. In aliquet massa eu tellus pulvinar, in scelerisque <i>ipsum</i> ultricies. Quisque elementum nulla vitae condimentum venenatis. Vestibulum vitae lectus sit amet <i>ipsum</i> congue semper ornare tempus magna. Aliquam varius, eros eget ultrices auctor, lacus nibh blandit purus, sed rhoncus erat ex sed enim."
-// )
 
 func newButton(name string, label string, fn cdk.SignalListenerFn) ctk.Button {
 	b := ctk.NewButtonWithLabel("")
