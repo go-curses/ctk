@@ -1,18 +1,20 @@
 module github.com/go-curses/ctk
 
-go 1.19
+go 1.21
+
+toolchain go1.21.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/go-curses/cdk v0.5.16
+	github.com/go-curses/cdk v0.5.17
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jtolio/gls v4.20.0+incompatible
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/tdewolff/parse/v2 v2.7.6
-	github.com/urfave/cli/v2 v2.25.7
+	github.com/tdewolff/parse/v2 v2.7.7
+	github.com/urfave/cli/v2 v2.26.0
 	golang.org/x/net v0.19.0
 	golang.org/x/text v0.14.0
 )
@@ -38,7 +40,7 @@ require (
 	github.com/google/pprof v0.0.0-20211214055906-6f57359322fd // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
-	github.com/jackdoe/go-gpmctl v0.0.0-20221007100923-dc00b863cb22 // indirect
+	github.com/jackdoe/go-gpmctl v0.0.0-20231210204613-737e8a242925 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
@@ -55,10 +57,10 @@ require (
 	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/sourcegraph/annotate v0.0.0-20160123013949-f4cad6c6324d // indirect
 	github.com/sourcegraph/syntaxhighlight v0.0.0-20170531221838-bd320f5d308e // indirect
-	github.com/tg123/go-htpasswd v1.2.1 // indirect
+	github.com/tg123/go-htpasswd v1.2.2 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
