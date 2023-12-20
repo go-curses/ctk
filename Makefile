@@ -179,6 +179,10 @@ depends-on-cdk-path:
 			false; \
 		fi
 
+tidy:
+	@echo "# running go mod tidy"
+	@go mod tidy
+
 local: depends-on-cdk-path
 	@echo "# adding go.mod local CTK package replacements..."
 	@go mod edit -replace=github.com/go-curses/ctk=${CTK_PATH}
@@ -196,8 +200,6 @@ local: depends-on-cdk-path
 			go mod edit -replace=github.com/go-curses/cdk/lib/$$tgt=${CDK_PATH}/lib/$$tgt ; \
 		fi; \
 	done
-	@echo "# running go mod tidy"
-	@go mod tidy
 
 unlocal: depends-on-cdk-path
 	@echo "# removing go.mod local CTK package replacements..."
@@ -216,8 +218,6 @@ unlocal: depends-on-cdk-path
 			go mod edit -dropreplace=github.com/go-curses/cdk/lib/$$tgt ; \
 		fi; \
 	done
-	@echo "# running go mod tidy"
-	@go mod tidy
 
 dev:
 	@if [ -d examples/${DEV_EXAMPLE} ]; \
