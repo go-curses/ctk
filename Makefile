@@ -184,8 +184,6 @@ tidy:
 	@go mod tidy
 
 local: depends-on-cdk-path
-	@echo "# adding go.mod local CTK package replacements..."
-	@go mod edit -replace=github.com/go-curses/ctk=${CTK_PATH}
 	@echo "# adding go.mod local CDK package replacements..."
 	@go mod edit -replace=github.com/go-curses/cdk=${CDK_PATH}
 	@for tgt in charset encoding env log memphis; do \
@@ -202,8 +200,6 @@ local: depends-on-cdk-path
 	done
 
 unlocal: depends-on-cdk-path
-	@echo "# removing go.mod local CTK package replacements..."
-	@go mod edit -dropreplace=github.com/go-curses/ctk
 	@echo "# removing go.mod local CDK package replacements..."
 	@go mod edit -dropreplace=github.com/go-curses/cdk
 	@for tgt in charset encoding env log memphis; do \
