@@ -110,13 +110,13 @@ func (s *CSpinner) StartSpinning() {
 	cdk.Go(func() {
 		for range s.ticker.C {
 			s.IncrementSpinner()
-			if !s.IsSpinning() {
-				break
-			}
 			s.Invalidate()
 			if d := s.GetDisplay(); d != nil {
 				d.RequestDraw()
 				d.RequestShow()
+			}
+			if !s.IsSpinning() {
+				break
 			}
 		}
 	})
@@ -124,12 +124,13 @@ func (s *CSpinner) StartSpinning() {
 
 func (s *CSpinner) StopSpinning() {
 	s.Lock()
-	defer s.Unlock()
 	if s.ticker == nil {
+		s.Unlock()
 		return
 	}
 	s.ticker.Stop()
 	s.ticker = nil
+	s.Unlock()
 }
 
 func (s *CSpinner) IsSpinning() (running bool) {
