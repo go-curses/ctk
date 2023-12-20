@@ -107,6 +107,7 @@ func (s *CSpinner) StartSpinning() {
 	s.Lock()
 	s.ticker = time.NewTicker(time.Millisecond * 250)
 	s.Unlock()
+	s.Emit(SignalSpinnerStart, s, string(s.GetSpinnerRune()))
 	cdk.Go(func() {
 		for range s.ticker.C {
 			s.IncrementSpinner()
@@ -118,6 +119,7 @@ func (s *CSpinner) StartSpinning() {
 			if !s.IsSpinning() {
 				break
 			}
+			s.Emit(SignalSpinnerTick, s, string(s.GetSpinnerRune()))
 		}
 	})
 }
@@ -131,6 +133,7 @@ func (s *CSpinner) StopSpinning() {
 	s.ticker.Stop()
 	s.ticker = nil
 	s.Unlock()
+	s.Emit(SignalSpinnerStop, s, string(s.GetSpinnerRune()))
 }
 
 func (s *CSpinner) IsSpinning() (running bool) {
@@ -230,6 +233,24 @@ func (s *CSpinner) draw(data []interface{}, argv ...interface{}) cenums.EventFla
 	}
 	return cenums.EVENT_PASS
 }
+
+// ArgvSpinnerEvents is a convenience function of recasting the arguments for SignalSpinnerStart, SignalSpinnerTick and
+// SignalSpinnerStop events emitted by Spinner widgets
+func ArgvSpinnerEvents(argv []interface{}) (spinner Spinner, symbol string) {
+	if len(argv) >= 2 {
+		var ok bool
+		if spinner, ok = argv[0].(Spinner); ok {
+			symbol, _ = argv[1].(string)
+		}
+	}
+	return
+}
+
+const (
+	SignalSpinnerStart cdk.Signal = "spinner-start"
+	SignalSpinnerTick  cdk.Signal = "spinner-tick"
+	SignalSpinnerStop  cdk.Signal = "spinner-stop"
+)
 
 const SpinnerResizeHandle = "spinner-resize-handler"
 
