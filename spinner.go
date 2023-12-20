@@ -26,19 +26,6 @@ import (
 	"github.com/go-curses/ctk/lib/enums"
 )
 
-var (
-	DefaultSpinnerRunes = []rune{
-		paint.RuneBrailleSpinner0,
-		paint.RuneBrailleSpinner1,
-		paint.RuneBrailleSpinner2,
-		paint.RuneBrailleSpinner3,
-		paint.RuneBrailleSpinner4,
-		paint.RuneBrailleSpinner5,
-		paint.RuneBrailleSpinner6,
-		paint.RuneBrailleSpinner7,
-	}
-)
-
 const TypeSpinner cdk.CTypeTag = "ctk-spinner"
 
 func init() {
@@ -109,8 +96,7 @@ func (s *CSpinner) Init() bool {
 	s.SetFlags(enums.APP_PAINTABLE)
 	s.Connect(SignalResize, SpinnerResizeHandle, s.resize)
 	s.Connect(SignalDraw, SpinnerDrawHandle, s.draw)
-
-	s.runes = DefaultSpinnerRunes[:]
+	s.runes, _ = paint.GetSpinners(paint.SevenDotSpinner)
 	return false
 }
 
