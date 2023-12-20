@@ -6,7 +6,7 @@ toolchain go1.21.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/go-curses/cdk v0.5.17
+	github.com/go-curses/cdk v0.5.18
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/iancoleman/strcase v0.3.0
@@ -30,7 +30,7 @@ require (
 	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/go-curses/term v1.2.2-gocurses.1 // indirect
-	github.com/go-curses/terminfo v1.0.0 // indirect
+	github.com/go-curses/terminfo v1.1.0 // indirect
 	github.com/gobuffalo/flect v0.2.5 // indirect
 	github.com/gobuffalo/github_flavored_markdown v1.1.1 // indirect
 	github.com/gobuffalo/helpers v0.6.5 // indirect
