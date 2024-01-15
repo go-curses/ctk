@@ -414,8 +414,6 @@ func (s *CScrollbar) GetSizeRequest() (width, height int) {
 	switch s.orientation {
 	case cenums.ORIENTATION_HORIZONTAL:
 		size.H = 1
-	case cenums.ORIENTATION_VERTICAL:
-		fallthrough
 	default:
 		size.W = 1
 	}
@@ -491,7 +489,6 @@ func (s *CScrollbar) GetAllStepperRegions() (fwd, bwd, sFwd, sBwd ptypes.Region)
 			sFwd.X += 1
 			sFwd.W = 1
 		}
-	case cenums.ORIENTATION_VERTICAL:
 	default:
 		if fwd.H == 2 {
 			fwd.Y += 1
@@ -528,8 +525,6 @@ func (s *CScrollbar) GetStepperRegions() (start, end ptypes.Region) {
 			end.W += 1
 			end.X -= 1
 		}
-	case cenums.ORIENTATION_VERTICAL:
-		fallthrough
 	default:
 		start.X, start.Y, start.W, start.H = origin.X, origin.Y, 1, 0
 		if s.hasBackwardStepper {
@@ -561,8 +556,6 @@ func (s *CScrollbar) GetTroughRegion() (region ptypes.Region) {
 	case cenums.ORIENTATION_HORIZONTAL:
 		region.X += start.W
 		region.W = alloc.W - start.W - end.W
-	case cenums.ORIENTATION_VERTICAL:
-		fallthrough
 	default:
 		region.Y += start.H
 		region.H = alloc.H - start.H - end.H
