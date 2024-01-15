@@ -766,7 +766,6 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 		s.sliderMoving = false
 		s.prevSliderPos = nil
 		s.Unlock()
-		slider := s.GetSliderRegion()
 		if s.orientation == cenums.ORIENTATION_HORIZONTAL {
 			if s.textDirection == enums.TextDirRtl {
 				if p.X < slider.X {
