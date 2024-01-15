@@ -677,49 +677,57 @@ func (s *CScrollbar) processEventAtPoint(p *ptypes.Point2I, e *cdk.EventMouse) c
 	case cdk.DRAG_MOVE:
 		if s.sliderMoving {
 			if s.prevSliderPos != nil {
-				if s.prevSliderPos.X != p.X && s.orientation == cenums.ORIENTATION_HORIZONTAL {
-					// moved horizontally
-					if s.textDirection == enums.TextDirRtl {
-						// left=forward, right=backward
-						if p.X > s.prevSliderPos.X {
-							// right=backward
-							// s.BackwardPage()
-							s.BackwardStep()
-						} else if p.X < s.prevSliderPos.X {
-							// left=forward
-							// s.ForwardPage()
-							s.ForwardStep()
+
+				switch s.orientation {
+				case cenums.ORIENTATION_HORIZONTAL:
+
+					if s.prevSliderPos.X != p.X {
+						// moved horizontally
+						if s.textDirection == enums.TextDirRtl {
+							// left=forward, right=backward
+							if p.X > s.prevSliderPos.X {
+								// right=backward
+								s.BackwardPage()
+							} else if p.X < s.prevSliderPos.X {
+								// left=forward
+								s.ForwardPage()
+							}
+						} else {
+							// left=backward, right=forward
+							if p.X > s.prevSliderPos.X {
+								// right=forward
+								s.ForwardPage()
+							} else if p.X < s.prevSliderPos.X {
+								// left=backward
+								s.BackwardPage()
+							}
 						}
-					} else {
-						// left=backward, right=forward
-						if p.X > s.prevSliderPos.X {
-							// right=forward
-							// s.ForwardPage()
-							s.ForwardStep()
-						} else if p.X < s.prevSliderPos.X {
-							// left=backward
-							// s.BackwardPage()
-							s.BackwardStep()
+						s.Lock()
+						s.prevSliderPos = p.NewClone()
+						s.Unlock()
+						return cenums.EVENT_STOP
+					}
+
+				default:
+					if s.prevSliderPos.Y != p.Y {
+						// moved vertically
+						// down=forward, up=backward
+						if p.Y > s.prevSliderPos.Y {
+							// down=forward
+							s.ForwardPage()
+						} else if p.Y < s.prevSliderPos.Y {
+							// up=backward
+							s.BackwardPage()
+						} else {
+							// neither
 						}
+						s.Lock()
+						s.prevSliderPos = p.NewClone()
+						s.Unlock()
+						return cenums.EVENT_STOP
 					}
-					return cenums.EVENT_STOP
 				}
-				if s.prevSliderPos.Y != p.Y && s.orientation == cenums.ORIENTATION_VERTICAL {
-					// moved vertically
-					// down=forward, up=backward
-					if p.Y > s.prevSliderPos.Y {
-						// down=forward
-						// s.ForwardPage()
-						s.ForwardStep()
-					} else if p.Y < s.prevSliderPos.Y {
-						// up=backward
-						// s.BackwardPage()
-						s.BackwardStep()
-					} else {
-						// neither
-					}
-					return cenums.EVENT_STOP
-				}
+
 			}
 			s.Lock()
 			s.prevSliderPos = p.NewClone()
