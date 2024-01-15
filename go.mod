@@ -6,16 +6,16 @@ toolchain go1.21.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/go-curses/cdk v0.5.19
+	github.com/go-curses/cdk v0.5.20
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jtolio/gls v4.20.0+incompatible
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/tdewolff/parse/v2 v2.7.7
-	github.com/urfave/cli/v2 v2.26.0
-	golang.org/x/net v0.19.0
+	github.com/tdewolff/parse/v2 v2.7.9
+	github.com/urfave/cli/v2 v2.27.1
+	golang.org/x/net v0.20.0
 	golang.org/x/text v0.14.0
 )
 
@@ -60,10 +60,10 @@ require (
 	github.com/tg123/go-htpasswd v1.2.2 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/exp v0.0.0-20231219180239-dc181d75b848 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/term v0.16.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
