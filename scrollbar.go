@@ -935,15 +935,11 @@ func (s *CScrollbar) makeStepperButton(arrow enums.ArrowType, forward bool) Butt
 		SignalActivate,
 		fmt.Sprintf("%v.activate", s.ObjectName()),
 		func(data []interface{}, argv ...interface{}) cenums.EventFlag {
-			if adjustment := s.GetAdjustment(); adjustment != nil {
-				step := adjustment.GetStepIncrement()
-				if forward {
-					s.Forward(step)
-				} else {
-					s.Backward(step)
-				}
+			step, _ := s.GetIncrements()
+			if forward {
+				s.Forward(step)
 			} else {
-				s.LogError("missing adjustment")
+				s.Backward(step)
 			}
 			return cenums.EVENT_STOP
 		},
