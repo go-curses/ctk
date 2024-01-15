@@ -1,5 +1,7 @@
 #!/usr/bin/make -f
 
+SHELL := /bin/bash
+
 BUILD_CMD := go-ctk
 DEV_EXAMPLE := demo-app
 CDK_PATH := ../cdk
