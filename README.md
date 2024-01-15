@@ -1,6 +1,6 @@
 [![Go-Curses](https://go-curses.org/media/curses-logo-banner.png)](https://go-curses.org)
 
-[![Made with Go](https://img.shields.io/badge/go-v1.16+-blue.svg)](https://golang.org)
+[![Made with Go](https://img.shields.io/badge/go-v1.21+-blue.svg)](https://golang.org)
 [![Go documentation](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/go-curses/ctk)
 
 # CTK - Curses Tool Kit
