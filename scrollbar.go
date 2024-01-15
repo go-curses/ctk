@@ -106,6 +106,7 @@ func init() {
 }
 
 // Scrollbar Hierarchy:
+//
 //	Object
 //	  +- Widget
 //	    +- Range
@@ -243,7 +244,7 @@ func (s *CScrollbar) GetHasForwardStepper() (hasForwardStepper bool) {
 	return
 }
 
-// SetHasForwardSettper updates whether to display the standard forward arrow
+// SetHasForwardStepper updates whether to display the standard forward arrow
 // button.
 //
 // Locking: write
