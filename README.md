@@ -12,7 +12,7 @@ inspired API, built upon [CDK].
 
 This project should not be used for any purpose other than intellectual
 curiosity. This status is reflected in the tagged versioning of this `trunk`
-branch, v0.1.x, ie: entirely experimental and unfinished in any sense of the
+branch, v0.5.x, ie: still experimental and unfinished yet getting near the
 word "done".
 
 ## Getting Started
@@ -21,7 +21,7 @@ CTK is a Go module and as such can be used in any of the typical Golang ways.
 
 ### Prerequisites
 
-Go v1.16 (or later) is required in order to build and use the package. Beyond
+Go v1.21 (or later) is required in order to build and use the package. Beyond
 that, there aren't any other dependencies. Visit: https://golang.org/doc/install
 for installation instructions.
 
@@ -30,7 +30,7 @@ for installation instructions.
 CTK uses the Go mod system and is installed in any of the usual ways.
 
 ```
-$ go get -u github.com/go-curses/ctk/...
+$ go get github.com/go-curses/ctk@latest
 ```
 
 ### Programming Hello World in CTK
