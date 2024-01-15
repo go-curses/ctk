@@ -230,7 +230,11 @@ func (w *CWindow) Init() (already bool) {
 	w.SetFlags(enums.TOPLEVEL | enums.SENSITIVE | enums.APP_PAINTABLE)
 	w.prevMouseEvent = cdk.NewEventMouse(0, 0, 0, 0)
 	w.parent = w
-	w.display = cdk.GetDefaultDisplay()
+	if d := cdk.GetDefaultDisplay(); d != nil {
+		w.display = d
+	} else {
+		w.display = nil
+	}
 	w.origin.X = 0
 	w.origin.Y = 0
 	w.accelGroups = NewAccelGroups()
