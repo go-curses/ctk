@@ -395,13 +395,13 @@ func (s *CScrollbar) GetPageInfo() (page, pageSize int) {
 	pageSize = 1
 	if adjustment := s.GetAdjustment(); adjustment != nil {
 		page = cmath.FloorI(adjustment.GetPageIncrement(), 1)
-		if pageSize = adjustment.GetPageSize(); pageSize <= -1 {
+		if pageSize = adjustment.GetPageSize(); pageSize <= 0 {
 			alloc := s.GetAllocation()
 			switch s.orientation {
 			case cenums.ORIENTATION_HORIZONTAL:
-				pageSize = alloc.W
+				pageSize = cmath.FloorI(alloc.W-4, 0)
 			default:
-				pageSize = alloc.H
+				pageSize = cmath.FloorI(alloc.H-4, 0)
 			}
 		}
 	}
