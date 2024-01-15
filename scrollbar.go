@@ -565,6 +565,40 @@ func (s *CScrollbar) GetTroughRegion() (region ptypes.Region) {
 	return
 }
 
+func (s *CScrollbar) updateSliderRegion(upper, page, pageSize, value int, rWH, rXY, tWH, tXY *int) {
+	if upper == 0 {
+		//region.W = trough.W
+		*rWH = *tWH
+	} else {
+		//size, fullSize := 1, cmath.FloorI(trough.W-2, 1)
+		size, fullSize := 1, cmath.FloorI(*tWH-2, 1)
+		if s.sliderSizeFixed {
+			//size = cmath.ClampI(s.sliderLength, s.minSliderLength, trough.W)
+			size = cmath.ClampI(s.sliderLength, s.minSliderLength, *tWH)
+		} else {
+			if fullSize > 1 {
+				size = int((float64(page*pageSize) / float64(upper)) * float64(fullSize))
+			} else if s.minSliderLength > 0 {
+				size = s.minSliderLength
+			}
+		}
+		//region.W = cmath.ClampI(size, 1, trough.W-1)
+		*rWH = cmath.ClampI(size, 1, *tWH-2) // -2 for the extra movement
+		//inc := int((float64(value) / float64(upper)) * float64(trough.W-region.W))
+		inc := int((float64(value) / float64(upper)) * float64(*tWH-*rWH))
+		if inc == 0 && value > 0 {
+			inc = 1
+		} else if inc == upper && value < upper {
+			inc -= 1
+		}
+		//region.X += inc
+		*rXY += inc
+		//region.X = cmath.ClampI(region.X, 0, trough.X+trough.W-1)
+		*rXY = cmath.ClampI(*rXY, 0, *tXY+*tWH-1)
+	}
+	return
+}
+
 func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	trough := s.GetTroughRegion()
 	upper, value := 0, 0
@@ -579,55 +613,9 @@ func (s *CScrollbar) GetSliderRegion() (region ptypes.Region) {
 	region = ptypes.MakeRegion(trough.X, trough.Y, 1, 1)
 	switch s.orientation {
 	case cenums.ORIENTATION_HORIZONTAL:
-		if upper == 0 {
-			region.W = trough.W
-		} else {
-			size, fullSize := 1, cmath.FloorI(trough.W-2, 1)
-			if s.sliderSizeFixed {
-				size = cmath.ClampI(s.sliderLength, s.minSliderLength, trough.W)
-			} else {
-				if fullSize > 1 {
-					size = int((float64(page*pageSize) / float64(upper)) * float64(fullSize))
-				} else if s.minSliderLength > 0 {
-					size = s.minSliderLength
-				}
-			}
-			region.W = cmath.ClampI(size, 1, trough.W-1)
-			inc := int((float64(value) / float64(upper)) * float64(trough.W-region.W))
-			if inc == 0 && value > 0 {
-				inc = 1
-			} else if inc == upper && value < upper {
-				inc -= 1
-			}
-			region.X += inc
-			region.X = cmath.ClampI(region.X, 0, trough.X+trough.W-1)
-		}
-	case cenums.ORIENTATION_VERTICAL:
-		fallthrough
+		s.updateSliderRegion(upper, page, pageSize, value, &region.W, &region.X, &trough.W, &trough.X)
 	default:
-		if upper == 0 {
-			region.H = trough.H
-		} else {
-			size, fullSize := 1, cmath.FloorI(trough.H-2, 1)
-			if s.sliderSizeFixed {
-				size = cmath.ClampI(s.sliderLength, s.minSliderLength, trough.H)
-			} else {
-				if fullSize > 1 {
-					size = int((float64(page*pageSize) / float64(upper)) * float64(fullSize))
-				} else if s.minSliderLength > 0 {
-					size = s.minSliderLength
-				}
-			}
-			region.H = cmath.ClampI(size, 1, trough.H-1)
-			inc := int((float64(value) / float64(upper)) * float64(trough.H-region.H))
-			if inc == 0 && value > 0 {
-				inc = 1
-			} else if inc == upper && value < upper {
-				inc -= 1
-			}
-			region.Y += inc
-			region.Y = cmath.ClampI(region.Y, 0, trough.Y+trough.H-1)
-		}
+		s.updateSliderRegion(upper, page, pageSize, value, &region.H, &region.Y, &trough.H, &trough.Y)
 	}
 	region.Floor(0, 0)
 	s.RUnlock()
