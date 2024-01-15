@@ -1,4 +1,4 @@
-[![Go-Curses](https://go-curses.github.io/curses-logo-banner.png)](https://go-curses.github.io)
+[![Go-Curses](https://go-curses.org/media/curses-logo-banner.png)](https://go-curses.org)
 
 [![Made with Go](https://img.shields.io/badge/go-v1.16+-blue.svg)](https://golang.org)
 [![Go documentation](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/go-curses/ctk)
@@ -426,8 +426,8 @@ This project is licensed under the Apache License, Version 2.0 - see the
 [GTK]: https://docs.gtk.org/gtk3/
 [Glade]: https://glade.gnome.org/
 [dialog]: https://invisible-island.net/dialog/
-[go-dialog screenshot]: https://go-curses.github.io/screenshots/go-dialog--msgbox.png
-[go-charmap screenshot]: https://go-curses.github.io/screenshots/go-charmap.png
-[go-charmap 1010 screenshot]: https://go-curses.github.io/screenshots/go-charmap--1010.png
-[go-ctk glade screenshot]: https://go-curses.github.io/screenshots/go-ctk--glade.png
-[hello-world screenshot]: https://go-curses.github.io/screenshots/hello-world.png
+[go-dialog screenshot]: https://go-curses.org/screenshots/go-dialog--msgbox.png
+[go-charmap screenshot]: https://go-curses.org/screenshots/go-charmap.png
+[go-charmap 1010 screenshot]: https://go-curses.org/screenshots/go-charmap--1010.png
+[go-ctk glade screenshot]: https://go-curses.org/screenshots/go-ctk--glade.png
+[hello-world screenshot]: https://go-curses.org/screenshots/hello-world.png
