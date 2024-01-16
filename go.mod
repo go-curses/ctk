@@ -6,7 +6,7 @@ toolchain go1.21.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/go-curses/cdk v0.5.20
+	github.com/go-curses/cdk v0.5.22
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/iancoleman/strcase v0.3.0
